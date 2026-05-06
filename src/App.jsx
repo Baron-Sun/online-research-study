@@ -185,7 +185,7 @@ const savePayload = async (assignment, payload) => {
     return { mode: "remote" };
   }
 
-  const key = `aita-transmission-${payload.assignment.assignmentId}-${Date.now()}`;
+  const key = `decision-study-${payload.assignment.assignmentId}-${Date.now()}`;
   window.localStorage.setItem(key, JSON.stringify(payload));
   return { mode: "local", key };
 };
@@ -245,7 +245,7 @@ const StudyHeader = ({ assignment }) => (
           Northwestern University Research Study
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-[2.4rem]">
-          Moral Judgment Transmission Chain
+          Everyday Decision-Making Study
         </h1>
       </div>
       <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
@@ -447,10 +447,9 @@ const MoralJudgmentExperiment = () => {
               Study Overview
             </h2>
             <p className="max-w-4xl text-base leading-7 text-slate-700">
-              This study examines how people reason about everyday normative
-              dilemmas as judgments circulate through transmission chains. You
-              will read one anonymized scenario and provide your own verdict and
-              written reasoning.
+              This study examines how people reason about everyday interpersonal
+              situations. You will read one anonymized scenario and provide your
+              own decision and written explanation.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               {[
@@ -521,18 +520,18 @@ const MoralJudgmentExperiment = () => {
             </h2>
             <div className="max-h-[560px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700">
               <p>
-                <strong>Study title:</strong> Moral Judgment Transmission Chain
-                Experiment
+                <strong>Study title:</strong> Everyday Decision-Making Study
               </p>
               <p className="mt-4">
-                <strong>Purpose:</strong> This research examines how moral
-                judgments and written reasoning change as responses are passed
-                through social transmission chains.
+                <strong>Purpose:</strong> This research examines how judgments
+                and written explanations change as people consider everyday
+                interpersonal situations.
               </p>
               <p className="mt-4">
-                <strong>Procedures:</strong> You will read an anonymized moral
-                dilemma and, if available, one response from an earlier round of
-                the study. You will then provide your own verdict and reasoning.
+                <strong>Procedures:</strong> You will read an anonymized
+                scenario and, if available, one response from an earlier round
+                of the study. You will then provide your own decision and
+                explanation.
               </p>
               <p className="mt-4">
                 <strong>Risks:</strong> Some scenarios may involve interpersonal
@@ -608,7 +607,7 @@ const MoralJudgmentExperiment = () => {
               {[
                 [
                   "Read the dilemma",
-                  "The scenario comes from an anonymized online discussion about an everyday normative conflict.",
+                  "The scenario comes from an anonymized online discussion about an everyday interpersonal situation.",
                 ],
                 [
                   previousShown ? "Consider the prior response" : "Begin the chain",
@@ -1011,9 +1010,9 @@ const MoralJudgmentExperiment = () => {
           <div className="grid gap-5 text-sm leading-6 text-slate-700 md:grid-cols-2">
             <div className="space-y-4">
               <p>
-                Thank you for participating. This study examines how normative
-                judgments change as responses circulate through transmission
-                chains.
+                Thank you for participating. This study examines how moral and
+                normative judgments change as responses circulate through
+                transmission chains.
               </p>
               <p>
                 The broader research question is whether different communication

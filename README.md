@@ -1,7 +1,10 @@
-# Moral Judgment Transmission Chain Experiment App
+# Everyday Decision-Making Study App
 
-This is a static React frontend for the Moral Judgment Transmission Chain study.
+This is a static React frontend for the Everyday Decision-Making Study.
 It can be deployed to GitHub Pages.
+
+The participant-facing title is intentionally neutral so the study does not
+prime participants with the primary research question before debriefing.
 
 The main app source lives in `src/App.jsx`. The root `App.js` file is a small
 compatibility re-export.
@@ -28,7 +31,7 @@ automatically in GitHub Actions.
 With GitHub CLI, after `gh auth login`, one typical path is:
 
 ```bash
-gh repo create aita-transmission-chain-app --public --source=. --remote=origin --push
+gh repo create everyday-decision-making-study --public --source=. --remote=origin --push
 ```
 
 For an existing repository:
