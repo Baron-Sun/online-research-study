@@ -1,6 +1,6 @@
-# AITA Transmission Chain Experiment App
+# Moral Judgment Transmission Chain Experiment App
 
-This is a static React frontend for the moral judgment transmission chain study.
+This is a static React frontend for the Moral Judgment Transmission Chain study.
 It can be deployed to GitHub Pages.
 
 The main app source lives in `src/App.jsx`. The root `App.js` file is a small
