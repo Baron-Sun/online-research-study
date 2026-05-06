@@ -1,4 +1,4 @@
-name: Deploy Everyday Decision-Making Study
+name: Deploy Online Research Study
 
 on:
   push:

@@ -147,7 +147,7 @@ const buildPayload = ({
   timings,
   status,
 }) => ({
-  schemaVersion: "transmission-chain-frontend-v1",
+  schemaVersion: "online-research-study-frontend-v1",
   status,
   submittedAt: new Date().toISOString(),
   assignment: {
@@ -185,7 +185,7 @@ const savePayload = async (assignment, payload) => {
     return { mode: "remote" };
   }
 
-  const key = `decision-study-${payload.assignment.assignmentId}-${Date.now()}`;
+  const key = `research-study-${payload.assignment.assignmentId}-${Date.now()}`;
   window.localStorage.setItem(key, JSON.stringify(payload));
   return { mode: "local", key };
 };
@@ -245,7 +245,7 @@ const StudyHeader = ({ assignment }) => (
           Northwestern University Research Study
         </p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-[2.4rem]">
-          Everyday Decision-Making Study
+          Online Research Study
         </h1>
       </div>
       <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
@@ -447,15 +447,14 @@ const MoralJudgmentExperiment = () => {
               Study Overview
             </h2>
             <p className="max-w-4xl text-base leading-7 text-slate-700">
-              This study examines how people reason about everyday interpersonal
-              situations. You will read one anonymized scenario and provide your
-              own decision and written explanation.
+              In this study, you will read one anonymized scenario and provide a
+              brief written response. The study takes about 5 to 10 minutes.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               {[
                 [
                   "Your task",
-                  "Read one dilemma and explain your judgment in your own words.",
+                  "Read one scenario and explain your response in your own words.",
                 ],
                 [
                   "Estimated time",
@@ -520,22 +519,22 @@ const MoralJudgmentExperiment = () => {
             </h2>
             <div className="max-h-[560px] overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-700">
               <p>
-                <strong>Study title:</strong> Everyday Decision-Making Study
+                <strong>Study title:</strong> Online Research Study
               </p>
               <p className="mt-4">
-                <strong>Purpose:</strong> This research examines how judgments
-                and written explanations change as people consider everyday
-                interpersonal situations.
+                <strong>Purpose:</strong> This research examines how people read
+                and respond to written scenarios.
               </p>
               <p className="mt-4">
                 <strong>Procedures:</strong> You will read an anonymized
                 scenario and, if available, one response from an earlier round
-                of the study. You will then provide your own decision and
-                explanation.
+                of the study. You will then provide your own response and
+                written explanation.
               </p>
               <p className="mt-4">
-                <strong>Risks:</strong> Some scenarios may involve interpersonal
-                conflict, family issues, finances, or relationship disagreements.
+                <strong>Risks:</strong> Some scenarios may involve sensitive
+                social situations, including family issues, finances, or
+                relationship disagreements.
                 You may skip the scenario if it causes discomfort.
               </p>
               <p className="mt-4">
@@ -606,8 +605,8 @@ const MoralJudgmentExperiment = () => {
             <div className="grid gap-3 md:grid-cols-2">
               {[
                 [
-                  "Read the dilemma",
-                  "The scenario comes from an anonymized online discussion about an everyday interpersonal situation.",
+                  "Read the scenario",
+                  "The scenario comes from an anonymized online discussion.",
                 ],
                 [
                   previousShown ? "Consider the prior response" : "Begin the chain",
@@ -616,12 +615,12 @@ const MoralJudgmentExperiment = () => {
                     : "This assignment begins a new chain, so you will only see the original scenario.",
                 ],
                 [
-                  "Provide your verdict",
-                  "Choose one standard AITA category and make your judgment independently.",
+                  "Choose a category",
+                  "Select one standard response category independently.",
                 ],
                 [
-                  "Explain your reasoning",
-                  "Write a short justification in your own words. Your reasoning is the main research material.",
+                  "Explain your response",
+                  "Write a short explanation in your own words. Your written response is the main research material.",
                 ],
               ].map(([title, body], index) => (
                 <div
@@ -681,8 +680,8 @@ const MoralJudgmentExperiment = () => {
                       I should copy the prior response as closely as possible.
                     </option>
                     <option value="independent-with-prior">
-                      I should read the scenario and prior response, then give my
-                      own judgment.
+                    I should read the scenario and prior response, then give my
+                    own response.
                     </option>
                   </>
                 ) : (
@@ -691,7 +690,7 @@ const MoralJudgmentExperiment = () => {
                       I cannot answer unless I see a prior response.
                     </option>
                     <option value="independent-no-prior">
-                      I should read the scenario and give my own judgment.
+                    I should read the scenario and give my own response.
                     </option>
                   </>
                 )}
@@ -760,11 +759,11 @@ const MoralJudgmentExperiment = () => {
 
           <Panel className="p-5 xl:sticky xl:top-6 xl:h-fit">
             <h2 className="mb-4 text-xl font-semibold text-slate-950">
-              Your Judgment
+              Your Response
             </h2>
 
             <div>
-              <FieldLabel>Select your verdict</FieldLabel>
+              <FieldLabel>Select a response category</FieldLabel>
               <div className="grid grid-cols-2 gap-2">
                 {VOTES.map((vote) => {
                   const accent = accentClasses[vote.accent];
@@ -791,14 +790,14 @@ const MoralJudgmentExperiment = () => {
             </div>
 
             <div className="mt-5">
-              <FieldLabel>Explain your reasoning</FieldLabel>
+              <FieldLabel>Explain your response</FieldLabel>
               <textarea
                 value={reasoning}
                 onChange={(event) => setReasoning(event.target.value)}
                 placeholder={
                   previousShown
-                    ? "Write your own reasoning. You may agree or disagree with the prior response, but your judgment should be your own."
-                    : "Write your own reasoning about the original dilemma."
+                    ? "Write your own explanation. You may agree or disagree with the prior response, but your response should be your own."
+                    : "Write your own explanation about the original scenario."
                 }
                 className="h-64 w-full resize-none rounded-lg border border-slate-300 bg-white p-4 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100 xl:h-[340px]"
               />
@@ -864,14 +863,14 @@ const MoralJudgmentExperiment = () => {
             Follow-up Questions
           </h2>
           <p className="mb-6 text-sm leading-6 text-slate-600">
-            Please answer these brief questions about your judgment and the
+            Please answer these brief questions about your response and the
             information you saw.
           </p>
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div className="space-y-6">
               <div>
-                <FieldLabel>How confident are you in your judgment?</FieldLabel>
+                <FieldLabel>How confident are you in your response?</FieldLabel>
                 <RatingScale
                   value={confidence}
                   onChange={setConfidence}
@@ -883,7 +882,7 @@ const MoralJudgmentExperiment = () => {
               {previousShown ? (
                 <div>
                   <FieldLabel>
-                    How much did the prior response influence your judgment?
+                    How much did the prior response influence your response?
                   </FieldLabel>
                   <RatingScale
                     value={influence}

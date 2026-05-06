@@ -1,6 +1,6 @@
-# Everyday Decision-Making Study App
+# Online Research Study App
 
-This is a static React frontend for the Everyday Decision-Making Study.
+This is a static React frontend for the Online Research Study.
 It can be deployed to GitHub Pages.
 
 The participant-facing title is intentionally neutral so the study does not
@@ -31,7 +31,7 @@ automatically in GitHub Actions.
 With GitHub CLI, after `gh auth login`, one typical path is:
 
 ```bash
-gh repo create everyday-decision-making-study --public --source=. --remote=origin --push
+gh repo create online-research-study --public --source=. --remote=origin --push
 ```
 
 For an existing repository:
@@ -64,7 +64,7 @@ The app also accepts:
 ## Important Backend Note
 
 GitHub Pages is static hosting. It can display the experiment, but it cannot
-store responses or allocate the next transmission-chain assignment by itself.
+store responses or allocate the next study assignment by itself.
 For real data collection, connect `submit_url` and `assignment_url` to a backend
 such as Supabase, Firebase, Google Apps Script, Qualtrics, or a small API server.
 
