@@ -1,13 +1,20 @@
 # Online Research Study App
 
-This is a static React frontend for a crowdsourced post-rating task.
+This is a static React frontend for two separate crowdsourcing tasks.
 It can be deployed to GitHub Pages.
 
 The participant-facing title is intentionally neutral so the study does not
 prime participants with the primary research question before debriefing.
 
-The main app source lives in `src/App.jsx`. The root `App.js` file is a small
-compatibility re-export.
+The root page is a researcher-facing portal. Participant-facing task links are
+separate pages.
+
+## Task Pages
+
+- `/judgment/`: single-post response task
+- `/ratings/`: multi-post rating task
+
+Use separate crowdsourcing studies or separate study links for these pages.
 
 ## Local Development
 
@@ -44,8 +51,9 @@ git push -u origin main
 ## Runtime Query Parameters
 
 The app can run in demo mode, but real data collection should pass assignment and
-submission settings through the URL. Each assignment should contain the posts one
-worker should rate, usually 5 posts.
+submission settings through the URL. For `/ratings/`, each assignment should
+contain the posts one worker should rate, usually 5 posts. For `/judgment/`, each
+assignment should contain one post and optionally one prior response.
 
 ```text
 https://example.github.io/repo/?assignment_url=https%3A%2F%2Fapi.example.org%2Fassignment%2Fabc&submit_url=https%3A%2F%2Fapi.example.org%2Fsubmit&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
@@ -60,9 +68,9 @@ The app also accepts:
 - `completion_code`
 - `contact_email`
 
-## Assignment JSON
+## Ratings Assignment JSON
 
-`assignment_url` should return:
+For `/ratings/`, `assignment_url` should return:
 
 ```json
 {
@@ -82,6 +90,27 @@ The app also accepts:
 
 The app randomizes post order deterministically using assignment and participant
 metadata, then submits one JSON payload containing one rating object per post.
+
+## Judgment Assignment JSON
+
+For `/judgment/`, `assignment_url` should return:
+
+```json
+{
+  "assignmentId": "judgment-worker-001",
+  "completionCode": "COMPLETE123",
+  "contactEmail": "researcher@northwestern.edu",
+  "post": {
+    "id": "submission_id",
+    "title": "Post title",
+    "content": "Post text"
+  },
+  "previousResponse": {
+    "id": "previous_response_id",
+    "text": "Optional prior response text"
+  }
+}
+```
 
 ## Important Backend Note
 

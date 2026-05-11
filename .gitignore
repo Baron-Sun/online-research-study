@@ -13,6 +13,14 @@
 !src/
 !src/main.jsx
 !src/App.jsx
+!src/JudgmentTask.jsx
+!src/portal.jsx
+!src/judgment.jsx
+!src/ratings.jsx
+!judgment/
+!judgment/index.html
+!ratings/
+!ratings/index.html
 
 node_modules/
 dist/
