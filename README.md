@@ -1,6 +1,6 @@
 # Online Research Study App
 
-This is a static React frontend for the Online Research Study.
+This is a static React frontend for a crowdsourced post-rating task.
 It can be deployed to GitHub Pages.
 
 The participant-facing title is intentionally neutral so the study does not
@@ -44,7 +44,8 @@ git push -u origin main
 ## Runtime Query Parameters
 
 The app can run in demo mode, but real data collection should pass assignment and
-submission settings through the URL:
+submission settings through the URL. Each assignment should contain the posts one
+worker should rate, usually 5 posts.
 
 ```text
 https://example.github.io/repo/?assignment_url=https%3A%2F%2Fapi.example.org%2Fassignment%2Fabc&submit_url=https%3A%2F%2Fapi.example.org%2Fsubmit&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
@@ -54,12 +55,33 @@ The app also accepts:
 
 - `api_base`: backend base URL with `/assignment`
 - `assignment_id`
-- `condition`
-- `question_id`
-- `generation`
-- `chain_id`
-- `participant_slot`
+- `posts_url`: URL returning either an array of posts or an assignment object
+- `n_posts`: number of posts to show; default is 5
 - `completion_code`
+- `contact_email`
+
+## Assignment JSON
+
+`assignment_url` should return:
+
+```json
+{
+  "assignmentId": "worker-batch-001",
+  "completionCode": "COMPLETE123",
+  "contactEmail": "researcher@northwestern.edu",
+  "posts": [
+    {
+      "id": "submission_id",
+      "title": "Post title",
+      "body": "Post text",
+      "sourceBin": "low|medium|high"
+    }
+  ]
+}
+```
+
+The app randomizes post order deterministically using assignment and participant
+metadata, then submits one JSON payload containing one rating object per post.
 
 ## Important Backend Note
 

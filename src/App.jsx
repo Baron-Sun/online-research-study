@@ -1,74 +1,109 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const MIN_REASONING_CHARS = 80;
+const POSTS_PER_WORKER = 5;
 
-const VOTES = [
-  { code: "YTA", label: "You're the Asshole", accent: "rose" },
-  { code: "NTA", label: "Not the Asshole", accent: "emerald" },
-  { code: "ESH", label: "Everyone Sucks Here", accent: "amber" },
-  { code: "NAH", label: "No Assholes Here", accent: "sky" },
-  { code: "INFO", label: "Not Enough Info", accent: "violet" },
+const RATING_ITEMS = [
+  {
+    key: "op_wrong",
+    label: "Question 1",
+    prompt:
+      "To what extent do you think the OP (original poster) is in the wrong in this situation?",
+    anchors: {
+      1: "Definitely not in the wrong",
+      4: "Unclear / both sides have a point",
+      7: "Definitely in the wrong",
+    },
+  },
+  {
+    key: "conviction",
+    label: "Question 2",
+    prompt: "How strongly do you feel about your response above?",
+    anchors: {
+      1: "Not strongly at all",
+      4: "Moderately strongly",
+      7: "Extremely strongly",
+    },
+  },
+  {
+    key: "ambivalence",
+    label: "Question 3",
+    prompt: "How torn or conflicted do you feel about your response to the OP?",
+    anchors: {
+      1: "Not torn at all; the answer is clear to me",
+      4: "Somewhat torn",
+      7: "Extremely torn; I genuinely cannot decide",
+    },
+  },
+  {
+    key: "perceived_disagreement",
+    label: "Question 4",
+    prompt:
+      "If 100 thoughtful people read this post, what would their responses look like?",
+    anchors: {
+      1: "Nearly all would reach the same response",
+      4: "Mixed; many different views",
+      7: "People would split into clearly opposed camps",
+    },
+  },
 ];
 
 const DEMO_ASSIGNMENT = {
-  assignmentId: "demo-assignment",
-  condition: "human_ai",
-  questionId: "demo_inheritance",
-  generation: 2,
-  chainId: "demo-chain-01",
-  participantSlot: 1,
-  completionCode: "AITA-DEMO-COMPLETE",
+  assignmentId: "demo-rating-assignment",
+  completionCode: "ONLINE-DEMO-COMPLETE",
   submitEndpoint: "",
   contactEmail: "researcher@northwestern.edu",
-  post: {
-    title: "AITA for refusing to share my inheritance with my step-siblings?",
-    content: `My (28F) grandmother passed away last year and left me a significant inheritance. My mother remarried when I was 15, and I have two step-siblings (26M, 24F) who my grandmother never really bonded with since she met them as teenagers.
+  posts: [
+    {
+      id: "demo_001",
+      sourceBin: "medium",
+      title: "AITA for not sharing my inheritance with my step-siblings?",
+      body: `My grandmother passed away last year and left me a significant inheritance. My mother remarried when I was 15, and I have two step-siblings who my grandmother met when they were already teenagers.
 
-My step-siblings are now saying I should split the inheritance three ways since we're "family." My stepfather agrees and says it would be the "right thing to do." My mother is staying neutral but I can tell she's uncomfortable.
+My step-siblings now say I should split the inheritance three ways because we are family. My stepfather agrees and says it would be the right thing to do. My mother is staying neutral, but I can tell she is uncomfortable.
 
-I don't think I should have to share money that MY grandmother specifically left to ME. She had every opportunity to include them in her will and chose not to. AITA?`,
-  },
-  previousResponse: {
-    id: "demo-prev-001",
-    text: `NTA
+I do not think I should have to share money that my grandmother specifically left to me. She had every opportunity to include them in her will and chose not to. AITA?`,
+    },
+    {
+      id: "demo_002",
+      sourceBin: "high",
+      title: "AITA for leaving a group trip after my friends changed the plan?",
+      body: `I planned a weekend trip with four friends and booked a small cabin. The original plan was hiking, cooking dinner, and relaxing. Two days before the trip, they told me they had invited three more people I barely know and wanted to turn it into more of a party weekend.
 
-Your grandmother made her wishes clear through her will. She specifically chose to leave her inheritance to you, and she deliberately did not include your step-siblings. That was her right and her decision to make.
+I said that was not what I agreed to and asked them to keep the original plan. They said I was being controlling because everyone else was excited. I ended up canceling my share and not going.
 
-Your step-siblings' sense of entitlement is misplaced. An inheritance is not a family lottery. It reflects the final wishes of the person who passed away, and your family should respect that.`,
-  },
-};
+Now they are upset because the cabin cost more per person without me. AITA?`,
+    },
+    {
+      id: "demo_003",
+      sourceBin: "low",
+      title: "AITA for asking my roommate to replace food they ate?",
+      body: `I live with two roommates. We normally buy our own groceries and label anything that is not shared. Last week I bought ingredients for lunches for the whole week and labeled the containers.
 
-const accentClasses = {
-  rose: {
-    text: "text-rose-700",
-    border: "border-rose-500",
-    bg: "bg-rose-50",
-    ring: "ring-rose-100",
-  },
-  emerald: {
-    text: "text-emerald-700",
-    border: "border-emerald-500",
-    bg: "bg-emerald-50",
-    ring: "ring-emerald-100",
-  },
-  amber: {
-    text: "text-amber-700",
-    border: "border-amber-500",
-    bg: "bg-amber-50",
-    ring: "ring-amber-100",
-  },
-  sky: {
-    text: "text-sky-700",
-    border: "border-sky-500",
-    bg: "bg-sky-50",
-    ring: "ring-sky-100",
-  },
-  violet: {
-    text: "text-violet-700",
-    border: "border-violet-500",
-    bg: "bg-violet-50",
-    ring: "ring-violet-100",
-  },
+One roommate ate most of it over two days. When I asked them to replace it, they said they were short on money and thought I would not mind because I usually cook a lot. I said I needed that food for work lunches and asked them to pay me back when they could.
+
+They said I was making a big deal out of food. AITA?`,
+    },
+    {
+      id: "demo_004",
+      sourceBin: "high",
+      title: "AITA for telling my sister I would not attend her wedding?",
+      body: `My sister is getting married next month. We have had a strained relationship for years, mostly because she often makes jokes about my career and relationship in front of other people.
+
+At a family dinner she made another joke about me being the family disappointment. I told her privately afterward that it hurt and asked her to stop. She said I was too sensitive and that everyone knew she was joking.
+
+I told her I did not want to attend the wedding if she could not treat me with basic respect. My parents say I am escalating things right before an important family event. AITA?`,
+    },
+    {
+      id: "demo_005",
+      sourceBin: "medium",
+      title: "AITA for refusing to lend money to a friend again?",
+      body: `A close friend has borrowed money from me several times over the past year. They usually pay it back, but often later than promised. Last month they asked for another loan to cover rent.
+
+I told them I could not keep being their backup plan and suggested they talk to family or their landlord. They got upset and said I knew how stressful their situation was.
+
+I feel bad because I technically could afford to help, but I also feel used. AITA?`,
+    },
+  ],
 };
 
 const TailwindLoader = ({ children }) => {
@@ -100,17 +135,63 @@ const TailwindLoader = ({ children }) => {
 
 const getQueryParams = () => new URLSearchParams(window.location.search);
 
-const intFromParam = (params, key, fallback) => {
-  const value = Number.parseInt(params.get(key), 10);
-  return Number.isFinite(value) ? value : fallback;
-};
-
 const getProlificMeta = () => {
   const params = getQueryParams();
   return {
     prolificPid: params.get("PROLIFIC_PID") || params.get("prolific_pid") || "",
     studyId: params.get("STUDY_ID") || params.get("study_id") || "",
     sessionId: params.get("SESSION_ID") || params.get("session_id") || "",
+  };
+};
+
+const hashString = (input) => {
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const seededRandom = (seed) => {
+  let state = seed || 1;
+  return () => {
+    state = Math.imul(1664525, state) + 1013904223;
+    return ((state >>> 0) / 4294967296);
+  };
+};
+
+const seededShuffle = (items, seedText) => {
+  const shuffled = [...items];
+  const random = seededRandom(hashString(seedText));
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+
+  return shuffled;
+};
+
+const normalizePost = (post, index) => ({
+  id: String(post.id || post.submission_id || post.post_id || `post_${index + 1}`),
+  title: post.title || `Post ${index + 1}`,
+  body: post.body || post.content || post.selftext || post.text || "",
+  sourceBin: post.sourceBin || post.bin || post.disagreement_bin || null,
+  metadata: post.metadata || {},
+});
+
+const normalizeAssignment = (assignment) => {
+  const posts = Array.isArray(assignment.posts)
+    ? assignment.posts
+    : Array.isArray(assignment.submissions)
+      ? assignment.submissions
+      : [];
+
+  return {
+    ...DEMO_ASSIGNMENT,
+    ...assignment,
+    posts: posts.map(normalizePost).filter((post) => post.body.trim()),
   };
 };
 
@@ -122,53 +203,11 @@ const applyQueryOverrides = (assignment) => {
       params.get("assignment_id") ||
       params.get("assignment") ||
       assignment.assignmentId,
-    condition: params.get("condition") || assignment.condition,
-    questionId: params.get("question_id") || assignment.questionId,
-    generation: intFromParam(params, "generation", assignment.generation),
-    chainId: params.get("chain_id") || assignment.chainId,
-    participantSlot: intFromParam(
-      params,
-      "participant_slot",
-      assignment.participantSlot
-    ),
     completionCode: params.get("completion_code") || assignment.completionCode,
+    contactEmail: params.get("contact_email") || assignment.contactEmail,
     submitEndpoint: params.get("submit_url") || assignment.submitEndpoint,
   };
 };
-
-const hasPreviousResponse = (assignment) =>
-  Boolean(assignment?.previousResponse?.text?.trim());
-
-const buildPayload = ({
-  assignment,
-  participant,
-  response,
-  postTask,
-  timings,
-  status,
-}) => ({
-  schemaVersion: "online-research-study-frontend-v1",
-  status,
-  submittedAt: new Date().toISOString(),
-  assignment: {
-    assignmentId: assignment.assignmentId,
-    condition: assignment.condition,
-    questionId: assignment.questionId,
-    generation: assignment.generation,
-    chainId: assignment.chainId,
-    participantSlot: assignment.participantSlot,
-    previousResponseId: assignment.previousResponse?.id || null,
-    previousResponseShown: hasPreviousResponse(assignment),
-  },
-  participant,
-  response,
-  postTask,
-  timings,
-  client: {
-    userAgent: window.navigator.userAgent,
-    language: window.navigator.language,
-  },
-});
 
 const savePayload = async (assignment, payload) => {
   if (assignment.submitEndpoint) {
@@ -185,7 +224,7 @@ const savePayload = async (assignment, payload) => {
     return { mode: "remote" };
   }
 
-  const key = `research-study-${payload.assignment.assignmentId}-${Date.now()}`;
+  const key = `post-rating-study-${payload.assignment.assignmentId}-${Date.now()}`;
   window.localStorage.setItem(key, JSON.stringify(payload));
   return { mode: "local", key };
 };
@@ -216,9 +255,7 @@ const Button = ({
   const styles =
     variant === "primary"
       ? "bg-slate-900 text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:text-slate-500"
-      : variant === "danger"
-        ? "border border-rose-200 bg-white text-rose-700 hover:bg-rose-50 disabled:text-slate-400"
-        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-400";
+      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:text-slate-400";
 
   return (
     <button
@@ -231,14 +268,8 @@ const Button = ({
   );
 };
 
-const FieldLabel = ({ children }) => (
-  <label className="mb-2 block text-sm font-semibold text-slate-700">
-    {children}
-  </label>
-);
-
 const StudyHeader = ({ assignment }) => (
-  <header className="mb-6 border-b border-slate-200 pb-5">
+  <header className="mb-5 border-b border-slate-200 pb-5">
     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div>
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -256,77 +287,119 @@ const StudyHeader = ({ assignment }) => (
   </header>
 );
 
-const Progress = ({ current }) => {
-  const steps = ["Consent", "Instructions", "Task", "Questions", "Debrief"];
-  const index = steps.indexOf(current);
-  return (
-    <div className="mb-5">
-      <div className="mb-2 flex justify-between text-xs font-medium text-slate-500">
-        {steps.map((step, i) => (
-          <span key={step} className={i <= index ? "text-slate-900" : ""}>
-            {step}
-          </span>
-        ))}
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-        <div
-          className="h-full rounded-full bg-slate-900 transition-all"
-          style={{ width: `${Math.max(((index + 1) / steps.length) * 100, 8)}%` }}
-        />
-      </div>
+const ProgressBar = ({ current, total }) => (
+  <div className="mb-5">
+    <div className="mb-2 flex justify-between text-xs font-medium text-slate-500">
+      <span>
+        Post {Math.min(current + 1, total)} of {total}
+      </span>
+      <span>{Math.round(((current + 1) / total) * 100)}%</span>
     </div>
-  );
-};
+    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
+      <div
+        className="h-full rounded-full bg-slate-900 transition-all"
+        style={{ width: `${((current + 1) / total) * 100}%` }}
+      />
+    </div>
+  </div>
+);
 
-const RatingScale = ({ value, onChange, labelLeft, labelRight }) => (
-  <div>
-    <div className="grid grid-cols-7 gap-2">
-      {[1, 2, 3, 4, 5, 6, 7].map((rating) => (
+const LikertItem = ({ item, value, onChange }) => (
+  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {item.label}
+    </div>
+    <p className="mb-3 text-sm font-semibold leading-6 text-slate-900">
+      {item.prompt}
+    </p>
+    <div className="grid grid-cols-7 gap-1.5">
+      {[1, 2, 3, 4, 5, 6, 7].map((score) => (
         <button
-          key={rating}
+          key={score}
           type="button"
-          onClick={() => onChange(String(rating))}
-          className={`rounded-lg border py-2 text-sm font-semibold transition ${
-            value === String(rating)
+          onClick={() => onChange(String(score))}
+          className={`h-10 rounded-lg border text-sm font-semibold transition ${
+            value === String(score)
               ? "border-slate-900 bg-slate-900 text-white"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
           }`}
+          aria-label={`${item.label}: ${score}`}
         >
-          {rating}
+          {score}
         </button>
       ))}
     </div>
-    <div className="mt-2 flex justify-between text-xs text-slate-500">
-      <span>{labelLeft}</span>
-      <span>{labelRight}</span>
+    <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] leading-4 text-slate-500">
+      <span>1 - {item.anchors[1]}</span>
+      <span className="text-center">4 - {item.anchors[4]}</span>
+      <span className="text-right">7 - {item.anchors[7]}</span>
     </div>
   </div>
 );
 
-const TextBlock = ({ children }) => (
-  <div className="whitespace-pre-line text-sm leading-6 text-slate-700">
-    {children}
-  </div>
-);
+const isPostComplete = (postRating) =>
+  RATING_ITEMS.every((item) => Boolean(postRating?.[item.key]));
 
-const MoralJudgmentExperiment = () => {
+const makeEmptyRatings = (posts) =>
+  Object.fromEntries(posts.map((post) => [post.id, {}]));
+
+const buildPayload = ({
+  assignment,
+  participant,
+  posts,
+  ratings,
+  postFirstSeenAt,
+  attentionCheck,
+  timings,
+  status,
+}) => ({
+  schemaVersion: "post-controversiality-rating-v1",
+  status,
+  submittedAt: new Date().toISOString(),
+  assignment: {
+    assignmentId: assignment.assignmentId,
+    completionCode: assignment.completionCode,
+    postCount: posts.length,
+    postIds: posts.map((post) => post.id),
+  },
+  participant,
+  attentionCheck,
+  ratings: posts.map((post, order) => ({
+    postId: post.id,
+    postTitle: post.title,
+    sourceBin: post.sourceBin,
+    order: order + 1,
+    firstSeenAt: postFirstSeenAt[post.id] || null,
+    responses: Object.fromEntries(
+      RATING_ITEMS.map((item) => [
+        item.key,
+        ratings[post.id]?.[item.key] ? Number(ratings[post.id][item.key]) : null,
+      ])
+    ),
+  })),
+  timings: {
+    ...timings,
+    finalizedAt: new Date().toISOString(),
+  },
+  client: {
+    userAgent: window.navigator.userAgent,
+    language: window.navigator.language,
+  },
+});
+
+const ControversialityRatingTask = () => {
   const [assignment, setAssignment] = useState(() =>
-    applyQueryOverrides(DEMO_ASSIGNMENT)
+    applyQueryOverrides(normalizeAssignment(DEMO_ASSIGNMENT))
   );
   const [loadState, setLoadState] = useState("ready");
   const [loadError, setLoadError] = useState("");
-  const [currentScreen, setCurrentScreen] = useState("landing");
+  const [screen, setScreen] = useState("landing");
   const [agreed, setAgreed] = useState(false);
   const [comprehension, setComprehension] = useState("");
-  const [selectedVote, setSelectedVote] = useState("");
-  const [reasoning, setReasoning] = useState("");
-  const [confidence, setConfidence] = useState("");
-  const [influence, setInfluence] = useState("");
-  const [sourceGuess, setSourceGuess] = useState("");
+  const [currentPostIndex, setCurrentPostIndex] = useState(0);
+  const [ratings, setRatings] = useState(() => makeEmptyRatings(DEMO_ASSIGNMENT.posts));
+  const [postFirstSeenAt, setPostFirstSeenAt] = useState({});
   const [attentionCheck, setAttentionCheck] = useState("");
-  const [ageRange, setAgeRange] = useState("");
-  const [gender, setGender] = useState("");
-  const [nativeEnglish, setNativeEnglish] = useState("");
   const [submissionState, setSubmissionState] = useState("idle");
   const [submissionError, setSubmissionError] = useState("");
   const [saveMode, setSaveMode] = useState("");
@@ -336,24 +409,33 @@ const MoralJudgmentExperiment = () => {
   });
 
   const participant = useMemo(() => getProlificMeta(), []);
-  const previousShown = hasPreviousResponse(assignment);
-  const canStartTask =
-    comprehension ===
-    (previousShown ? "independent-with-prior" : "independent-no-prior");
-  const canSubmitTask =
-    selectedVote && reasoning.trim().length >= MIN_REASONING_CHARS;
-  const canSubmitPostTask =
-    confidence &&
-    (previousShown ? influence && sourceGuess : true) &&
-    attentionCheck === "blue";
+
+  const posts = useMemo(() => {
+    const params = getQueryParams();
+    const requestedCount = Number.parseInt(params.get("n_posts"), 10);
+    const count = Number.isFinite(requestedCount) ? requestedCount : POSTS_PER_WORKER;
+    const seed = [
+      assignment.assignmentId,
+      participant.prolificPid,
+      participant.sessionId,
+      participant.studyId,
+    ].join("|");
+
+    return seededShuffle(assignment.posts, seed).slice(0, count);
+  }, [assignment, participant.prolificPid, participant.sessionId, participant.studyId]);
+
+  const currentPost = posts[currentPostIndex] || posts[0];
+  const completedCount = posts.filter((post) => isPostComplete(ratings[post.id])).length;
+  const allPostsComplete = posts.length > 0 && completedCount === posts.length;
 
   useEffect(() => {
     const params = getQueryParams();
     const assignmentUrl = params.get("assignment_url");
+    const postsUrl = params.get("posts_url");
     const apiBase = params.get("api_base");
     const assignmentId = params.get("assignment_id") || params.get("assignment");
 
-    if (!assignmentUrl && !apiBase) return;
+    if (!assignmentUrl && !postsUrl && !apiBase) return;
 
     const loadAssignment = async () => {
       setLoadState("loading");
@@ -362,6 +444,7 @@ const MoralJudgmentExperiment = () => {
       try {
         const url =
           assignmentUrl ||
+          postsUrl ||
           `${apiBase.replace(/\/$/, "")}/assignment?assignment_id=${encodeURIComponent(
             assignmentId || ""
           )}&prolific_pid=${encodeURIComponent(participant.prolificPid)}`;
@@ -371,12 +454,15 @@ const MoralJudgmentExperiment = () => {
           throw new Error(`Assignment request failed with HTTP ${response.status}`);
         }
 
-        const remoteAssignment = await response.json();
-        setAssignment(applyQueryOverrides(remoteAssignment));
-        setLoadState("ready");
+        const data = await response.json();
+        const remoteAssignment = Array.isArray(data) ? { posts: data } : data;
+        setAssignment(applyQueryOverrides(normalizeAssignment(remoteAssignment)));
+        setScreen("landing");
       } catch (error) {
         setLoadState("error");
         setLoadError(error.message);
+      } finally {
+        setLoadState((current) => (current === "error" ? "error" : "ready"));
       }
     };
 
@@ -384,53 +470,60 @@ const MoralJudgmentExperiment = () => {
   }, [participant.prolificPid]);
 
   useEffect(() => {
+    setRatings((currentRatings) => ({
+      ...makeEmptyRatings(posts),
+      ...currentRatings,
+    }));
+  }, [posts]);
+
+  useEffect(() => {
+    if (!currentPost) return;
+    setPostFirstSeenAt((current) => ({
+      ...current,
+      [currentPost.id]: current[currentPost.id] || new Date().toISOString(),
+    }));
+  }, [currentPost]);
+
+  useEffect(() => {
     setTimings((current) => ({
       ...current,
       screens: {
         ...current.screens,
-        [currentScreen]: current.screens[currentScreen] || new Date().toISOString(),
+        [screen]: current.screens[screen] || new Date().toISOString(),
       },
     }));
-  }, [currentScreen]);
+  }, [screen]);
 
-  const submitPayload = async (status, extra = {}) => {
+  const setRating = (postId, itemKey, value) => {
+    setRatings((current) => ({
+      ...current,
+      [postId]: {
+        ...current[postId],
+        [itemKey]: value,
+      },
+    }));
+  };
+
+  const submit = async () => {
     setSubmissionState("submitting");
     setSubmissionError("");
 
     const payload = buildPayload({
       assignment,
       participant,
-      status,
-      response: {
-        verdict: status === "completed" ? selectedVote : null,
-        reasoning: status === "completed" ? reasoning.trim() : "",
-        reasoningCharCount:
-          status === "completed" ? reasoning.trim().length : 0,
-        ...extra.response,
-      },
-      postTask: {
-        confidence,
-        influence: previousShown ? influence : "not_applicable",
-        sourceGuess: previousShown ? sourceGuess : "no_prior",
-        attentionCheck,
-        demographics: {
-          ageRange,
-          gender,
-          nativeEnglish,
-        },
-        ...extra.postTask,
-      },
-      timings: {
-        ...timings,
-        finalizedAt: new Date().toISOString(),
-      },
+      posts,
+      ratings,
+      postFirstSeenAt,
+      attentionCheck,
+      timings,
+      status: "completed",
     });
 
     try {
       const result = await savePayload(assignment, payload);
       setSaveMode(result.mode);
       setSubmissionState("saved");
-      setCurrentScreen("debrief");
+      setScreen("debrief");
     } catch (error) {
       setSubmissionState("error");
       setSubmissionError(error.message);
@@ -441,29 +534,22 @@ const MoralJudgmentExperiment = () => {
     landing: (
       <Page>
         <StudyHeader assignment={assignment} />
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <Panel className="p-6">
             <h2 className="mb-3 text-2xl font-semibold tracking-tight text-slate-950">
               Study Overview
             </h2>
             <p className="max-w-4xl text-base leading-7 text-slate-700">
-              In this study, you will read one anonymized scenario and provide a
-              brief written response. The study takes about 5 to 10 minutes.
+              In this study, you will read {posts.length || POSTS_PER_WORKER}{" "}
+              anonymized online posts. For each post, you will answer four short
+              questions about your response and how you think other readers might
+              respond.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               {[
-                [
-                  "Your task",
-                  "Read one scenario and explain your response in your own words.",
-                ],
-                [
-                  "Estimated time",
-                  "Most participants finish in about 5 to 10 minutes.",
-                ],
-                [
-                  "Confidentiality",
-                  "Responses are stored without your name and used for research.",
-                ],
+                ["Task", `${posts.length || POSTS_PER_WORKER} posts`],
+                ["Time", "About 8 to 12 minutes"],
+                ["Data", "Research use only"],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -472,7 +558,7 @@ const MoralJudgmentExperiment = () => {
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {label}
                   </div>
-                  <div className="mt-2 text-sm leading-6 text-slate-700">
+                  <div className="mt-2 text-sm font-semibold text-slate-900">
                     {value}
                   </div>
                 </div>
@@ -484,9 +570,8 @@ const MoralJudgmentExperiment = () => {
               Session Ready
             </h3>
             <p className="text-sm leading-6 text-slate-600">
-              After consent and instructions, the study interface will open in
-              this browser window. Your response will be linked to this research
-              session for data quality and payment processing.
+              After consent and instructions, the task will open in this browser
+              window.
             </p>
             <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <span className="font-semibold">Platform ID:</span>{" "}
@@ -500,7 +585,7 @@ const MoralJudgmentExperiment = () => {
             <Button
               className="mt-5 w-full"
               disabled={loadState === "loading" || loadState === "error"}
-              onClick={() => setCurrentScreen("consent")}
+              onClick={() => setScreen("consent")}
             >
               Begin Study
             </Button>
@@ -511,7 +596,7 @@ const MoralJudgmentExperiment = () => {
 
     consent: (
       <Page width="max-w-6xl">
-        <Progress current="Consent" />
+        <StudyHeader assignment={assignment} />
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <Panel className="p-6">
             <h2 className="mb-4 text-2xl font-semibold text-slate-950">
@@ -523,19 +608,16 @@ const MoralJudgmentExperiment = () => {
               </p>
               <p className="mt-4">
                 <strong>Purpose:</strong> This research examines how people read
-                and respond to written scenarios.
+                and respond to written online posts.
               </p>
               <p className="mt-4">
-                <strong>Procedures:</strong> You will read an anonymized
-                scenario and, if available, one response from an earlier round
-                of the study. You will then provide your own response and
-                written explanation.
+                <strong>Procedures:</strong> You will read several anonymized
+                posts and answer four short questions after each post.
               </p>
               <p className="mt-4">
-                <strong>Risks:</strong> Some scenarios may involve sensitive
-                social situations, including family issues, finances, or
-                relationship disagreements.
-                You may skip the scenario if it causes discomfort.
+                <strong>Risks:</strong> Some posts may involve sensitive social
+                situations, including family issues, finances, or relationship
+                disagreements. You may stop at any time.
               </p>
               <p className="mt-4">
                 <strong>Confidentiality:</strong> Your study response will be
@@ -543,12 +625,8 @@ const MoralJudgmentExperiment = () => {
                 only for payment, duplicate prevention, and data quality checks.
               </p>
               <p className="mt-4">
-                <strong>Voluntary participation:</strong> Your participation is
-                voluntary. You may stop at any time without penalty.
-              </p>
-              <p className="mt-4">
-                <strong>Contact:</strong> For questions about this research, contact{" "}
-                {assignment.contactEmail || "researcher@northwestern.edu"}.
+                <strong>Contact:</strong> For questions about this research,
+                contact {assignment.contactEmail || "researcher@northwestern.edu"}.
               </p>
             </div>
           </Panel>
@@ -557,10 +635,6 @@ const MoralJudgmentExperiment = () => {
             <h3 className="text-base font-semibold text-slate-950">
               Consent Confirmation
             </h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Please confirm that you understand the study information before
-              continuing.
-            </p>
             <label className="mt-5 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
               <input
                 type="checkbox"
@@ -573,18 +647,14 @@ const MoralJudgmentExperiment = () => {
                 or older and voluntarily agree to participate.
               </span>
             </label>
-
             <div className="mt-6 flex gap-3">
-              <Button
-                variant="secondary"
-                onClick={() => setCurrentScreen("landing")}
-              >
+              <Button variant="secondary" onClick={() => setScreen("landing")}>
                 Back
               </Button>
               <Button
                 className="flex-1"
                 disabled={!agreed}
-                onClick={() => setCurrentScreen("instructions")}
+                onClick={() => setScreen("instructions")}
               >
                 I Agree
               </Button>
@@ -596,7 +666,7 @@ const MoralJudgmentExperiment = () => {
 
     instructions: (
       <Page width="max-w-6xl">
-        <Progress current="Instructions" />
+        <StudyHeader assignment={assignment} />
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
           <Panel className="p-6">
             <h2 className="mb-4 text-2xl font-semibold text-slate-950">
@@ -605,22 +675,20 @@ const MoralJudgmentExperiment = () => {
             <div className="grid gap-3 md:grid-cols-2">
               {[
                 [
-                  "Read the scenario",
-                  "The scenario comes from an anonymized online discussion.",
+                  "Read each post carefully",
+                  "Each post describes a situation from the perspective of the person who wrote it.",
                 ],
                 [
-                  previousShown ? "Consider the prior response" : "Begin the chain",
-                  previousShown
-                    ? "You will see one response from an earlier round. Treat it as context, not as an answer key."
-                    : "This assignment begins a new chain, so you will only see the original scenario.",
+                  "Answer in order",
+                  "For each post, answer the four questions in the order shown.",
                 ],
                 [
-                  "Choose a category",
-                  "Select one standard response category independently.",
+                  "Use the full scale",
+                  "There are no right or wrong answers. Choose the number that best matches your reaction.",
                 ],
                 [
-                  "Explain your response",
-                  "Write a short explanation in your own words. Your written response is the main research material.",
+                  "Finish all posts",
+                  `You will rate ${posts.length || POSTS_PER_WORKER} posts before submitting the study.`,
                 ],
               ].map(([title, body], index) => (
                 <div
@@ -641,213 +709,32 @@ const MoralJudgmentExperiment = () => {
             </div>
           </Panel>
 
-          <div className="space-y-5">
-            <Panel className="p-4">
-              <h3 className="mb-3 text-sm font-semibold text-slate-950">
-                Voting Categories
-              </h3>
-              <div className="grid gap-2">
-                {VOTES.map((vote) => {
-                  const accent = accentClasses[vote.accent];
-                  return (
-                    <div
-                      key={vote.code}
-                      className={`rounded-lg border p-3 ${accent.bg} ${accent.border}`}
-                    >
-                      <span className={`font-mono font-bold ${accent.text}`}>
-                        {vote.code}
-                      </span>
-                      <span className="ml-2 text-sm text-slate-700">
-                        {vote.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </Panel>
+          <Panel className="p-5 lg:sticky lg:top-6 lg:h-fit">
+            <label className="mb-2 block text-sm font-semibold text-slate-700">
+              Comprehension check
+            </label>
+            <select
+              value={comprehension}
+              onChange={(event) => setComprehension(event.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
+            >
+              <option value="">Select the correct statement</option>
+              <option value="single">I will rate only one post.</option>
+              <option value="all-posts">
+                I will read all assigned posts and answer four questions for each.
+              </option>
+            </select>
 
-            <Panel className="p-4">
-              <FieldLabel>Comprehension check</FieldLabel>
-              <select
-                value={comprehension}
-                onChange={(event) => setComprehension(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
-              >
-                <option value="">Select the correct statement</option>
-                {previousShown ? (
-                  <>
-                    <option value="copy-prior">
-                      I should copy the prior response as closely as possible.
-                    </option>
-                    <option value="independent-with-prior">
-                    I should read the scenario and prior response, then give my
-                    own response.
-                    </option>
-                  </>
-                ) : (
-                  <>
-                    <option value="wait-prior">
-                      I cannot answer unless I see a prior response.
-                    </option>
-                    <option value="independent-no-prior">
-                    I should read the scenario and give my own response.
-                    </option>
-                  </>
-                )}
-              </select>
-
-              <div className="mt-5 flex gap-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => setCurrentScreen("consent")}
-                >
-                  Back
-                </Button>
-                <Button
-                  className="flex-1"
-                  disabled={!canStartTask}
-                  onClick={() => setCurrentScreen("task")}
-                >
-                  Start Task
-                </Button>
-              </div>
-            </Panel>
-          </div>
-        </div>
-      </Page>
-    ),
-
-    task: (
-      <Page width="max-w-[1600px]">
-        <Progress current="Task" />
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Panel className="overflow-hidden">
-              <div className="border-b border-slate-200 px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Original Dilemma
-                </p>
-                <h2 className="mt-2 text-xl font-semibold leading-7 text-slate-950">
-                  {assignment.post.title}
-                </h2>
-              </div>
-              <div className="p-5">
-                <TextBlock>{assignment.post.content}</TextBlock>
-              </div>
-            </Panel>
-
-            {previousShown ? (
-              <Panel className="overflow-hidden">
-                <div className="border-b border-slate-200 px-5 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Prior Response
-                  </p>
-                  <h3 className="mt-1 text-base font-semibold text-slate-950">
-                    Response from an earlier round of the study
-                  </h3>
-                </div>
-                <div className="p-5">
-                  <TextBlock>{assignment.previousResponse.text}</TextBlock>
-                </div>
-              </Panel>
-            ) : (
-              <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm leading-6 text-slate-600 shadow-sm">
-                This assignment begins a new chain. No prior response is shown.
-              </div>
-            )}
-          </div>
-
-          <Panel className="p-5 xl:sticky xl:top-6 xl:h-fit">
-            <h2 className="mb-4 text-xl font-semibold text-slate-950">
-              Your Response
-            </h2>
-
-            <div>
-              <FieldLabel>Select a response category</FieldLabel>
-              <div className="grid grid-cols-2 gap-2">
-                {VOTES.map((vote) => {
-                  const accent = accentClasses[vote.accent];
-                  const selected = selectedVote === vote.code;
-                  return (
-                    <button
-                      key={vote.code}
-                      type="button"
-                      onClick={() => setSelectedVote(vote.code)}
-                      className={`rounded-lg border p-3 text-left transition ${
-                        selected
-                          ? `${accent.border} ${accent.bg} ring-2 ${accent.ring}`
-                          : "border-slate-300 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <span className={`block font-mono font-bold ${accent.text}`}>
-                        {vote.code}
-                      </span>
-                      <span className="text-xs text-slate-600">{vote.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <FieldLabel>Explain your response</FieldLabel>
-              <textarea
-                value={reasoning}
-                onChange={(event) => setReasoning(event.target.value)}
-                placeholder={
-                  previousShown
-                    ? "Write your own explanation. You may agree or disagree with the prior response, but your response should be your own."
-                    : "Write your own explanation about the original scenario."
-                }
-                className="h-64 w-full resize-none rounded-lg border border-slate-300 bg-white p-4 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100 xl:h-[340px]"
-              />
-              <div className="mt-2 flex justify-between text-xs">
-                <span className="text-slate-500">
-                  Minimum {MIN_REASONING_CHARS} characters
-                </span>
-                <span
-                  className={
-                    reasoning.trim().length >= MIN_REASONING_CHARS
-                      ? "font-semibold text-emerald-700"
-                      : "text-slate-500"
-                  }
-                >
-                  {reasoning.trim().length} characters
-                </span>
-              </div>
-            </div>
-
-            {submissionState === "error" && (
-              <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                {submissionError}
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button
-                variant="danger"
-                className="sm:w-1/3"
-                disabled={submissionState === "submitting"}
-                onClick={() =>
-                  submitPayload("skipped", {
-                    response: { skipReason: "participant_discomfort_or_choice" },
-                    postTask: {
-                      confidence: "",
-                      influence: "",
-                      sourceGuess: "",
-                      attentionCheck: "",
-                    },
-                  })
-                }
-              >
-                Skip Scenario
+            <div className="mt-5 flex gap-3">
+              <Button variant="secondary" onClick={() => setScreen("consent")}>
+                Back
               </Button>
               <Button
-                className="sm:flex-1"
-                disabled={!canSubmitTask || submissionState === "submitting"}
-                onClick={() => setCurrentScreen("postTask")}
+                className="flex-1"
+                disabled={comprehension !== "all-posts"}
+                onClick={() => setScreen("task")}
               >
-                Continue
+                Start Task
               </Button>
             </div>
           </Panel>
@@ -855,128 +742,154 @@ const MoralJudgmentExperiment = () => {
       </Page>
     ),
 
-    postTask: (
-      <Page width="max-w-6xl">
-        <Progress current="Questions" />
+    task: (
+      <Page width="max-w-[1600px]">
+        <StudyHeader assignment={assignment} />
+        <ProgressBar current={currentPostIndex} total={posts.length} />
+        <div className="grid gap-5 xl:grid-cols-[260px_minmax(0,1fr)_500px]">
+          <Panel className="p-4 xl:sticky xl:top-6 xl:h-fit">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Assigned Posts
+            </h2>
+            <div className="space-y-2">
+              {posts.map((post, index) => {
+                const complete = isPostComplete(ratings[post.id]);
+                const active = index === currentPostIndex;
+                return (
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => setCurrentPostIndex(index)}
+                    className={`w-full rounded-lg border p-3 text-left text-sm transition ${
+                      active
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : complete
+                          ? "border-emerald-200 bg-emerald-50 text-slate-800"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="block font-semibold">Post {index + 1}</span>
+                    <span className={active ? "text-slate-200" : "text-slate-500"}>
+                      {complete ? "Complete" : "Incomplete"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel className="overflow-hidden">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Post {currentPostIndex + 1} of {posts.length}
+              </p>
+              <h2 className="mt-2 text-xl font-semibold leading-7 text-slate-950">
+                {currentPost?.title}
+              </h2>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto p-5">
+              <div className="whitespace-pre-line text-sm leading-7 text-slate-700">
+                {currentPost?.body}
+              </div>
+            </div>
+          </Panel>
+
+          <Panel className="p-5 xl:sticky xl:top-6 xl:h-fit">
+            <h2 className="mb-4 text-xl font-semibold text-slate-950">
+              Your Ratings
+            </h2>
+            <div className="space-y-4">
+              {RATING_ITEMS.map((item) => (
+                <LikertItem
+                  key={item.key}
+                  item={item}
+                  value={ratings[currentPost?.id]?.[item.key] || ""}
+                  onChange={(value) => setRating(currentPost.id, item.key, value)}
+                />
+              ))}
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <Button
+                variant="secondary"
+                disabled={currentPostIndex === 0}
+                onClick={() => setCurrentPostIndex((index) => Math.max(index - 1, 0))}
+              >
+                Back
+              </Button>
+              {currentPostIndex < posts.length - 1 ? (
+                <Button
+                  className="flex-1"
+                  disabled={!isPostComplete(ratings[currentPost?.id])}
+                  onClick={() =>
+                    setCurrentPostIndex((index) => Math.min(index + 1, posts.length - 1))
+                  }
+                >
+                  Next Post
+                </Button>
+              ) : (
+                <Button
+                  className="flex-1"
+                  disabled={!allPostsComplete}
+                  onClick={() => setScreen("review")}
+                >
+                  Review & Submit
+                </Button>
+              )}
+            </div>
+          </Panel>
+        </div>
+      </Page>
+    ),
+
+    review: (
+      <Page width="max-w-5xl">
+        <StudyHeader assignment={assignment} />
         <Panel className="p-6">
           <h2 className="mb-2 text-2xl font-semibold text-slate-950">
-            Follow-up Questions
+            Submit Study
           </h2>
           <p className="mb-6 text-sm leading-6 text-slate-600">
-            Please answer these brief questions about your response and the
-            information you saw.
+            You have completed {completedCount} of {posts.length} posts. Please
+            answer the attention check before submitting.
           </p>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-            <div className="space-y-6">
-              <div>
-                <FieldLabel>How confident are you in your response?</FieldLabel>
-                <RatingScale
-                  value={confidence}
-                  onChange={setConfidence}
-                  labelLeft="Not confident"
-                  labelRight="Very confident"
-                />
-              </div>
-
-              {previousShown ? (
-                <div>
-                  <FieldLabel>
-                    How much did the prior response influence your response?
-                  </FieldLabel>
-                  <RatingScale
-                    value={influence}
-                    onChange={setInfluence}
-                    labelLeft="Not at all"
-                    labelRight="A great deal"
-                  />
-                </div>
-              ) : (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-                  No prior response was shown in this assignment, so influence
-                  questions are not applicable.
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-5">
-              {previousShown && (
-                <div>
-                  <FieldLabel>
-                    What do you think the prior response came from?
-                  </FieldLabel>
-                  <select
-                    value={sourceGuess}
-                    onChange={(event) => setSourceGuess(event.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                  >
-                    <option value="">Select one</option>
-                    <option value="human">A human participant</option>
-                    <option value="ai">An AI system</option>
-                    <option value="not_sure">Not sure</option>
-                  </select>
-                </div>
-              )}
-
-              <div>
-                <FieldLabel>Attention check: please select "blue".</FieldLabel>
-                <select
-                  value={attentionCheck}
-                  onChange={(event) => setAttentionCheck(event.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                >
-                  <option value="">Select one</option>
-                  <option value="red">Red</option>
-                  <option value="blue">Blue</option>
-                  <option value="green">Green</option>
-                </select>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-                <div>
-                  <FieldLabel>Age range optional</FieldLabel>
-                  <select
-                    value={ageRange}
-                    onChange={(event) => setAgeRange(event.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800"
-                  >
-                    <option value="">Prefer not to say</option>
-                    <option value="18-24">18-24</option>
-                    <option value="25-34">25-34</option>
-                    <option value="35-44">35-44</option>
-                    <option value="45-54">45-54</option>
-                    <option value="55+">55+</option>
-                  </select>
-                </div>
-                <div>
-                  <FieldLabel>Gender optional</FieldLabel>
-                  <select
-                    value={gender}
-                    onChange={(event) => setGender(event.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800"
-                  >
-                    <option value="">Prefer not to say</option>
-                    <option value="woman">Woman</option>
-                    <option value="man">Man</option>
-                    <option value="nonbinary">Non-binary</option>
-                    <option value="self_describe">Self-describe</option>
-                  </select>
-                </div>
-                <div>
-                  <FieldLabel>Native English optional</FieldLabel>
-                  <select
-                    value={nativeEnglish}
-                    onChange={(event) => setNativeEnglish(event.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800"
-                  >
-                    <option value="">Prefer not to say</option>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+          <div className="mb-6 overflow-hidden rounded-lg border border-slate-200">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Post</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {posts.map((post, index) => (
+                  <tr key={post.id}>
+                    <td className="px-4 py-3 font-medium text-slate-800">
+                      Post {index + 1}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {isPostComplete(ratings[post.id]) ? "Complete" : "Incomplete"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+
+          <label className="mb-2 block text-sm font-semibold text-slate-700">
+            Attention check: please select "blue".
+          </label>
+          <select
+            value={attentionCheck}
+            onChange={(event) => setAttentionCheck(event.target.value)}
+            className="w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
+          >
+            <option value="">Select one</option>
+            <option value="red">Red</option>
+            <option value="blue">Blue</option>
+            <option value="green">Green</option>
+          </select>
 
           {submissionState === "error" && (
             <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
@@ -985,12 +898,16 @@ const MoralJudgmentExperiment = () => {
           )}
 
           <div className="mt-6 flex gap-3">
-            <Button variant="secondary" onClick={() => setCurrentScreen("task")}>
+            <Button variant="secondary" onClick={() => setScreen("task")}>
               Back
             </Button>
             <Button
-              disabled={!canSubmitPostTask || submissionState === "submitting"}
-              onClick={() => submitPayload("completed")}
+              disabled={
+                !allPostsComplete ||
+                attentionCheck !== "blue" ||
+                submissionState === "submitting"
+              }
+              onClick={submit}
             >
               {submissionState === "submitting" ? "Submitting..." : "Submit"}
             </Button>
@@ -1001,7 +918,7 @@ const MoralJudgmentExperiment = () => {
 
     debrief: (
       <Page width="max-w-5xl">
-        <Progress current="Debrief" />
+        <StudyHeader assignment={assignment} />
         <Panel className="p-6">
           <h2 className="mb-4 text-2xl font-semibold text-slate-950">
             Debriefing
@@ -1009,38 +926,28 @@ const MoralJudgmentExperiment = () => {
           <div className="grid gap-5 text-sm leading-6 text-slate-700 md:grid-cols-2">
             <div className="space-y-4">
               <p>
-                Thank you for participating. This study examines how moral and
-                normative judgments change as responses circulate through
-                transmission chains.
+                Thank you for participating. This study measures how readers
+                perceive disagreement and ambiguity in online posts.
               </p>
               <p>
-                The broader research question is whether different communication
-                environments preserve or compress the range of perspectives
-                people bring to everyday moral dilemmas.
+                The broader goal is to create human ratings of post-level
+                controversiality for later research.
               </p>
             </div>
             <div className="space-y-4">
               <p>
-                Some prior responses in this research may be generated by AI
-                systems rather than human participants. This detail was not fully
-                disclosed before the task because knowing the source could change
-                how participants evaluate the scenario and prior response.
-              </p>
-              <p>
                 If you have questions or concerns, contact{" "}
                 {assignment.contactEmail || "researcher@northwestern.edu"}.
               </p>
+              {saveMode === "local" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                  Demo mode: this response was saved to browser local storage
+                  because no submit_url was configured.
+                </div>
+              )}
             </div>
           </div>
-
-          {saveMode === "local" && (
-            <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              Demo mode: this response was saved to browser local storage
-              because no submit_url was configured.
-            </div>
-          )}
-
-          <Button className="mt-6" onClick={() => setCurrentScreen("complete")}>
+          <Button className="mt-6" onClick={() => setScreen("complete")}>
             Continue
           </Button>
         </Panel>
@@ -1065,7 +972,7 @@ const MoralJudgmentExperiment = () => {
               Completion Code
             </div>
             <div className="mt-2 select-all font-mono text-lg font-semibold text-slate-950">
-              {assignment.completionCode || "AITA-COMPLETE"}
+              {assignment.completionCode || "ONLINE-COMPLETE"}
             </div>
           </div>
         </Panel>
@@ -1073,13 +980,13 @@ const MoralJudgmentExperiment = () => {
     ),
   };
 
-  return screens[currentScreen] || screens.landing;
+  return screens[screen] || screens.landing;
 };
 
 export default function App() {
   return (
     <TailwindLoader>
-      <MoralJudgmentExperiment />
+      <ControversialityRatingTask />
     </TailwindLoader>
   );
 }
