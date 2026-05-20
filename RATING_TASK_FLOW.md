@@ -107,7 +107,7 @@ Optional overrides:
 
 ```text
 completion_code=COMPLETE123
-contact_email=researcher@northwestern.edu
+contact_email=william.brady@kellogg.northwestern.edu
 n_posts=5
 ```
 
@@ -119,7 +119,7 @@ Demo values currently used when no backend assignment is provided:
 {
   "assignmentId": "demo-rating-assignment",
   "completionCode": "ONLINE-DEMO-COMPLETE",
-  "contactEmail": "researcher@northwestern.edu"
+  "contactEmail": "william.brady@kellogg.northwestern.edu"
 }
 ```
 
@@ -555,7 +555,7 @@ Expected assignment format:
 {
   "assignmentId": "worker-batch-001",
   "completionCode": "COMPLETE123",
-  "contactEmail": "researcher@northwestern.edu",
+  "contactEmail": "william.brady@kellogg.northwestern.edu",
   "posts": [
     {
       "id": "submission_id",

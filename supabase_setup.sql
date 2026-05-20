@@ -68,7 +68,7 @@ create or replace function public.claim_rating_assignment(
   p_session_id text default null,
   p_posts_per_worker integer default 5,
   p_completion_code text default 'RATING2026',
-  p_contact_email text default 'researcher@northwestern.edu',
+  p_contact_email text default 'william.brady@kellogg.northwestern.edu',
   p_max_assignments_per_post integer default 5
 )
 returns jsonb
@@ -257,4 +257,3 @@ grant execute on function public.claim_rating_assignment(
   integer
 ) to anon, authenticated;
 grant execute on function public.submit_rating_payload(text, jsonb) to anon, authenticated;
-

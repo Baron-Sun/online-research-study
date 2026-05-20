@@ -76,7 +76,7 @@ For `/ratings/`, `assignment_url` should return:
 {
   "assignmentId": "worker-batch-001",
   "completionCode": "COMPLETE123",
-  "contactEmail": "researcher@northwestern.edu",
+  "contactEmail": "william.brady@kellogg.northwestern.edu",
   "posts": [
     {
       "id": "submission_id",
@@ -99,7 +99,7 @@ For `/judgment/`, `assignment_url` should return:
 {
   "assignmentId": "judgment-worker-001",
   "completionCode": "COMPLETE123",
-  "contactEmail": "researcher@northwestern.edu",
+  "contactEmail": "william.brady@kellogg.northwestern.edu",
   "post": {
     "id": "submission_id",
     "title": "Post title",
@@ -138,7 +138,7 @@ package is required.
 VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 VITE_RATING_COMPLETION_CODE=RATING2026
-VITE_RESEARCH_CONTACT_EMAIL=researcher@northwestern.edu
+VITE_RESEARCH_CONTACT_EMAIL=william.brady@kellogg.northwestern.edu
 ```
 
 5. Re-run the GitHub Pages workflow or push to `main`.
