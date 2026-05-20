@@ -121,3 +121,46 @@ such as Supabase, Firebase, Google Apps Script, Qualtrics, or a small API server
 
 If `submit_url` is omitted, responses are saved only in the participant's browser
 local storage. That mode is useful for demos, not for live crowdsourcing.
+
+## Supabase Backend For `/ratings/`
+
+The ratings task can use Supabase directly through the browser. No extra npm
+package is required.
+
+1. Create a Supabase project.
+2. Open `SQL Editor` and run `supabase_setup.sql`.
+3. In Supabase Table Editor, import `prolific_aita_rating_batch_300.csv` into
+   the `rating_posts` table.
+4. In GitHub, open this repository's `Settings > Secrets and variables >
+   Actions > Variables` and add:
+
+```text
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+VITE_RATING_COMPLETION_CODE=RATING2026
+VITE_RESEARCH_CONTACT_EMAIL=researcher@northwestern.edu
+```
+
+5. Re-run the GitHub Pages workflow or push to `main`.
+
+For local testing, copy `.env.example` to `.env.local` and fill in the same
+values, then run:
+
+```bash
+npm run dev
+```
+
+Open the ratings task with a test Prolific ID:
+
+```text
+http://localhost:5173/ratings/?PROLIFIC_PID=test-worker-001&STUDY_ID=test-study&SESSION_ID=test-session
+```
+
+For Prolific External Study Link, use:
+
+```text
+https://baron-sun.github.io/online-research-study/ratings/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+```
+
+The Supabase RPC assigns 5 posts per participant, reuses the same assignment if
+the participant refreshes, and saves the final payload to `rating_submissions`.

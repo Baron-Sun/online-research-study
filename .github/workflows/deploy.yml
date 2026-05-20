@@ -32,6 +32,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_RATING_COMPLETION_CODE: ${{ vars.VITE_RATING_COMPLETION_CODE }}
+          VITE_RESEARCH_CONTACT_EMAIL: ${{ vars.VITE_RESEARCH_CONTACT_EMAIL }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

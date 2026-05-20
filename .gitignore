@@ -6,7 +6,10 @@
 !package.json
 !package-lock.json
 !vite.config.js
+!.env.example
 !README.md
+!RATING_TASK_FLOW.md
+!supabase_setup.sql
 !.github/
 !.github/workflows/
 !.github/workflows/deploy.yml

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const POSTS_PER_WORKER = 5;
+const DEFAULT_COMPLETION_CODE = "RATING2026";
+const DEFAULT_CONTACT_EMAIL = "researcher@northwestern.edu";
 
 const RATING_ITEMS = [
   {
@@ -209,7 +211,87 @@ const applyQueryOverrides = (assignment) => {
   };
 };
 
+const getSupabaseConfig = () => {
+  const params = getQueryParams();
+  const url =
+    params.get("supabase_url") ||
+    import.meta.env.VITE_SUPABASE_URL ||
+    "";
+  const anonKey =
+    params.get("supabase_anon_key") ||
+    params.get("supabase_key") ||
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    "";
+
+  if (!url || !anonKey) return null;
+
+  return {
+    url: url.replace(/\/$/, ""),
+    anonKey,
+    completionCode:
+      params.get("completion_code") ||
+      import.meta.env.VITE_RATING_COMPLETION_CODE ||
+      DEFAULT_COMPLETION_CODE,
+    contactEmail:
+      params.get("contact_email") ||
+      import.meta.env.VITE_RESEARCH_CONTACT_EMAIL ||
+      DEFAULT_CONTACT_EMAIL,
+  };
+};
+
+const supabaseRpc = async (config, fnName, body) => {
+  const response = await fetch(`${config.url}/rest/v1/rpc/${fnName}`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.anonKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || `Supabase request failed with HTTP ${response.status}`);
+  }
+
+  return data;
+};
+
+const loadSupabaseAssignment = async ({ config, participant, count }) => {
+  if (!participant.prolificPid) {
+    throw new Error("Missing PROLIFIC_PID. Open this study from Prolific or add PROLIFIC_PID=test to the URL for testing.");
+  }
+
+  const data = await supabaseRpc(config, "claim_rating_assignment", {
+    p_prolific_pid: participant.prolificPid,
+    p_study_id: participant.studyId || null,
+    p_session_id: participant.sessionId || null,
+    p_posts_per_worker: count,
+    p_completion_code: config.completionCode,
+    p_contact_email: config.contactEmail,
+  });
+
+  return {
+    ...data,
+    backend: {
+      type: "supabase",
+      config,
+    },
+  };
+};
+
 const savePayload = async (assignment, payload) => {
+  if (assignment.backend?.type === "supabase") {
+    await supabaseRpc(assignment.backend.config, "submit_rating_payload", {
+      p_assignment_id: assignment.assignmentId,
+      p_payload: payload,
+    });
+    return { mode: "supabase" };
+  }
+
   if (assignment.submitEndpoint) {
     const response = await fetch(assignment.submitEndpoint, {
       method: "POST",
@@ -434,28 +516,50 @@ const ControversialityRatingTask = () => {
     const postsUrl = params.get("posts_url");
     const apiBase = params.get("api_base");
     const assignmentId = params.get("assignment_id") || params.get("assignment");
+    const requestedCount = Number.parseInt(params.get("n_posts"), 10);
+    const count = Number.isFinite(requestedCount) ? requestedCount : POSTS_PER_WORKER;
+    const supabaseConfig = getSupabaseConfig();
 
-    if (!assignmentUrl && !postsUrl && !apiBase) return;
+    if (!assignmentUrl && !postsUrl && !apiBase && !supabaseConfig) {
+      if (participant.prolificPid) {
+        setLoadState("error");
+        setLoadError(
+          "No backend is configured. Set Supabase environment variables or provide assignment_url and submit_url before launching on Prolific."
+        );
+      }
+      return;
+    }
 
     const loadAssignment = async () => {
       setLoadState("loading");
       setLoadError("");
 
       try {
-        const url =
-          assignmentUrl ||
-          postsUrl ||
-          `${apiBase.replace(/\/$/, "")}/assignment?assignment_id=${encodeURIComponent(
-            assignmentId || ""
-          )}&prolific_pid=${encodeURIComponent(participant.prolificPid)}`;
-        const response = await fetch(url);
+        let remoteAssignment;
 
-        if (!response.ok) {
-          throw new Error(`Assignment request failed with HTTP ${response.status}`);
+        if (supabaseConfig && !assignmentUrl && !postsUrl && !apiBase) {
+          remoteAssignment = await loadSupabaseAssignment({
+            config: supabaseConfig,
+            participant,
+            count,
+          });
+        } else {
+          const url =
+            assignmentUrl ||
+            postsUrl ||
+            `${apiBase.replace(/\/$/, "")}/assignment?assignment_id=${encodeURIComponent(
+              assignmentId || ""
+            )}&prolific_pid=${encodeURIComponent(participant.prolificPid)}`;
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            throw new Error(`Assignment request failed with HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          remoteAssignment = Array.isArray(data) ? { posts: data } : data;
         }
 
-        const data = await response.json();
-        const remoteAssignment = Array.isArray(data) ? { posts: data } : data;
         setAssignment(applyQueryOverrides(normalizeAssignment(remoteAssignment)));
         setScreen("landing");
       } catch (error) {
@@ -467,7 +571,7 @@ const ControversialityRatingTask = () => {
     };
 
     loadAssignment();
-  }, [participant.prolificPid]);
+  }, [participant.prolificPid, participant.sessionId, participant.studyId]);
 
   useEffect(() => {
     setRatings((currentRatings) => ({
@@ -545,11 +649,10 @@ const ControversialityRatingTask = () => {
               questions about your response and how you think other readers might
               respond.
             </p>
-            <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
               {[
                 ["Task", `${posts.length || POSTS_PER_WORKER} posts`],
-                ["Time", "About 8 to 12 minutes"],
-                ["Data", "Research use only"],
+                ["Time", "About 8 minutes"],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -672,40 +775,23 @@ const ControversialityRatingTask = () => {
             <h2 className="mb-4 text-2xl font-semibold text-slate-950">
               Instructions
             </h2>
-            <div className="grid gap-3 md:grid-cols-2">
-              {[
-                [
-                  "Read each post carefully",
-                  "Each post describes a situation from the perspective of the person who wrote it.",
-                ],
-                [
-                  "Answer in order",
-                  "For each post, answer the four questions in the order shown.",
-                ],
-                [
-                  "Use the full scale",
-                  "There are no right or wrong answers. Choose the number that best matches your reaction.",
-                ],
-                [
-                  "Finish all posts",
-                  `You will rate ${posts.length || POSTS_PER_WORKER} posts before submitting the study.`,
-                ],
-              ].map(([title, body], index) => (
-                <div
-                  key={title}
-                  className="grid grid-cols-[44px_1fr] gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4"
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-sm font-semibold text-slate-700 shadow-sm">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-950">{title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
-                      {body}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 text-slate-700">
+              <p>
+                You will read several short posts adapted from Reddit's
+                r/AmITheAsshole forum. In these posts, people describe social
+                dilemmas and ask readers to evaluate what happened.
+              </p>
+              <p>
+                For each post, your job is to give your own reaction and rate
+                how divided you think thoughtful readers would be. There are no
+                right or wrong answers. Please answer honestly and choose the
+                number that best matches your reaction.
+              </p>
+              <p>
+                Please read each post carefully and answer all questions before
+                moving to the next post. You will complete{" "}
+                {posts.length || POSTS_PER_WORKER} posts in total.
+              </p>
             </div>
           </Panel>
 
@@ -713,15 +799,27 @@ const ControversialityRatingTask = () => {
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Comprehension check
             </label>
+            <p className="mb-3 text-sm leading-6 text-slate-600">
+              What will you be doing in this task?
+            </p>
             <select
               value={comprehension}
               onChange={(event) => setComprehension(event.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
             >
               <option value="">Select the correct statement</option>
-              <option value="single">I will rate only one post.</option>
-              <option value="all-posts">
-                I will read all assigned posts and answer four questions for each.
+              <option value="long-explanation">
+                I will read only one post and write a long explanation.
+              </option>
+              <option value="summarize">
+                I will summarize each post without giving my own reaction.
+              </option>
+              <option value="rate-division">
+                I will read each post and rate how divided thoughtful readers
+                might be about it.
+              </option>
+              <option value="researcher-answer">
+                I will try to guess which answer the researchers want.
               </option>
             </select>
 
@@ -731,7 +829,7 @@ const ControversialityRatingTask = () => {
               </Button>
               <Button
                 className="flex-1"
-                disabled={comprehension !== "all-posts"}
+                disabled={comprehension !== "rate-division"}
                 onClick={() => setScreen("task")}
               >
                 Start Task
@@ -755,17 +853,21 @@ const ControversialityRatingTask = () => {
               {posts.map((post, index) => {
                 const complete = isPostComplete(ratings[post.id]);
                 const active = index === currentPostIndex;
+                const reachable = complete || index <= currentPostIndex;
                 return (
                   <button
                     key={post.id}
                     type="button"
-                    onClick={() => setCurrentPostIndex(index)}
+                    disabled={!reachable}
+                    onClick={() => reachable && setCurrentPostIndex(index)}
                     className={`w-full rounded-lg border p-3 text-left text-sm transition ${
                       active
                         ? "border-slate-900 bg-slate-900 text-white"
                         : complete
                           ? "border-emerald-200 bg-emerald-50 text-slate-800"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          : reachable
+                            ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            : "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
                     }`}
                   >
                     <span className="block font-semibold">Post {index + 1}</span>
