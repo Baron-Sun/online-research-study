@@ -28,10 +28,26 @@ create table if not exists public.rating_assignments (
   session_id text,
   post_ids text[] not null,
   posts_per_worker integer not null default 5,
+  comprehension_failures integer not null default 0,
+  last_comprehension_failure_at timestamptz,
+  last_comprehension_failure_option text,
   status text not null default 'claimed',
   created_at timestamptz not null default now(),
-  submitted_at timestamptz
+  submitted_at timestamptz,
+  screened_out_at timestamptz
 );
+
+alter table public.rating_assignments
+  add column if not exists comprehension_failures integer not null default 0;
+
+alter table public.rating_assignments
+  add column if not exists last_comprehension_failure_at timestamptz;
+
+alter table public.rating_assignments
+  add column if not exists last_comprehension_failure_option text;
+
+alter table public.rating_assignments
+  add column if not exists screened_out_at timestamptz;
 
 create unique index if not exists rating_assignments_participant_session_idx
   on public.rating_assignments (
@@ -178,7 +194,82 @@ begin
     'assignmentId', v_assignment.assignment_id,
     'completionCode', p_completion_code,
     'contactEmail', p_contact_email,
+    'status', v_assignment.status,
+    'comprehensionFailures', v_assignment.comprehension_failures,
+    'screenedOutAt', v_assignment.screened_out_at,
     'posts', coalesce(v_posts, '[]'::jsonb)
+  );
+end;
+$$;
+
+create or replace function public.record_rating_comprehension_failure(
+  p_assignment_id text,
+  p_selected_option text default null,
+  p_payload jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_assignment public.rating_assignments%rowtype;
+begin
+  if nullif(trim(p_assignment_id), '') is null then
+    raise exception 'Missing assignment id';
+  end if;
+
+  select *
+    into v_assignment
+    from public.rating_assignments
+   where assignment_id = p_assignment_id
+   limit 1;
+
+  if v_assignment.id is null then
+    raise exception 'Assignment not found';
+  end if;
+
+  if v_assignment.status = 'submitted' then
+    return jsonb_build_object(
+      'ok', true,
+      'assignmentId', v_assignment.assignment_id,
+      'status', v_assignment.status,
+      'comprehensionFailures', v_assignment.comprehension_failures,
+      'screenedOut', false
+    );
+  end if;
+
+  if v_assignment.status = 'screened_out' then
+    return jsonb_build_object(
+      'ok', true,
+      'assignmentId', v_assignment.assignment_id,
+      'status', v_assignment.status,
+      'comprehensionFailures', v_assignment.comprehension_failures,
+      'screenedOut', true
+    );
+  end if;
+
+  update public.rating_assignments
+     set comprehension_failures = comprehension_failures + 1,
+         last_comprehension_failure_at = now(),
+         last_comprehension_failure_option = p_selected_option,
+         status = case
+           when comprehension_failures + 1 >= 2 then 'screened_out'
+           else status
+         end,
+         screened_out_at = case
+           when comprehension_failures + 1 >= 2 then coalesce(screened_out_at, now())
+           else screened_out_at
+         end
+   where assignment_id = p_assignment_id
+   returning * into v_assignment;
+
+  return jsonb_build_object(
+    'ok', true,
+    'assignmentId', v_assignment.assignment_id,
+    'status', v_assignment.status,
+    'comprehensionFailures', v_assignment.comprehension_failures,
+    'screenedOut', v_assignment.status = 'screened_out'
   );
 end;
 $$;
@@ -197,6 +288,7 @@ declare
   v_study_id text;
   v_session_id text;
   v_attention_check text;
+  v_assignment_status text;
 begin
   if nullif(trim(p_assignment_id), '') is null then
     raise exception 'Missing assignment id';
@@ -204,6 +296,20 @@ begin
 
   if p_payload is null then
     raise exception 'Missing payload';
+  end if;
+
+  select status
+    into v_assignment_status
+    from public.rating_assignments
+   where assignment_id = p_assignment_id
+   limit 1;
+
+  if v_assignment_status is null then
+    raise exception 'Assignment not found';
+  end if;
+
+  if v_assignment_status = 'screened_out' then
+    raise exception 'Assignment has been screened out';
   end if;
 
   v_prolific_pid := p_payload #>> '{participant,prolificPid}';
@@ -256,4 +362,5 @@ grant execute on function public.claim_rating_assignment(
   text,
   integer
 ) to anon, authenticated;
+grant execute on function public.record_rating_comprehension_failure(text, text, jsonb) to anon, authenticated;
 grant execute on function public.submit_rating_payload(text, jsonb) to anon, authenticated;

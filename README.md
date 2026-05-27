@@ -164,3 +164,6 @@ https://baron-sun.github.io/online-research-study/ratings/?PROLIFIC_PID={{%PROLI
 
 The Supabase RPC assigns 5 posts per participant, reuses the same assignment if
 the participant refreshes, and saves the final payload to `rating_submissions`.
+Comprehension-check failures are also stored on `rating_assignments`: after two
+incorrect choices, the assignment is marked `screened_out`, and reopening the
+same Prolific link will show the study-ended screen with no completion code.

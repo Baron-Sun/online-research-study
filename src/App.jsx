@@ -366,6 +366,32 @@ const loadSupabaseAssignment = async ({ config, participant, count }) => {
   };
 };
 
+const recordComprehensionFailure = async ({ assignment, participant, selectedOption }) => {
+  const fallbackAttempts = (Number(assignment.comprehensionFailures) || 0) + 1;
+
+  if (assignment.backend?.type !== "supabase") {
+    return {
+      comprehensionFailures: fallbackAttempts,
+      screenedOut: fallbackAttempts >= 2,
+    };
+  }
+
+  return supabaseRpc(
+    assignment.backend.config,
+    "record_rating_comprehension_failure",
+    {
+      p_assignment_id: assignment.assignmentId,
+      p_selected_option: selectedOption,
+      p_payload: {
+        participant,
+        selectedOption,
+        occurredAt: new Date().toISOString(),
+        userAgent: window.navigator.userAgent,
+      },
+    }
+  );
+};
+
 const savePayload = async (assignment, payload) => {
   if (assignment.backend?.type === "supabase") {
     await supabaseRpc(assignment.backend.config, "submit_rating_payload", {
@@ -663,8 +689,19 @@ const ControversialityRatingTask = () => {
           remoteAssignment = Array.isArray(data) ? { posts: data } : data;
         }
 
-        setAssignment(applyQueryOverrides(normalizeAssignment(remoteAssignment)));
-        setScreen("landing");
+        const normalizedAssignment = applyQueryOverrides(
+          normalizeAssignment(remoteAssignment)
+        );
+        const failureCount =
+          Number(normalizedAssignment.comprehensionFailures) || 0;
+
+        setAssignment(normalizedAssignment);
+        setComprehensionAttempts(failureCount);
+        setScreen(
+          normalizedAssignment.status === "screened_out" || failureCount >= 2
+            ? "comprehension_failed"
+            : "landing"
+        );
       } catch (error) {
         setLoadState("error");
         setLoadError(error.message);
@@ -711,7 +748,7 @@ const ControversialityRatingTask = () => {
     }));
   };
 
-  const handleComprehensionChange = (value) => {
+  const handleComprehensionChange = async (value) => {
     if (!value) {
       setComprehension("");
       return;
@@ -723,11 +760,42 @@ const ControversialityRatingTask = () => {
       return;
     }
 
-    const nextAttempts = comprehensionAttempts + 1;
+    let nextAttempts = comprehensionAttempts + 1;
+    let screenedOut = nextAttempts >= 2;
+
+    try {
+      const result = await recordComprehensionFailure({
+        assignment,
+        participant,
+        selectedOption: value,
+      });
+
+      nextAttempts =
+        Number(result.comprehensionFailures) ||
+        Number(result.attempts) ||
+        nextAttempts;
+      screenedOut =
+        Boolean(result.screenedOut) ||
+        result.status === "screened_out" ||
+        nextAttempts >= 2;
+
+      setAssignment((current) => ({
+        ...current,
+        status: result.status || (screenedOut ? "screened_out" : current.status),
+        comprehensionFailures: nextAttempts,
+      }));
+    } catch (error) {
+      setComprehension("");
+      setComprehensionError(
+        "Could not save the comprehension-check result. Please refresh and try again."
+      );
+      return;
+    }
+
     setComprehensionAttempts(nextAttempts);
     setComprehension("");
 
-    if (nextAttempts >= 2) {
+    if (screenedOut) {
       setScreen("comprehension_failed");
       return;
     }
