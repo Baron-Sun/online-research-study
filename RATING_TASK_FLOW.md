@@ -1,6 +1,6 @@
 # Rating Task Flow Summary
 
-Last summarized: 2026-05-19
+Last summarized: 2026-05-27
 
 This document summarizes only the multi-post rating task currently implemented at `/ratings/`. It is an editable design document only and is not linked from the participant-facing website.
 
@@ -28,12 +28,11 @@ src/App.jsx
 
 ## Task Goal
 
-Participants read several anonymized r/AmITheAsshole-style posts and rate each post on four 1-7 scales. The current default is 5 posts per participant.
+Participants read several anonymized r/AmITheAsshole-style posts and rate each post on three 1-7 scales. The current default is 5 posts per participant.
 
 The task is intended to collect post-level ratings related to:
 
 - How much the OP appears to be in the wrong.
-- How strongly the participant feels about that response.
 - How torn or conflicted the participant feels.
 - How much disagreement the participant expects among thoughtful readers.
 
@@ -46,6 +45,7 @@ These are design assumptions for assignment generation and data collection. The 
 - Human ratings per submission: 5.
 - Submissions per human participant: 5.
 - Required participants: 300.
+- Do not force topic balancing at this stage; natural topic variation is acceptable for the current pilot.
 
 Assignment logic implied by this design:
 
@@ -53,6 +53,14 @@ Assignment logic implied by this design:
 - Each submission should be assigned to 5 different participants.
 - Backend or assignment generator should track exposure counts.
 - The same participant should not rate the same submission more than once.
+
+Prolific setup notes:
+
+- Mark the study as sensitive content.
+- Recommended participant location: United States only.
+- Consider screening for native or fluent English speakers.
+- Set expected time to 10 minutes.
+- Before the full launch, run a 10-participant pilot to check data quality and the full flow.
 
 ## Page Header
 
@@ -100,7 +108,7 @@ If `submit_url` is missing, responses are saved only to the participant browser'
 Use the `/ratings/` page, not the root portal.
 
 ```text
-https://baron-sun.github.io/online-research-study/ratings/?assignment_url={ENCODED_ASSIGNMENT_URL}&submit_url={ENCODED_SUBMIT_URL}&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+https://baron-sun.github.io/online-research-study/ratings/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
 ```
 
 Optional overrides:
@@ -110,6 +118,8 @@ completion_code=COMPLETE123
 contact_email=william.brady@kellogg.northwestern.edu
 n_posts=5
 ```
+
+The current deployed version uses GitHub Actions environment variables to connect to Supabase, so Prolific does not need `assignment_url` or `submit_url` in the live link.
 
 ## Demo Assignment
 
@@ -137,7 +147,7 @@ Current screen order:
 2. Consent
 3. Instructions and comprehension check
 4. Rating task
-5. Review and attention check
+5. Review and post-task questions
 6. Debrief
 7. Completion code
 
@@ -147,7 +157,7 @@ Main text:
 
 ```text
 Study Overview
-In this study, you will read {postCount} anonymized online posts. For each post, you will answer four short questions about your response and how you think other readers might respond.
+In this study, you will read 5 anonymous, public online posts about social dilemmas. For each post, read carefully, form your impression, and answer short questions. Most questions are about how other readers might respond.
 ```
 
 Info cards:
@@ -157,7 +167,7 @@ Task
 {postCount} posts
 
 Time
-About 8 minutes
+Most participants take 10 minutes to complete the task.
 ```
 
 Side panel:
@@ -194,13 +204,7 @@ Informed Consent
 Consent text:
 
 ```text
-TODO: Paste official IRB-approved informed consent text here.
-
-Notes to update before launch:
-- Study duration should say about 8 minutes.
-- Payment amount should match the final Prolific payment.
-- Final participation instruction should match the actual button text in the task.
-- Contact information should use the approved researcher contact email.
+The app should display the full IRB-approved informed consent text from IRB_surveys.docx without shortening it.
 ```
 
 Consent checkbox:
@@ -233,7 +237,9 @@ Instruction text:
 ```text
 You will read several short posts adapted from Reddit's r/AmITheAsshole forum. In these posts, people describe social dilemmas and ask readers to evaluate what happened.
 
-For each post, your job is to give your own reaction and rate how divided you think thoughtful readers would be. There are no right or wrong answers. Please answer honestly and choose the number that best matches your reaction.
+For each post, your job is to give your own reactions to the dilemma, and then to answer a question about how other people would react. There are no right or wrong answers. Please answer honestly and choose the number that best matches your reaction.
+
+It's important that you don't use AI to answer these questions, since we want to understand how humans respond to these real-world dilemmas!
 
 Please read each post carefully and answer all questions before moving to the next post. You will complete {postCount} posts in total.
 ```
@@ -254,16 +260,16 @@ Dropdown placeholder and options:
 
 ```text
 Select the correct statement
-A. I will read only one post and write a long explanation.
-B. I will summarize each post without giving my own reaction.
-C. I will read each post and rate how divided thoughtful readers might be about it.
-D. I will try to guess which answer the researchers want.
+A. I will read only one post and write a long explanation about my feelings.
+B. I will summarize each post without giving my own reaction, to test comprehension.
+C. I will read each post and give my own reactions and judge how others would respond.
+D. I will read 5 posts and provide emotional ratings based on people's feelings.
 ```
 
 Correct answer:
 
 ```text
-C. I will read each post and rate how divided thoughtful readers might be about it.
+C. I will read each post and give my own reactions and judge how others would respond.
 ```
 
 Buttons:
@@ -276,6 +282,9 @@ Start Task
 Validation:
 
 - Participant must choose the correct comprehension-check answer.
+- First incorrect answer: show `Incorrect, please try again.`
+- Second incorrect answer: end the study with no completion code.
+- This failure state should be stored in Supabase so reopening the same Prolific link still shows the study-ended screen.
 
 ## Screen 4: Rating Task
 
@@ -283,7 +292,7 @@ Layout:
 
 - Left panel: assigned post list.
 - Center panel: current post title and text.
-- Right panel: four rating questions.
+- Right panel: rating questions split into SELF and OTHERS stages.
 
 Progress text:
 
@@ -328,16 +337,24 @@ Next Post
 Review & Submit
 ```
 
+Stage prompts:
+
+```text
+For these first few questions, please respond based on your OWN reactions to the dilemma.
+
+Now, we will ask you to think about how OTHERS would respond to the dilemma.
+```
+
 Validation:
 
-- All four ratings must be answered for the current post before moving forward with `Next Post`.
+- All three ratings must be answered for the current post before moving forward with `Next Post`.
 - Desired behavior: participants should complete posts in order, answering all questions for the current post before moving to the next.
 - All assigned posts must be complete before `Review & Submit`.
 - Post order is randomized deterministically using assignment ID and participant metadata.
 
 ## Rating Items
 
-All four items are shown in fixed order for each post.
+The first two items are shown together on the SELF stage. The perceived-disagreement item is shown on the OTHERS stage.
 
 ### Question 1: OP Wrongness
 
@@ -365,33 +382,7 @@ Scale:
 7 - Definitely in the wrong
 ```
 
-### Question 2: Conviction
-
-Internal key:
-
-```text
-conviction
-```
-
-Participant-facing prompt:
-
-```text
-How strongly do you feel about your response above?
-```
-
-Scale:
-
-```text
-1 - Not strongly at all
-2
-3
-4 - Moderately strongly
-5
-6
-7 - Extremely strongly
-```
-
-### Question 3: Personal Ambivalence
+### Question 2: Personal Ambivalence
 
 Internal key:
 
@@ -417,7 +408,7 @@ Scale:
 7 - Extremely torn; I genuinely cannot decide
 ```
 
-### Question 4: Perceived Disagreement
+### Question 3: Perceived Disagreement
 
 Internal key:
 
@@ -434,13 +425,13 @@ If 100 thoughtful people read this post, what would their responses look like?
 Scale:
 
 ```text
-1 - Nearly all would reach the same response
+1 - Deep agreement - nearly everyone would respond the same way
 2
 3
-4 - Mixed; many different views
+4 - Moderate disagreement
 5
 6
-7 - People would split into clearly opposed camps
+7 - Deep disagreement; people would strongly oppose each other
 ```
 
 ## Screen 5: Review And Submit
@@ -454,7 +445,7 @@ Submit Study
 Review text:
 
 ```text
-You have completed {completedCount} of {postCount} posts. Please answer the attention check before submitting.
+You have completed {completedCount} of {postCount} posts. Please answer the short post-task questions before submitting.
 ```
 
 Review table headers:
@@ -471,19 +462,20 @@ Complete
 Incomplete
 ```
 
-Attention check:
+Post-task questions:
 
 ```text
-Attention check: please select "blue".
-```
+How difficult was it to judge whether other people would disagree?
 
-Options:
+1 - Not difficult at all
+2
+3
+4 - Moderately difficult
+5
+6
+7 - Extremely difficult
 
-```text
-Select one
-Red
-Blue
-Green
+What do you think this study was about?
 ```
 
 Buttons:
@@ -497,7 +489,7 @@ Submitting...
 Validation:
 
 - All posts must be complete.
-- Attention check must be `Blue`.
+- Both post-task questions must be answered before submitting.
 
 ## Screen 6: Debrief
 
@@ -600,7 +592,11 @@ Payload structure:
     "studyId": "string",
     "sessionId": "string"
   },
-  "attentionCheck": "blue",
+  "attentionCheck": null,
+  "postTaskResponses": {
+    "disagreementDifficulty": 1,
+    "studyPurpose": "free-text response"
+  },
   "ratings": [
     {
       "postId": "string",
@@ -610,7 +606,6 @@ Payload structure:
       "firstSeenAt": "ISO timestamp",
       "responses": {
         "op_wrong": 1,
-        "conviction": 1,
         "ambivalence": 1,
         "perceived_disagreement": 1
       }
@@ -634,11 +629,11 @@ Before using the rating task for live Prolific data collection, review:
 
 - Public title and pre-task wording: keep neutral if the purpose should remain masked.
 - Consent wording: replace with IRB-approved language.
-- Time estimate: confirm whether about 8 minutes is realistic for 5 posts.
+- Time estimate: Prolific should be set to about 10 minutes for 5 posts.
 - Rating item wording: confirm whether "response" should be changed to "judgment" or another neutral term.
 - Scale anchors: confirm the 1, 4, and 7 anchors.
 - Comprehension check: confirm it matches the task.
-- Attention check: decide whether to keep, remove, or replace.
+- Post-task questions: confirm whether to keep the difficulty rating and study-purpose free response.
 - Completion code: match Prolific study setup.
 - `assignment_url`: must assign 5 posts per participant or respect `n_posts`.
 - `submit_url`: must save the payload server-side.

@@ -167,3 +167,9 @@ the participant refreshes, and saves the final payload to `rating_submissions`.
 Comprehension-check failures are also stored on `rating_assignments`: after two
 incorrect choices, the assignment is marked `screened_out`, and reopening the
 same Prolific link will show the study-ended screen with no completion code.
+
+For the current controversiality-rating task, each post has three required
+ratings: OP wrongness, personal ambivalence, and perceived disagreement. The
+final page asks two soft post-task questions instead of a color attention check.
+On Prolific, mark the study as sensitive content, set the expected time to 10
+minutes, and pilot with about 10 participants before full launch.

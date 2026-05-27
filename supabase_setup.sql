@@ -63,12 +63,20 @@ create table if not exists public.rating_submissions (
   study_id text,
   session_id text,
   attention_check text,
+  post_task_disagreement_difficulty integer,
+  post_task_study_purpose text,
   payload jsonb not null,
   submitted_at timestamptz not null default now()
 );
 
 create unique index if not exists rating_submissions_assignment_id_idx
   on public.rating_submissions (assignment_id);
+
+alter table public.rating_submissions
+  add column if not exists post_task_disagreement_difficulty integer;
+
+alter table public.rating_submissions
+  add column if not exists post_task_study_purpose text;
 
 alter table public.rating_posts enable row level security;
 alter table public.rating_assignments enable row level security;
@@ -288,6 +296,8 @@ declare
   v_study_id text;
   v_session_id text;
   v_attention_check text;
+  v_post_task_disagreement_difficulty integer;
+  v_post_task_study_purpose text;
   v_assignment_status text;
 begin
   if nullif(trim(p_assignment_id), '') is null then
@@ -316,6 +326,10 @@ begin
   v_study_id := p_payload #>> '{participant,studyId}';
   v_session_id := p_payload #>> '{participant,sessionId}';
   v_attention_check := p_payload ->> 'attentionCheck';
+  v_post_task_disagreement_difficulty :=
+    nullif(p_payload #>> '{postTaskResponses,disagreementDifficulty}', '')::integer;
+  v_post_task_study_purpose :=
+    nullif(p_payload #>> '{postTaskResponses,studyPurpose}', '');
 
   insert into public.rating_submissions (
     assignment_id,
@@ -323,6 +337,8 @@ begin
     study_id,
     session_id,
     attention_check,
+    post_task_disagreement_difficulty,
+    post_task_study_purpose,
     payload,
     submitted_at
   )
@@ -332,6 +348,8 @@ begin
     v_study_id,
     v_session_id,
     v_attention_check,
+    v_post_task_disagreement_difficulty,
+    v_post_task_study_purpose,
     p_payload,
     now()
   )
@@ -340,6 +358,9 @@ begin
         study_id = excluded.study_id,
         session_id = excluded.session_id,
         attention_check = excluded.attention_check,
+        post_task_disagreement_difficulty =
+          excluded.post_task_disagreement_difficulty,
+        post_task_study_purpose = excluded.post_task_study_purpose,
         payload = excluded.payload,
         submitted_at = excluded.submitted_at;
 

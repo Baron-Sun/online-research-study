@@ -97,18 +97,8 @@ const RATING_ITEMS = [
     },
   },
   {
-    key: "conviction",
-    label: "Question 2",
-    prompt: "How strongly do you feel about your response above?",
-    anchors: {
-      1: "Not strongly at all",
-      4: "Moderately strongly",
-      7: "Extremely strongly",
-    },
-  },
-  {
     key: "ambivalence",
-    label: "Question 3",
+    label: "Question 2",
     prompt: "How torn or conflicted do you feel about your response to the OP?",
     anchors: {
       1: "Not torn at all; the answer is clear to me",
@@ -118,7 +108,7 @@ const RATING_ITEMS = [
   },
   {
     key: "perceived_disagreement",
-    label: "Question 4",
+    label: "Question 3",
     prompt:
       "If 100 thoughtful people read this post, what would their responses look like?",
     anchors: {
@@ -129,8 +119,19 @@ const RATING_ITEMS = [
   },
 ];
 
-const SELF_RATING_ITEMS = RATING_ITEMS.slice(0, 3);
-const OTHERS_RATING_ITEMS = RATING_ITEMS.slice(3);
+const SELF_RATING_ITEMS = RATING_ITEMS.slice(0, 2);
+const OTHERS_RATING_ITEMS = RATING_ITEMS.slice(2);
+
+const POST_TASK_DIFFICULTY_ITEM = {
+  key: "disagreement_difficulty",
+  label: "Post-task question",
+  prompt: "How difficult was it to judge whether other people would disagree?",
+  anchors: {
+    1: "Not difficult at all",
+    4: "Moderately difficult",
+    7: "Extremely difficult",
+  },
+};
 
 const DEMO_ASSIGNMENT = {
   assignmentId: "demo-rating-assignment",
@@ -546,7 +547,7 @@ const buildPayload = ({
   posts,
   ratings,
   postFirstSeenAt,
-  attentionCheck,
+  postTaskResponses,
   timings,
   status,
 }) => ({
@@ -560,7 +561,8 @@ const buildPayload = ({
     postIds: posts.map((post) => post.id),
   },
   participant,
-  attentionCheck,
+  attentionCheck: null,
+  postTaskResponses,
   ratings: posts.map((post, order) => ({
     postId: post.id,
     postTitle: post.title,
@@ -605,7 +607,8 @@ const ControversialityRatingTask = () => {
   const [ratingStage, setRatingStage] = useState("self");
   const [ratings, setRatings] = useState(() => makeEmptyRatings(DEMO_ASSIGNMENT.posts));
   const [postFirstSeenAt, setPostFirstSeenAt] = useState({});
-  const [attentionCheck, setAttentionCheck] = useState("");
+  const [disagreementDifficulty, setDisagreementDifficulty] = useState("");
+  const [studyPurpose, setStudyPurpose] = useState("");
   const [submissionState, setSubmissionState] = useState("idle");
   const [submissionError, setSubmissionError] = useState("");
   const [saveMode, setSaveMode] = useState("");
@@ -841,7 +844,12 @@ const ControversialityRatingTask = () => {
       posts,
       ratings,
       postFirstSeenAt,
-      attentionCheck,
+      postTaskResponses: {
+        disagreementDifficulty: disagreementDifficulty
+          ? Number(disagreementDifficulty)
+          : null,
+        studyPurpose: studyPurpose.trim(),
+      },
       timings,
       status: "completed",
     });
@@ -868,10 +876,9 @@ const ControversialityRatingTask = () => {
             </h2>
             <p className="max-w-4xl text-base leading-7 text-slate-700">
               In this study, you will read {posts.length || POSTS_PER_WORKER}{" "}
-              anonymous, public online posts about social dilemmas people are
-              experiencing. For each post, your job is to read them carefully,
-              form your impression, and then answer four short questions. Most
-              of the questions will be about how you think other readers might
+              anonymous, public online posts about social dilemmas. For each
+              post, read carefully, form your impression, and answer short
+              questions. Most questions are about how other readers might
               respond.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -1219,7 +1226,7 @@ const ControversialityRatingTask = () => {
           </h2>
           <p className="mb-6 text-sm leading-6 text-slate-600">
             You have completed {completedCount} of {posts.length} posts. Please
-            answer the attention check before submitting.
+            answer the short post-task questions before submitting.
           </p>
 
           <div className="mb-6 overflow-hidden rounded-lg border border-slate-200">
@@ -1245,19 +1252,29 @@ const ControversialityRatingTask = () => {
             </table>
           </div>
 
-          <label className="mb-2 block text-sm font-semibold text-slate-700">
-            Attention check: please select "blue".
-          </label>
-          <select
-            value={attentionCheck}
-            onChange={(event) => setAttentionCheck(event.target.value)}
-            className="w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
-          >
-            <option value="">Select one</option>
-            <option value="red">Red</option>
-            <option value="blue">Blue</option>
-            <option value="green">Green</option>
-          </select>
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <LikertItem
+              item={POST_TASK_DIFFICULTY_ITEM}
+              value={disagreementDifficulty}
+              onChange={setDisagreementDifficulty}
+            />
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Post-task question
+              </label>
+              <p className="mb-3 text-sm font-semibold leading-6 text-slate-900">
+                What do you think this study was about?
+              </p>
+              <textarea
+                value={studyPurpose}
+                onChange={(event) => setStudyPurpose(event.target.value)}
+                rows={6}
+                className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
+                placeholder="Type your response here..."
+              />
+            </div>
+          </div>
 
           {submissionState === "error" && (
             <div className="mt-5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
@@ -1272,7 +1289,8 @@ const ControversialityRatingTask = () => {
             <Button
               disabled={
                 !allPostsComplete ||
-                attentionCheck !== "blue" ||
+                !disagreementDifficulty ||
+                !studyPurpose.trim() ||
                 submissionState === "submitting"
               }
               onClick={submit}
