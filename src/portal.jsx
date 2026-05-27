@@ -50,13 +50,29 @@ const Portal = () => (
           assigned to their study.
         </p>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <a
+            className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:bg-white hover:shadow-sm"
+            href="./advice/"
+          >
+            <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Task A
+            </span>
+            <span className="mt-2 block text-lg font-semibold text-slate-950">
+              Advice Exposure Task
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-slate-600">
+              One dilemma, ten comments, one advice response, and brief
+              follow-up questions.
+            </span>
+          </a>
+
           <a
             className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:bg-white hover:shadow-sm"
             href="./judgment/"
           >
             <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Task A
+              Task B
             </span>
             <span className="mt-2 block text-lg font-semibold text-slate-950">
               Single Post Response Task
@@ -72,13 +88,13 @@ const Portal = () => (
             href="./ratings/"
           >
             <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Task B
+              Task C
             </span>
             <span className="mt-2 block text-lg font-semibold text-slate-950">
               Multi-Post Rating Task
             </span>
             <span className="mt-2 block text-sm leading-6 text-slate-600">
-              Five posts, four rating questions per post, then one final
+              Five posts, three rating questions per post, then one final
               submission.
             </span>
           </a>

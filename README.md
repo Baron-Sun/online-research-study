@@ -1,6 +1,6 @@
 # Online Research Study App
 
-This is a static React frontend for two separate crowdsourcing tasks.
+This is a static React frontend for separate crowdsourcing tasks.
 It can be deployed to GitHub Pages.
 
 The participant-facing title is intentionally neutral so the study does not
@@ -11,6 +11,7 @@ separate pages.
 
 ## Task Pages
 
+- `/advice/`: one-shot advice exposure task
 - `/judgment/`: single-post response task
 - `/ratings/`: multi-post rating task
 
@@ -50,10 +51,10 @@ git push -u origin main
 
 ## Runtime Query Parameters
 
-The app can run in demo mode, but real data collection should pass assignment and
-submission settings through the URL. For `/ratings/`, each assignment should
-contain the posts one worker should rate, usually 5 posts. For `/judgment/`, each
-assignment should contain one post and optionally one prior response.
+The app can run in demo mode, but real data collection should use a backend for
+assignment and response storage. For `/ratings/` and `/advice/`, the current
+recommended backend is Supabase. For `/judgment/`, the older
+`assignment_url`/`submit_url` mode is still supported.
 
 ```text
 https://example.github.io/repo/?assignment_url=https%3A%2F%2Fapi.example.org%2Fassignment%2Fabc&submit_url=https%3A%2F%2Fapi.example.org%2Fsubmit&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
@@ -173,3 +174,34 @@ ratings: OP wrongness, personal ambivalence, and perceived disagreement. The
 final page asks two soft post-task questions instead of a color attention check.
 On Prolific, mark the study as sensitive content, set the expected time to 10
 minutes, and pilot with about 10 participants before full launch.
+
+## Supabase Backend For `/advice/`
+
+The advice exposure task uses separate `advice_*` tables and RPCs, so it does
+not change or depend on the ratings task tables.
+
+1. Open `SQL Editor` and run `supabase_advice_setup.sql`.
+2. Import one-shot exposure stimuli into `advice_stimuli`. Each row should
+   include one exposure dilemma, one similar friend dilemma, 10 human comments,
+   and 10 LLM comments.
+3. Import balanced assignable rows into `advice_slots`, with one row per
+   participant slot and `condition` set to either `human_comments` or
+   `llm_comments`.
+4. Add `VITE_ADVICE_COMPLETION_CODE=ADVICE2026` as a GitHub Actions variable if
+   you want to override the default completion code, then redeploy.
+
+For local testing:
+
+```text
+http://localhost:5173/advice/?PROLIFIC_PID=test-worker-001&STUDY_ID=test-study&SESSION_ID=test-session
+```
+
+For Prolific External Study Link:
+
+```text
+https://baron-sun.github.io/online-research-study/advice/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+```
+
+The RPC assigns one stimulus/feed per participant, reuses the same assignment
+after refresh, stores two-strike comprehension screenouts, and saves final
+responses to `advice_submissions`.
