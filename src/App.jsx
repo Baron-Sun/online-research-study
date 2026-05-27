@@ -122,12 +122,15 @@ const RATING_ITEMS = [
     prompt:
       "If 100 thoughtful people read this post, what would their responses look like?",
     anchors: {
-      1: "Nearly all would reach the same response",
-      4: "Mixed; many different views",
-      7: "People would split into clearly opposed camps",
+      1: "Deep agreement - nearly everyone would respond the same way",
+      4: "Moderate disagreement",
+      7: "Deep disagreement; people would strongly oppose each other",
     },
   },
 ];
+
+const SELF_RATING_ITEMS = RATING_ITEMS.slice(0, 3);
+const OTHERS_RATING_ITEMS = RATING_ITEMS.slice(3);
 
 const DEMO_ASSIGNMENT = {
   assignmentId: "demo-rating-assignment",
@@ -502,6 +505,12 @@ const LikertItem = ({ item, value, onChange }) => (
 const isPostComplete = (postRating) =>
   RATING_ITEMS.every((item) => Boolean(postRating?.[item.key]));
 
+const isSelfRatingComplete = (postRating) =>
+  SELF_RATING_ITEMS.every((item) => Boolean(postRating?.[item.key]));
+
+const isOthersRatingComplete = (postRating) =>
+  OTHERS_RATING_ITEMS.every((item) => Boolean(postRating?.[item.key]));
+
 const makeEmptyRatings = (posts) =>
   Object.fromEntries(posts.map((post) => [post.id, {}]));
 
@@ -564,7 +573,10 @@ const ControversialityRatingTask = () => {
   const [screen, setScreen] = useState("landing");
   const [agreed, setAgreed] = useState(false);
   const [comprehension, setComprehension] = useState("");
+  const [comprehensionAttempts, setComprehensionAttempts] = useState(0);
+  const [comprehensionError, setComprehensionError] = useState("");
   const [currentPostIndex, setCurrentPostIndex] = useState(0);
+  const [ratingStage, setRatingStage] = useState("self");
   const [ratings, setRatings] = useState(() => makeEmptyRatings(DEMO_ASSIGNMENT.posts));
   const [postFirstSeenAt, setPostFirstSeenAt] = useState({});
   const [attentionCheck, setAttentionCheck] = useState("");
@@ -595,6 +607,11 @@ const ControversialityRatingTask = () => {
   const currentPost = posts[currentPostIndex] || posts[0];
   const completedCount = posts.filter((post) => isPostComplete(ratings[post.id])).length;
   const allPostsComplete = posts.length > 0 && completedCount === posts.length;
+  const currentPostRatings = ratings[currentPost?.id] || {};
+  const currentSelfComplete = isSelfRatingComplete(currentPostRatings);
+  const currentOthersComplete = isOthersRatingComplete(currentPostRatings);
+  const currentRatingItems =
+    ratingStage === "self" ? SELF_RATING_ITEMS : OTHERS_RATING_ITEMS;
 
   useEffect(() => {
     const params = getQueryParams();
@@ -694,6 +711,58 @@ const ControversialityRatingTask = () => {
     }));
   };
 
+  const handleComprehensionChange = (value) => {
+    if (!value) {
+      setComprehension("");
+      return;
+    }
+
+    if (value === "own-and-others") {
+      setComprehension(value);
+      setComprehensionError("");
+      return;
+    }
+
+    const nextAttempts = comprehensionAttempts + 1;
+    setComprehensionAttempts(nextAttempts);
+    setComprehension("");
+
+    if (nextAttempts >= 2) {
+      setScreen("comprehension_failed");
+      return;
+    }
+
+    setComprehensionError("Incorrect, please try again.");
+    window.alert("Incorrect, please try again.");
+  };
+
+  const goBackInTask = () => {
+    if (ratingStage === "others") {
+      setRatingStage("self");
+      return;
+    }
+
+    if (currentPostIndex > 0) {
+      setCurrentPostIndex((index) => Math.max(index - 1, 0));
+      setRatingStage("others");
+    }
+  };
+
+  const continueFromTaskStage = () => {
+    if (ratingStage === "self") {
+      setRatingStage("others");
+      return;
+    }
+
+    if (currentPostIndex < posts.length - 1) {
+      setCurrentPostIndex((index) => Math.min(index + 1, posts.length - 1));
+      setRatingStage("self");
+      return;
+    }
+
+    setScreen("review");
+  };
+
   const submit = async () => {
     setSubmissionState("submitting");
     setSubmissionError("");
@@ -731,14 +800,16 @@ const ControversialityRatingTask = () => {
             </h2>
             <p className="max-w-4xl text-base leading-7 text-slate-700">
               In this study, you will read {posts.length || POSTS_PER_WORKER}{" "}
-              anonymized online posts. For each post, you will answer four short
-              questions about your response and how you think other readers might
+              anonymous, public online posts about social dilemmas people are
+              experiencing. For each post, your job is to read them carefully,
+              form your impression, and then answer four short questions. Most
+              of the questions will be about how you think other readers might
               respond.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               {[
                 ["Task", `${posts.length || POSTS_PER_WORKER} posts`],
-                ["Time", "About 8 minutes"],
+                ["Time", "Most participants take 10 minutes to complete the task."],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -860,15 +931,20 @@ const ControversialityRatingTask = () => {
             </h2>
             <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 text-slate-700">
               <p>
-                You will read several short posts adapted from Reddit's
-                r/AmITheAsshole forum. In these posts, people describe social
-                dilemmas and ask readers to evaluate what happened.
+                You will read several posts from Reddit's r/AmITheAsshole
+                forum. In these posts, people describe social dilemmas and ask
+                readers to evaluate what happened.
               </p>
               <p>
-                For each post, your job is to give your own reaction and rate
-                how divided you think thoughtful readers would be. There are no
-                right or wrong answers. Please answer honestly and choose the
-                number that best matches your reaction.
+                For each post, your job is to give your own reactions to the
+                dilemma, and then to answer a question about how other people
+                would react. There are no right or wrong answers. Please answer
+                honestly and choose the number that best matches your reaction.
+              </p>
+              <p>
+                It's important that you don't use AI to answer these questions,
+                since we want to understand how humans respond to these
+                real-world dilemmas!
               </p>
               <p>
                 Please read each post carefully and answer all questions before
@@ -883,28 +959,37 @@ const ControversialityRatingTask = () => {
               Comprehension check
             </label>
             <p className="mb-3 text-sm leading-6 text-slate-600">
-              What will you be doing in this task?
+              To make sure we're on the same page, select what you will be doing
+              in this task:
             </p>
             <select
               value={comprehension}
-              onChange={(event) => setComprehension(event.target.value)}
+              onChange={(event) => handleComprehensionChange(event.target.value)}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
             >
               <option value="">Select the correct statement</option>
               <option value="long-explanation">
-                I will read only one post and write a long explanation.
+                I will read only one post and write a long explanation about my
+                feelings.
               </option>
               <option value="summarize">
-                I will summarize each post without giving my own reaction.
+                I will summarize each post without giving my own reaction, to
+                test comprehension.
               </option>
-              <option value="rate-division">
-                I will read each post and rate how divided thoughtful readers
-                might be about it.
+              <option value="own-and-others">
+                I will read each post and give my own reactions and judge how
+                others would respond.
               </option>
-              <option value="researcher-answer">
-                I will try to guess which answer the researchers want.
+              <option value="emotional-ratings">
+                I will read 5 posts and provide emotional ratings based on
+                people's feelings.
               </option>
             </select>
+            {comprehensionError && (
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                {comprehensionError}
+              </div>
+            )}
 
             <div className="mt-5 flex gap-3">
               <Button variant="secondary" onClick={() => setScreen("consent")}>
@@ -912,14 +997,31 @@ const ControversialityRatingTask = () => {
               </Button>
               <Button
                 className="flex-1"
-                disabled={comprehension !== "rate-division"}
-                onClick={() => setScreen("task")}
+                disabled={comprehension !== "own-and-others"}
+                onClick={() => {
+                  setRatingStage("self");
+                  setScreen("task");
+                }}
               >
                 Start Task
               </Button>
             </div>
           </Panel>
         </div>
+      </Page>
+    ),
+
+    comprehension_failed: (
+      <Page width="max-w-2xl">
+        <Panel className="p-8">
+          <h2 className="text-2xl font-semibold text-slate-950">
+            Study Ended
+          </h2>
+          <p className="mt-4 text-sm leading-6 text-slate-600">
+            You did not pass the comprehension check, so this study has ended.
+            Please return to the platform. No completion code is available.
+          </p>
+        </Panel>
       </Page>
     ),
 
@@ -942,7 +1044,11 @@ const ControversialityRatingTask = () => {
                     key={post.id}
                     type="button"
                     disabled={!reachable}
-                    onClick={() => reachable && setCurrentPostIndex(index)}
+                    onClick={() => {
+                      if (!reachable) return;
+                      setCurrentPostIndex(index);
+                      setRatingStage("self");
+                    }}
                     className={`w-full rounded-lg border p-3 text-left text-sm transition ${
                       active
                         ? "border-slate-900 bg-slate-900 text-white"
@@ -983,12 +1089,25 @@ const ControversialityRatingTask = () => {
             <h2 className="mb-4 text-xl font-semibold text-slate-950">
               Your Ratings
             </h2>
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
+              {ratingStage === "self" ? (
+                <p>
+                  For these first few questions, please respond based on your
+                  OWN reactions to the dilemma.
+                </p>
+              ) : (
+                <p>
+                  Now, we will ask you to think about how OTHERS would respond
+                  to the dilemma.
+                </p>
+              )}
+            </div>
             <div className="space-y-4">
-              {RATING_ITEMS.map((item) => (
+              {currentRatingItems.map((item) => (
                 <LikertItem
                   key={item.key}
                   item={item}
-                  value={ratings[currentPost?.id]?.[item.key] || ""}
+                  value={currentPostRatings[item.key] || ""}
                   onChange={(value) => setRating(currentPost.id, item.key, value)}
                 />
               ))}
@@ -997,30 +1116,26 @@ const ControversialityRatingTask = () => {
             <div className="mt-5 flex gap-3">
               <Button
                 variant="secondary"
-                disabled={currentPostIndex === 0}
-                onClick={() => setCurrentPostIndex((index) => Math.max(index - 1, 0))}
+                disabled={currentPostIndex === 0 && ratingStage === "self"}
+                onClick={goBackInTask}
               >
                 Back
               </Button>
-              {currentPostIndex < posts.length - 1 ? (
-                <Button
-                  className="flex-1"
-                  disabled={!isPostComplete(ratings[currentPost?.id])}
-                  onClick={() =>
-                    setCurrentPostIndex((index) => Math.min(index + 1, posts.length - 1))
-                  }
-                >
-                  Next Post
-                </Button>
-              ) : (
-                <Button
-                  className="flex-1"
-                  disabled={!allPostsComplete}
-                  onClick={() => setScreen("review")}
-                >
-                  Review & Submit
-                </Button>
-              )}
+              <Button
+                className="flex-1"
+                disabled={
+                  ratingStage === "self"
+                    ? !currentSelfComplete
+                    : !currentOthersComplete
+                }
+                onClick={continueFromTaskStage}
+              >
+                {ratingStage === "self"
+                  ? "Continue"
+                  : currentPostIndex < posts.length - 1
+                    ? "Next Post"
+                    : "Review & Submit"}
+              </Button>
             </div>
           </Panel>
         </div>
@@ -1149,8 +1264,8 @@ const ControversialityRatingTask = () => {
             Study Complete
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            Your response has been submitted. Please return to the crowdsourcing
-            platform and enter the completion code below.
+            Your response has been submitted. Please return to the platform and
+            enter the completion code below.
           </p>
           <div className="mx-auto mt-6 max-w-sm rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
