@@ -151,6 +151,41 @@ const TailwindLoader = ({ children }) => {
   return children;
 };
 
+const useGlobalClipboardBlock = ({ onCopyBlocked, onPasteBlocked } = {}) => {
+  useEffect(() => {
+    const blockCopy = (event) => {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+      onCopyBlocked?.();
+    };
+
+    const blockPaste = (event) => {
+      event.preventDefault();
+      onPasteBlocked?.();
+    };
+
+    const blockContext = (event) => {
+      event.preventDefault();
+    };
+
+    document.addEventListener("copy", blockCopy, true);
+    document.addEventListener("cut", blockCopy, true);
+    document.addEventListener("dragstart", blockCopy, true);
+    document.addEventListener("paste", blockPaste, true);
+    document.addEventListener("drop", blockPaste, true);
+    document.addEventListener("contextmenu", blockContext, true);
+
+    return () => {
+      document.removeEventListener("copy", blockCopy, true);
+      document.removeEventListener("cut", blockCopy, true);
+      document.removeEventListener("dragstart", blockCopy, true);
+      document.removeEventListener("paste", blockPaste, true);
+      document.removeEventListener("drop", blockPaste, true);
+      document.removeEventListener("contextmenu", blockContext, true);
+    };
+  }, [onCopyBlocked, onPasteBlocked]);
+};
+
 const getQueryParams = () => new URLSearchParams(window.location.search);
 
 const getProlificMeta = () => {
@@ -455,6 +490,15 @@ const AdviceTask = () => {
     ease &&
     fluency &&
     confidence;
+
+  useGlobalClipboardBlock({
+    onCopyBlocked: () => {
+      setCopyWarning("Please use your own words instead of copying text from the study materials.");
+    },
+    onPasteBlocked: () => {
+      setPasteWarning("Please type your advice in your own words instead of pasting text.");
+    },
+  });
 
   useEffect(() => {
     const supabaseConfig = getSupabaseConfig();
@@ -1085,7 +1129,7 @@ const AdviceTask = () => {
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Completion Code
             </div>
-            <div className="mt-2 select-all font-mono text-lg font-semibold text-slate-950">
+            <div className="mt-2 font-mono text-lg font-semibold text-slate-950">
               {assignment.completionCode || DEFAULT_COMPLETION_CODE}
             </div>
           </div>

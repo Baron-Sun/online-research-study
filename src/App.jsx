@@ -219,6 +219,34 @@ const TailwindLoader = ({ children }) => {
   return children;
 };
 
+const useGlobalClipboardBlock = () => {
+  useEffect(() => {
+    const blockClipboard = (event) => {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+    };
+
+    const blockedEvents = [
+      "copy",
+      "cut",
+      "paste",
+      "drop",
+      "dragstart",
+      "contextmenu",
+    ];
+
+    blockedEvents.forEach((eventName) => {
+      document.addEventListener(eventName, blockClipboard, true);
+    });
+
+    return () => {
+      blockedEvents.forEach((eventName) => {
+        document.removeEventListener(eventName, blockClipboard, true);
+      });
+    };
+  }, []);
+};
+
 const getQueryParams = () => new URLSearchParams(window.location.search);
 
 const getProlificMeta = () => {
@@ -593,6 +621,8 @@ const ConsentText = () => (
 );
 
 const ControversialityRatingTask = () => {
+  useGlobalClipboardBlock();
+
   const [assignment, setAssignment] = useState(() =>
     applyQueryOverrides(normalizeAssignment(DEMO_ASSIGNMENT))
   );
@@ -1357,7 +1387,7 @@ const ControversialityRatingTask = () => {
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Completion Code
             </div>
-            <div className="mt-2 select-all font-mono text-lg font-semibold text-slate-950">
+            <div className="mt-2 font-mono text-lg font-semibold text-slate-950">
               {assignment.completionCode || "ONLINE-COMPLETE"}
             </div>
           </div>
