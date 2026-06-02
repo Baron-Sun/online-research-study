@@ -157,7 +157,7 @@ Main text:
 
 ```text
 Study Overview
-In this study, you will read 5 anonymous, public online posts about social dilemmas. For each post, read carefully, form your impression, and answer short questions. Most questions are about how other readers might respond.
+In this study, you will read 5 anonymous, public online posts about social dilemmas. For each post, read carefully, form your impression, and answer short questions. The questions are about how you would respond or how other readers would respond.
 ```
 
 Info cards:
@@ -237,7 +237,7 @@ Instruction text:
 ```text
 You will read several short posts adapted from Reddit's r/AmITheAsshole forum. In these posts, people describe social dilemmas and ask readers to evaluate what happened.
 
-For each post, your job is to give your own reactions to the dilemma, and then to answer a question about how other people would react. There are no right or wrong answers. Please answer honestly and choose the number that best matches your reaction.
+For each post, you will answer some questions about your own reaction and some questions about how other readers might respond. There are no right or wrong answers. Please answer honestly and choose the number that best matches your reaction.
 
 It's important that you don't use AI to answer these questions, since we want to understand how humans respond to these real-world dilemmas!
 
@@ -393,7 +393,7 @@ ambivalence
 Participant-facing prompt:
 
 ```text
-How torn or conflicted do you feel about your response to the OP?
+How torn or conflicted do you feel about who is in the wrong in this situation?
 ```
 
 Scale:

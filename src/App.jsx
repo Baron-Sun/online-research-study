@@ -99,7 +99,7 @@ const RATING_ITEMS = [
   {
     key: "ambivalence",
     label: "Question 2",
-    prompt: "How torn or conflicted do you feel about your response to the OP?",
+    prompt: "How torn or conflicted do you feel about who is in the wrong in this situation?",
     anchors: {
       1: "Not torn at all; the answer is clear to me",
       4: "Somewhat torn",
@@ -878,8 +878,8 @@ const ControversialityRatingTask = () => {
               In this study, you will read {posts.length || POSTS_PER_WORKER}{" "}
               anonymous, public online posts about social dilemmas. For each
               post, read carefully, form your impression, and answer short
-              questions. Most questions are about how other readers might
-              respond.
+              questions. The questions are about how you would respond or how
+              other readers would respond.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               {[
@@ -1011,9 +1011,9 @@ const ControversialityRatingTask = () => {
                 readers to evaluate what happened.
               </p>
               <p>
-                For each post, your job is to give your own reactions to the
-                dilemma, and then to answer a question about how other people
-                would react. There are no right or wrong answers. Please answer
+                For each post, you will answer some questions about your own
+                reaction and some questions about how other readers might
+                respond. There are no right or wrong answers. Please answer
                 honestly and choose the number that best matches your reaction.
               </p>
               <p>
