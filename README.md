@@ -182,8 +182,8 @@ not change or depend on the ratings task tables.
 
 1. Open `SQL Editor` and run `supabase_advice_setup.sql`.
 2. Import one-shot exposure stimuli into `advice_stimuli`. Each row should
-   include one exposure dilemma, one similar friend dilemma, 10 human comments,
-   and 10 LLM comments.
+   include one exposure dilemma, one similar friend dilemma, 5 human comments,
+   and 5 LLM comments.
 3. Import balanced assignable rows into `advice_slots`, with one row per
    participant slot and `condition` set to either `human_comments` or
    `llm_comments`.

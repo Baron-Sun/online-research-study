@@ -99,7 +99,7 @@ create or replace function public.claim_advice_assignment(
   p_session_id text default null,
   p_completion_code text default 'ADVICE2026',
   p_contact_email text default 'william.brady@kellogg.northwestern.edu',
-  p_feed_size integer default 10
+  p_feed_size integer default 5
 )
 returns jsonb
 language plpgsql
@@ -118,7 +118,7 @@ begin
   end if;
 
   if p_feed_size is null or p_feed_size < 1 then
-    p_feed_size := 10;
+    p_feed_size := 5;
   end if;
 
   perform pg_advisory_xact_lock(hashtext('advice_assignment'));

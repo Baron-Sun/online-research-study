@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const MIN_ADVICE_CHARS = 80;
-const FEED_COMMENT_COUNT = 10;
+const FEED_COMMENT_COUNT = 5;
 const DEFAULT_COMPLETION_CODE = "ADVICE2026";
 const DEFAULT_CONTACT_EMAIL = "william.brady@kellogg.northwestern.edu";
 
@@ -640,10 +640,9 @@ const AdviceTask = () => {
               will then write advice for a friend facing a similar situation and
               answer a few short follow-up questions.
             </p>
-            <div className="mt-6 grid gap-3 md:grid-cols-3">
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
               {[
-                ["Task", "1 post and 1 advice response"],
-                ["Comments", `${FEED_COMMENT_COUNT} comments`],
+                ["Task", `1 post, ${FEED_COMMENT_COUNT} prior comments, and 1 advice response`],
                 ["Time", "Most participants take 8 to 10 minutes."],
               ].map(([label, value]) => (
                 <div
@@ -775,9 +774,9 @@ const AdviceTask = () => {
                 with your own advice. Please write the advice in your own words.
               </p>
               <p>
-                Please do not use AI tools, copy text from the study materials,
-                or paste text into your response. We are interested in your own
-                reaction after reading the materials.
+                Please do not use outside tools, copy text from the study
+                materials, or paste text into your response. We are interested
+                in your own reaction after reading the materials.
               </p>
             </div>
           </Panel>
@@ -797,16 +796,15 @@ const AdviceTask = () => {
               <option value="copy-comment">
                 I will copy one of the comments exactly into my answer.
               </option>
-              <option value="rate-source">
-                I will mainly rate whether each comment was written by a person
-                or by AI.
+              <option value="rate-comments">
+                I will rate each comment instead of writing advice.
               </option>
               <option value="own-advice">
                 I will read a dilemma and comments, then write my own advice for
                 a friend with a similar dilemma.
               </option>
-              <option value="use-ai">
-                I will use an AI tool to generate advice for the friend.
+              <option value="summarize-only">
+                I will only summarize the first post and stop there.
               </option>
             </select>
             {comprehensionError && (
