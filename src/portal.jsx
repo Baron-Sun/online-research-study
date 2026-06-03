@@ -62,8 +62,8 @@ const Portal = () => (
               Advice Exposure Task
             </span>
             <span className="mt-2 block text-sm leading-6 text-slate-600">
-              One dilemma, five prior comments, one advice response, and brief
-              follow-up questions.
+              One post with prior comments, one related post, one advice
+              response, and brief follow-up questions.
             </span>
           </a>
 

@@ -130,9 +130,12 @@ package is required.
 
 1. Create a Supabase project.
 2. Open `SQL Editor` and run `supabase_setup.sql`.
-3. In Supabase Table Editor, import `prolific_aita_rating_batch_300.csv` into
-   the `rating_posts` table.
-4. In GitHub, open this repository's `Settings > Secrets and variables >
+3. Generate the full153k v1 import files with
+   `python3 scripts/prepare_full153k_imports.py`.
+4. In Supabase Table Editor, import
+   `supabase_import/full153k_v1/rating_posts_import_full153k_v1.csv` into the
+   `rating_posts` table.
+5. In GitHub, open this repository's `Settings > Secrets and variables >
    Actions > Variables` and add:
 
 ```text
@@ -142,7 +145,7 @@ VITE_RATING_COMPLETION_CODE=RATING2026
 VITE_RESEARCH_CONTACT_EMAIL=william.brady@kellogg.northwestern.edu
 ```
 
-5. Re-run the GitHub Pages workflow or push to `main`.
+6. Re-run the GitHub Pages workflow or push to `main`.
 
 For local testing, copy `.env.example` to `.env.local` and fill in the same
 values, then run:
@@ -181,13 +184,16 @@ The advice exposure task uses separate `advice_*` tables and RPCs, so it does
 not change or depend on the ratings task tables.
 
 1. Open `SQL Editor` and run `supabase_advice_setup.sql`.
-2. Import one-shot exposure stimuli into `advice_stimuli`. Each row should
-   include one exposure dilemma, one similar friend dilemma, 5 human comments,
-   and 5 LLM comments.
-3. Import balanced assignable rows into `advice_slots`, with one row per
+2. Generate the full153k v1 import files with
+   `python3 scripts/prepare_full153k_imports.py`.
+3. Import one-shot exposure stimuli into `advice_stimuli`. Each row should
+   include one exposure dilemma, one related second dilemma, human comments,
+   and LLM comments. For the full153k v1 launch files, human-condition slots
+   show 5 comments and LLM-condition slots show 3 comments.
+4. Import balanced assignable rows into `advice_slots`, with one row per
    participant slot and `condition` set to either `human_comments` or
    `llm_comments`.
-4. Add `VITE_ADVICE_COMPLETION_CODE=ADVICE2026` as a GitHub Actions variable if
+5. Add `VITE_ADVICE_COMPLETION_CODE=ADVICE2026` as a GitHub Actions variable if
    you want to override the default completion code, then redeploy.
 
 For local testing:

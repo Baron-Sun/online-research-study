@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const MIN_ADVICE_CHARS = 80;
-const FEED_COMMENT_COUNT = 5;
+const HUMAN_FEED_COMMENT_COUNT = 5;
+const LLM_FEED_COMMENT_COUNT = 3;
 const DEFAULT_COMPLETION_CODE = "ADVICE2026";
 const DEFAULT_CONTACT_EMAIL = "william.brady@kellogg.northwestern.edu";
 
@@ -101,10 +102,10 @@ const DEMO_ASSIGNMENT = {
 They got upset and said family should show up when needed. I reminded them that they had refused to help me several times in the past and often dismissed my boundaries. Now my parents say I should put the conflict aside because moving is stressful.
 
 I feel guilty, but I also feel like I am always expected to be available. AITA?`,
-    friendTitle: "Your friend is unsure whether to help a cousin who often ignores their limits",
-    friendBody: `Your friend says their cousin asked them to give up an entire weekend to help with a last-minute move. Your friend wants to be supportive, but the cousin has repeatedly ignored their boundaries and rarely helps in return.
+    friendTitle: "Another person is unsure whether to help a cousin who often ignores their limits",
+    friendBody: `Someone says their cousin asked them to give up an entire weekend to help with a last-minute move. They want to be supportive, but the cousin has repeatedly ignored their boundaries and rarely helps in return.
 
-Your friend could help for part of the day, but not the whole weekend. Their family is pressuring them to be more generous because the cousin is stressed. Your friend asks what advice you would give.`,
+They could help for part of the day, but not the whole weekend. Their family is pressuring them to be more generous because the cousin is stressed. They ask what advice you would give.`,
     moralThemeMetadata: {
       themes: ["relational obligation", "fairness", "boundaries"],
       pairType: "demo",
@@ -225,17 +226,24 @@ const getSupabaseConfig = () => {
   };
 };
 
-const normalizeAssignment = (assignment) => ({
-  ...DEMO_ASSIGNMENT,
-  ...assignment,
-  stimulus: {
-    ...DEMO_ASSIGNMENT.stimulus,
-    ...(assignment.stimulus || {}),
-  },
-  comments: Array.isArray(assignment.comments)
-    ? assignment.comments.slice(0, FEED_COMMENT_COUNT)
-    : DEMO_ASSIGNMENT.comments,
-});
+const getFeedCommentLimit = (condition) =>
+  condition === "llm_comments" ? LLM_FEED_COMMENT_COUNT : HUMAN_FEED_COMMENT_COUNT;
+
+const normalizeAssignment = (assignment) => {
+  const condition = assignment.condition || DEMO_ASSIGNMENT.condition;
+  return {
+    ...DEMO_ASSIGNMENT,
+    ...assignment,
+    condition,
+    stimulus: {
+      ...DEMO_ASSIGNMENT.stimulus,
+      ...(assignment.stimulus || {}),
+    },
+    comments: Array.isArray(assignment.comments)
+      ? assignment.comments.slice(0, getFeedCommentLimit(condition))
+      : DEMO_ASSIGNMENT.comments.slice(0, getFeedCommentLimit(condition)),
+  };
+};
 
 const supabaseRpc = async (config, fnName, body) => {
   const response = await fetch(`${config.url}/rest/v1/rpc/${fnName}`, {
@@ -269,7 +277,7 @@ const claimAdviceAssignment = async ({ config, participant }) => {
     p_session_id: participant.sessionId || null,
     p_completion_code: config.completionCode,
     p_contact_email: config.contactEmail,
-    p_feed_size: FEED_COMMENT_COUNT,
+    p_feed_size: HUMAN_FEED_COMMENT_COUNT,
   });
 
   return {
@@ -681,12 +689,13 @@ const AdviceTask = () => {
             <p className="max-w-4xl text-base leading-7 text-slate-700">
               In this study, you will read one anonymous, public online post
               about a social dilemma, along with several comments about it. You
-              will then write advice for a friend facing a similar situation and
-              answer a few short follow-up questions.
+              will then read a second post from another person facing a related
+              situation, write advice for that person, and answer a few short
+              follow-up questions.
             </p>
             <div className="mt-6 grid gap-3 md:grid-cols-2">
               {[
-                ["Task", `1 post, ${FEED_COMMENT_COUNT} prior comments, and 1 advice response`],
+                ["Task", "1 post with prior comments, 1 related post, and 1 advice response"],
                 ["Time", "Most participants take 8 to 10 minutes."],
               ].map(([label, value]) => (
                 <div
@@ -809,13 +818,14 @@ const AdviceTask = () => {
             </h2>
             <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-7 text-slate-700">
               <p>
-                You will read a public online post about a social dilemma and a
-                set of comments about that situation.
+                You will read a public online post about a social dilemma and
+                several comments about that situation.
               </p>
               <p>
-                Next, you will imagine that a friend has a similar but different
-                dilemma and needs advice. You can use what you read, or come up
-                with your own advice. Please write the advice in your own words.
+                Next, you will read a second post from another person facing a
+                related but different dilemma. You can use what you read, or
+                come up with your own advice. Please write the advice in your
+                own words.
               </p>
               <p>
                 Please do not use outside tools, copy text from the study
@@ -845,7 +855,7 @@ const AdviceTask = () => {
               </option>
               <option value="own-advice">
                 I will read a dilemma and comments, then write my own advice for
-                a friend with a similar dilemma.
+                another person with a related dilemma.
               </option>
               <option value="summarize-only">
                 I will only summarize the first post and stop there.
@@ -942,7 +952,7 @@ const AdviceTask = () => {
           <Panel className="overflow-hidden">
             <div className="border-b border-slate-200 px-5 py-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Friend's Dilemma
+                Second Post
               </p>
               <h2 className="mt-2 text-xl font-semibold leading-7 text-slate-950">
                 {assignment.stimulus.friendTitle}
@@ -960,8 +970,8 @@ const AdviceTask = () => {
               Write Advice
             </h2>
             <p className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-              Imagine your friend has a similar dilemma and needs advice. You
-              can use what you read, or come up with your own advice.
+              Imagine this person needs advice. You can use what you read, or
+              come up with your own advice.
             </p>
             <textarea
               value={adviceText}
@@ -972,7 +982,7 @@ const AdviceTask = () => {
               }}
               onDrop={(event) => event.preventDefault()}
               className="h-64 w-full resize-none rounded-lg border border-slate-300 bg-white p-4 text-sm leading-6 text-slate-800 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
-              placeholder="Write the advice you would give your friend..."
+              placeholder="Write the advice you would give this person..."
             />
             <div className="mt-2 flex justify-between text-xs">
               <span className="text-slate-500">
@@ -1023,7 +1033,7 @@ const AdviceTask = () => {
           <div className="grid gap-4">
             <LikertItem
               label="Question 1"
-              prompt="How easy or difficult was it to come up with advice for your friend?"
+              prompt="How easy or difficult was it to come up with advice for this person?"
               value={ease}
               onChange={setEase}
               left="Very difficult"

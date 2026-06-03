@@ -112,14 +112,18 @@ declare
   v_stimulus public.advice_stimuli%rowtype;
   v_assignment_id text;
   v_comments jsonb;
+  v_human_feed_size integer;
+  v_llm_feed_size integer := 3;
+  v_slot_feed_size integer;
 begin
   if nullif(trim(p_prolific_pid), '') is null then
     raise exception 'Missing PROLIFIC_PID';
   end if;
 
-  if p_feed_size is null or p_feed_size < 1 then
+  if p_feed_size is null or p_feed_size < 5 then
     p_feed_size := 5;
   end if;
+  v_human_feed_size := p_feed_size;
 
   perform pg_advisory_xact_lock(hashtext('advice_assignment'));
 
@@ -154,7 +158,10 @@ begin
            when s.condition = 'human_comments' then st.human_comments
            else st.llm_comments
          end
-       ) >= p_feed_size
+       ) >= case
+         when s.condition = 'human_comments' then v_human_feed_size
+         else v_llm_feed_size
+       end
      order by coalesce(c.assigned_count, 0) asc, random()
      limit 1;
 
@@ -209,6 +216,11 @@ begin
     raise exception 'Stimulus not found';
   end if;
 
+  v_slot_feed_size := case
+    when v_slot.condition = 'human_comments' then v_human_feed_size
+    else v_llm_feed_size
+  end;
+
   select coalesce(jsonb_agg(comment_value order by comment_order), '[]'::jsonb)
     into v_comments
     from (
@@ -219,7 +231,7 @@ begin
           else v_stimulus.llm_comments
         end
       ) with ordinality
-      where ordinality <= p_feed_size
+      where ordinality <= v_slot_feed_size
     ) comments;
 
   return jsonb_build_object(

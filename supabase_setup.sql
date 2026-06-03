@@ -1,6 +1,7 @@
 -- Supabase setup for the /ratings/ Prolific study.
--- Run this in Supabase SQL Editor, then import prolific_aita_rating_batch_300.csv
--- into the public.rating_posts table.
+-- Run this in Supabase SQL Editor, then import the generated
+-- supabase_import/full153k_v1/rating_posts_import_full153k_v1.csv file into
+-- the public.rating_posts table.
 
 create extension if not exists pgcrypto;
 

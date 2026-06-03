@@ -11,6 +11,8 @@
 !RATING_TASK_FLOW.md
 !supabase_setup.sql
 !supabase_advice_setup.sql
+!scripts/
+!scripts/prepare_full153k_imports.py
 !.github/
 !.github/workflows/
 !.github/workflows/deploy.yml
