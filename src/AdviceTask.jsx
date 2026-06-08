@@ -5,6 +5,8 @@ const HUMAN_FEED_COMMENT_COUNT = 5;
 const LLM_FEED_COMMENT_COUNT = 3;
 const DEFAULT_COMPLETION_CODE = "ADVICE2026";
 const DEFAULT_CONTACT_EMAIL = "william.brady@kellogg.northwestern.edu";
+const PROLIFIC_COMPLETION_BASE_URL =
+  "https://app.prolific.com/submissions/complete";
 
 const INFORMED_CONSENT_TEXT = `Principal Investigator: William J. Brady
 
@@ -188,6 +190,16 @@ const useGlobalClipboardBlock = ({ onCopyBlocked, onPasteBlocked } = {}) => {
 };
 
 const getQueryParams = () => new URLSearchParams(window.location.search);
+
+const getProlificCompletionUrl = (completionCode) => {
+  const params = getQueryParams();
+  const explicitUrl = params.get("completion_url");
+  if (explicitUrl) return explicitUrl;
+
+  const code = String(completionCode || "").trim();
+  if (!code) return "";
+  return `${PROLIFIC_COMPLETION_BASE_URL}?cc=${encodeURIComponent(code)}`;
+};
 
 const getProlificMeta = () => {
   const params = getQueryParams();
@@ -493,6 +505,8 @@ const AdviceTask = () => {
   });
 
   const participant = useMemo(() => getProlificMeta(), []);
+  const completionCode = assignment.completionCode || DEFAULT_COMPLETION_CODE;
+  const completionUrl = getProlificCompletionUrl(completionCode);
   const canSubmit =
     adviceText.trim().length >= MIN_ADVICE_CHARS &&
     ease &&
@@ -1132,15 +1146,26 @@ const AdviceTask = () => {
             Study Complete
           </h2>
           <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-600">
-            Your response has been submitted. Please return to the platform and
-            enter the completion code below.
+            Your response has been submitted. Please click the button below to
+            return to Prolific and complete your submission.
+          </p>
+          <Button
+            className="mt-6"
+            disabled={!completionUrl}
+            onClick={() => window.location.assign(completionUrl)}
+          >
+            Return to Prolific
+          </Button>
+          <p className="mx-auto mt-4 max-w-md text-xs leading-5 text-slate-500">
+            If the button does not work, return to Prolific manually and enter
+            this completion code:
           </p>
           <div className="mx-auto mt-6 max-w-sm rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Completion Code
             </div>
             <div className="mt-2 font-mono text-lg font-semibold text-slate-950">
-              {assignment.completionCode || DEFAULT_COMPLETION_CODE}
+              {completionCode}
             </div>
           </div>
         </Panel>

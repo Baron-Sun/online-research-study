@@ -166,6 +166,16 @@ For Prolific External Study Link, use:
 https://baron-sun.github.io/online-research-study/ratings/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
 ```
 
+If the Prolific completion code is not set with
+`VITE_RATING_COMPLETION_CODE`, append it to the study URL:
+
+```text
+https://baron-sun.github.io/online-research-study/ratings/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}&completion_code=YOUR_PROLIFIC_CODE
+```
+
+After a successful Supabase save, the final page sends participants to
+`https://app.prolific.com/submissions/complete?cc=YOUR_PROLIFIC_CODE`.
+
 The Supabase RPC assigns 5 posts per participant, reuses the same assignment if
 the participant refreshes, and saves the final payload to `rating_submissions`.
 Comprehension-check failures are also stored on `rating_assignments`: after two
@@ -207,6 +217,16 @@ For Prolific External Study Link:
 ```text
 https://baron-sun.github.io/online-research-study/advice/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
 ```
+
+If the Prolific completion code is not set with
+`VITE_ADVICE_COMPLETION_CODE`, append it to the study URL:
+
+```text
+https://baron-sun.github.io/online-research-study/advice/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}&completion_code=YOUR_PROLIFIC_CODE
+```
+
+After a successful Supabase save, the final page sends participants to
+`https://app.prolific.com/submissions/complete?cc=YOUR_PROLIFIC_CODE`.
 
 The RPC assigns one stimulus/feed per participant, reuses the same assignment
 after refresh, stores two-strike comprehension screenouts, and saves final
