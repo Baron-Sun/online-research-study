@@ -1,7 +1,9 @@
 -- Supabase setup for the /ratings/ Prolific study.
 -- Run this in Supabase SQL Editor, then import the generated
 -- supabase_import/full153k_v1/rating_posts_import_full153k_v1.csv file into
--- the public.rating_posts table.
+-- public.rating_posts, then import
+-- supabase_import/full153k_v1/rating_assignment_slots_import_full153k_v1.csv
+-- into public.rating_assignment_slots.
 
 create extension if not exists pgcrypto;
 
@@ -21,12 +23,55 @@ create table if not exists public.rating_posts (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.rating_assignment_slots (
+  id uuid primary key default gen_random_uuid(),
+  slot_id text not null unique,
+  slot_index integer not null unique,
+  pattern text not null check (pattern in ('A', 'B', 'C')),
+  post_ids text[] not null,
+  metadata jsonb not null default '{}'::jsonb,
+  status text not null default 'open' check (
+    status in ('open', 'claimed', 'submitted')
+  ),
+  assignment_id text unique,
+  claimed_at timestamptz,
+  submitted_at timestamptz,
+  screened_out_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.rating_assignment_slots
+  add column if not exists pattern text;
+
+alter table public.rating_assignment_slots
+  add column if not exists metadata jsonb not null default '{}'::jsonb;
+
+alter table public.rating_assignment_slots
+  add column if not exists assignment_id text;
+
+alter table public.rating_assignment_slots
+  add column if not exists claimed_at timestamptz;
+
+alter table public.rating_assignment_slots
+  add column if not exists submitted_at timestamptz;
+
+alter table public.rating_assignment_slots
+  add column if not exists screened_out_at timestamptz;
+
+create index if not exists rating_assignment_slots_status_idx
+  on public.rating_assignment_slots (status, slot_index);
+
+create unique index if not exists rating_assignment_slots_assignment_id_idx
+  on public.rating_assignment_slots (assignment_id)
+  where assignment_id is not null;
+
 create table if not exists public.rating_assignments (
   id uuid primary key default gen_random_uuid(),
   assignment_id text not null unique,
   prolific_pid text not null,
   study_id text,
   session_id text,
+  slot_id text,
   post_ids text[] not null,
   posts_per_worker integer not null default 5,
   comprehension_failures integer not null default 0,
@@ -50,12 +95,21 @@ alter table public.rating_assignments
 alter table public.rating_assignments
   add column if not exists screened_out_at timestamptz;
 
+alter table public.rating_assignments
+  add column if not exists slot_id text;
+
 create unique index if not exists rating_assignments_participant_session_idx
   on public.rating_assignments (
     prolific_pid,
     coalesce(study_id, ''),
     coalesce(session_id, '')
   );
+
+drop index if exists public.rating_assignments_slot_id_idx;
+
+create index if not exists rating_assignments_slot_id_idx
+  on public.rating_assignments (slot_id)
+  where slot_id is not null;
 
 create table if not exists public.rating_submissions (
   id uuid primary key default gen_random_uuid(),
@@ -80,10 +134,12 @@ alter table public.rating_submissions
   add column if not exists post_task_study_purpose text;
 
 alter table public.rating_posts enable row level security;
+alter table public.rating_assignment_slots enable row level security;
 alter table public.rating_assignments enable row level security;
 alter table public.rating_submissions enable row level security;
 
 revoke all on public.rating_posts from anon, authenticated;
+revoke all on public.rating_assignment_slots from anon, authenticated;
 revoke all on public.rating_assignments from anon, authenticated;
 revoke all on public.rating_submissions from anon, authenticated;
 
@@ -103,6 +159,7 @@ set search_path = public
 as $$
 declare
   v_assignment public.rating_assignments%rowtype;
+  v_slot public.rating_assignment_slots%rowtype;
   v_assignment_id text;
   v_post_ids text[];
   v_posts jsonb;
@@ -127,32 +184,20 @@ begin
    limit 1;
 
   if v_assignment.id is null then
-    with assignment_counts as (
-      select
-        p.task_id,
-        count(a.id) as assigned_count
-      from public.rating_posts p
-      left join public.rating_assignments a
-        on p.task_id = any(a.post_ids)
-       and a.status in ('claimed', 'submitted')
-      group by p.task_id
-    ),
-    selected_posts as (
-      select p.task_id
-      from public.rating_posts p
-      join assignment_counts c on c.task_id = p.task_id
-      where c.assigned_count < p_max_assignments_per_post
-      order by c.assigned_count asc, random()
-      limit p_posts_per_worker
-    )
-    select array_agg(task_id)
-      into v_post_ids
-      from selected_posts;
+    select *
+      into v_slot
+      from public.rating_assignment_slots
+     where status = 'open'
+       and coalesce(array_length(post_ids, 1), 0) = p_posts_per_worker
+     order by slot_index asc
+     for update skip locked
+     limit 1;
 
-    if coalesce(array_length(v_post_ids, 1), 0) < p_posts_per_worker then
-      raise exception 'Not enough available posts for assignment';
+    if v_slot.id is null then
+      raise exception 'No available rating assignment slots';
     end if;
 
+    v_post_ids := v_slot.post_ids;
     v_assignment_id := 'rating-' || p_prolific_pid || '-' || substr(gen_random_uuid()::text, 1, 8);
 
     insert into public.rating_assignments (
@@ -160,6 +205,7 @@ begin
       prolific_pid,
       study_id,
       session_id,
+      slot_id,
       post_ids,
       posts_per_worker
     )
@@ -168,12 +214,28 @@ begin
       p_prolific_pid,
       p_study_id,
       p_session_id,
+      v_slot.slot_id,
       v_post_ids,
       p_posts_per_worker
     )
     returning * into v_assignment;
+
+    update public.rating_assignment_slots
+       set status = 'claimed',
+           assignment_id = v_assignment.assignment_id,
+           claimed_at = now(),
+           submitted_at = null,
+           screened_out_at = null
+     where slot_id = v_slot.slot_id;
   else
     v_post_ids := v_assignment.post_ids;
+    if v_assignment.slot_id is not null then
+      select *
+        into v_slot
+        from public.rating_assignment_slots
+       where slot_id = v_assignment.slot_id
+       limit 1;
+    end if;
   end if;
 
   select jsonb_agg(
@@ -203,6 +265,9 @@ begin
     'assignmentId', v_assignment.assignment_id,
     'completionCode', p_completion_code,
     'contactEmail', p_contact_email,
+    'slotId', v_assignment.slot_id,
+    'slotIndex', v_slot.slot_index,
+    'assignmentPattern', v_slot.pattern,
     'status', v_assignment.status,
     'comprehensionFailures', v_assignment.comprehension_failures,
     'screenedOutAt', v_assignment.screened_out_at,
@@ -273,6 +338,17 @@ begin
    where assignment_id = p_assignment_id
    returning * into v_assignment;
 
+  if v_assignment.status = 'screened_out' and v_assignment.slot_id is not null then
+    update public.rating_assignment_slots
+       set status = 'open',
+           assignment_id = null,
+           claimed_at = null,
+           submitted_at = null,
+           screened_out_at = now()
+     where slot_id = v_assignment.slot_id
+       and assignment_id = v_assignment.assignment_id;
+  end if;
+
   return jsonb_build_object(
     'ok', true,
     'assignmentId', v_assignment.assignment_id,
@@ -300,6 +376,7 @@ declare
   v_post_task_disagreement_difficulty integer;
   v_post_task_study_purpose text;
   v_assignment_status text;
+  v_slot_id text;
 begin
   if nullif(trim(p_assignment_id), '') is null then
     raise exception 'Missing assignment id';
@@ -309,8 +386,8 @@ begin
     raise exception 'Missing payload';
   end if;
 
-  select status
-    into v_assignment_status
+  select status, slot_id
+    into v_assignment_status, v_slot_id
     from public.rating_assignments
    where assignment_id = p_assignment_id
    limit 1;
@@ -369,6 +446,14 @@ begin
      set status = 'submitted',
          submitted_at = now()
    where assignment_id = p_assignment_id;
+
+  if v_slot_id is not null then
+    update public.rating_assignment_slots
+       set status = 'submitted',
+           submitted_at = now()
+     where slot_id = v_slot_id
+       and assignment_id = p_assignment_id;
+  end if;
 
   return jsonb_build_object('ok', true, 'assignmentId', p_assignment_id);
 end;

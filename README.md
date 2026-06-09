@@ -135,7 +135,13 @@ package is required.
 4. In Supabase Table Editor, import
    `supabase_import/full153k_v1/rating_posts_import_full153k_v1.csv` into the
    `rating_posts` table.
-5. In GitHub, open this repository's `Settings > Secrets and variables >
+5. Import
+   `supabase_import/full153k_v1/rating_assignment_slots_import_full153k_v1.csv`
+   into the `rating_assignment_slots` table. This file contains 180 fixed
+   five-post assignments: each of the 300 posts appears exactly 3 times, each
+   topic appears 90 times, each controversy bucket appears 300 times, and each
+   topic x controversy cell appears 30 times.
+6. In GitHub, open this repository's `Settings > Secrets and variables >
    Actions > Variables` and add:
 
 ```text
@@ -145,7 +151,7 @@ VITE_RATING_COMPLETION_CODE=RATING2026
 VITE_RESEARCH_CONTACT_EMAIL=william.brady@kellogg.northwestern.edu
 ```
 
-6. Re-run the GitHub Pages workflow or push to `main`.
+7. Re-run the GitHub Pages workflow or push to `main`.
 
 For local testing, copy `.env.example` to `.env.local` and fill in the same
 values, then run:
@@ -176,8 +182,10 @@ https://baron-sun.github.io/online-research-study/ratings/?PROLIFIC_PID={{%PROLI
 After a successful Supabase save, the final page sends participants to
 `https://app.prolific.com/submissions/complete?cc=YOUR_PROLIFIC_CODE`.
 
-The Supabase RPC assigns 5 posts per participant, reuses the same assignment if
-the participant refreshes, and saves the final payload to `rating_submissions`.
+The Supabase RPC assigns the next open row from `rating_assignment_slots`,
+reuses the same assignment if the participant refreshes, and saves the final
+payload to `rating_submissions`. The frontend never samples rating posts; the
+fixed database slot determines the five posts.
 Comprehension-check failures are also stored on `rating_assignments`: after two
 incorrect choices, the assignment is marked `screened_out`, and reopening the
 same Prolific link will show the study-ended screen with no completion code.
