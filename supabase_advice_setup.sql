@@ -97,7 +97,7 @@ create or replace function public.claim_advice_assignment(
   p_prolific_pid text,
   p_study_id text default null,
   p_session_id text default null,
-  p_completion_code text default 'ADVICE2026',
+  p_completion_code text default 'C164ME01',
   p_contact_email text default 'william.brady@kellogg.northwestern.edu',
   p_feed_size integer default 5
 )

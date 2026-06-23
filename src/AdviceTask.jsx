@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 const MIN_ADVICE_CHARS = 80;
 const HUMAN_FEED_COMMENT_COUNT = 5;
 const LLM_FEED_COMMENT_COUNT = 3;
-const DEFAULT_COMPLETION_CODE = "ADVICE2026";
+const DEFAULT_COMPLETION_CODE = "C164ME01";
 const DEFAULT_CONTACT_EMAIL = "william.brady@kellogg.northwestern.edu";
 const PROLIFIC_COMPLETION_BASE_URL =
   "https://app.prolific.com/submissions/complete";

@@ -211,7 +211,7 @@ not change or depend on the ratings task tables.
 4. Import balanced assignable rows into `advice_slots`, with one row per
    participant slot and `condition` set to either `human_comments` or
    `llm_comments`.
-5. Add `VITE_ADVICE_COMPLETION_CODE=ADVICE2026` as a GitHub Actions variable if
+5. Add `VITE_ADVICE_COMPLETION_CODE=C164ME01` as a GitHub Actions variable if
    you want to override the default completion code, then redeploy.
 
 For local testing:
