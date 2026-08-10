@@ -36,7 +36,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -47,6 +48,12 @@ button {
 .source-study-page {
   min-height: 100vh;
   background: var(--source-slate-50);
+}
+
+.source-study-page,
+.source-study-page * {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .source-centered-page {
@@ -235,6 +242,168 @@ button {
   transform: none;
 }
 
+.source-secondary-button {
+  min-height: 46px;
+  padding: 11px 20px;
+  cursor: pointer;
+  border: 1px solid var(--source-slate-300);
+  border-radius: 9px;
+  background: var(--source-white);
+  color: var(--source-slate-700);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.source-secondary-button:hover {
+  background: var(--source-slate-100);
+}
+
+.source-secondary-button:focus-visible {
+  outline: 3px solid rgb(148 163 184 / 55%);
+  outline-offset: 3px;
+}
+
+.source-consent-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: 20px;
+}
+
+.source-consent-panel,
+.source-consent-confirmation {
+  padding: clamp(20px, 4vw, 28px);
+}
+
+.source-consent-panel h2 {
+  margin: 0 0 18px;
+  color: var(--source-slate-950);
+  font-size: 27px;
+  line-height: 1.2;
+}
+
+.source-consent-text {
+  max-height: 620px;
+  padding: 20px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--source-slate-200);
+  border-radius: 9px;
+  background: var(--source-slate-50);
+  color: var(--source-slate-700);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.source-consent-confirmation {
+  position: sticky;
+  top: 20px;
+}
+
+.source-consent-confirmation h3 {
+  margin: 0;
+  color: var(--source-slate-950);
+  font-size: 17px;
+}
+
+.source-consent-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 15px;
+  margin-top: 18px;
+  cursor: pointer;
+  border: 1px solid var(--source-slate-200);
+  border-radius: 9px;
+  background: var(--source-slate-50);
+  color: var(--source-slate-700);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.source-consent-checkbox input {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+}
+
+.source-button-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.source-check-label {
+  display: block;
+  color: var(--source-slate-900);
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.source-check-copy,
+.source-attempt-note {
+  color: var(--source-slate-600);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.source-check-copy {
+  margin: 8px 0 12px;
+}
+
+.source-check-select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--source-slate-300);
+  border-radius: 9px;
+  background: var(--source-white);
+  color: var(--source-slate-800);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.source-check-select:focus {
+  outline: 3px solid rgb(148 163 184 / 45%);
+  outline-offset: 2px;
+}
+
+.source-attempt-note {
+  margin: 10px 0 0;
+  color: var(--source-slate-500);
+  font-size: 11px;
+}
+
+.source-inline-error {
+  padding: 10px 12px;
+  margin: 12px 0 0;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.source-instructions-copy {
+  padding: 18px 20px;
+  border: 1px solid var(--source-slate-200);
+  border-radius: 9px;
+  background: var(--source-slate-50);
+  color: var(--source-slate-700);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.source-instructions-copy p {
+  margin: 0;
+}
+
+.source-instructions-copy p + p {
+  margin-top: 14px;
+}
+
 .source-task-heading {
   display: flex;
   align-items: end;
@@ -287,7 +456,6 @@ button {
 
 .source-text {
   white-space: pre-line;
-  user-select: text;
 }
 
 .source-post-text {
@@ -587,6 +755,14 @@ button {
 }
 
 @media (max-width: 980px) {
+  .source-consent-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .source-consent-confirmation {
+    position: static;
+  }
+
   .source-stimulus-grid {
     grid-template-columns: 1fr;
   }
@@ -623,6 +799,14 @@ button {
   }
 
   .source-primary-button {
+    width: 100%;
+  }
+
+  .source-button-row {
+    grid-template-columns: 1fr;
+  }
+
+  .source-secondary-button {
     width: 100%;
   }
 

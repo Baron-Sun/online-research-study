@@ -29,6 +29,7 @@
 !src/SourceDetectionTask.jsx
 !src/comment-source.jsx
 !src/source-detection.css
+!src/source-consent.js
 !advice/
 !advice/index.html
 !judgment/

@@ -46,6 +46,18 @@ alter table public.source_detection_assignments
   add column if not exists slot_id text;
 
 alter table public.source_detection_assignments
+  add column if not exists comprehension_failures integer not null default 0;
+
+alter table public.source_detection_assignments
+  add column if not exists last_comprehension_failure_at timestamptz;
+
+alter table public.source_detection_assignments
+  add column if not exists last_comprehension_failure_option text;
+
+alter table public.source_detection_assignments
+  add column if not exists screened_out_at timestamptz;
+
+alter table public.source_detection_assignments
   add column if not exists exclusion_reason text;
 
 alter table public.source_detection_assignments
@@ -56,7 +68,7 @@ alter table public.source_detection_assignments
 
 alter table public.source_detection_assignments
   add constraint source_detection_assignments_status_check
-  check (status in ('claimed', 'submitted', 'excluded', 'abandoned'));
+  check (status in ('claimed', 'submitted', 'screened_out', 'excluded', 'abandoned'));
 
 do $$
 begin
@@ -280,6 +292,8 @@ begin
     'assignmentId', v_assignment.assignment_id,
     'status', v_assignment.status,
     'submittedAt', v_assignment.submitted_at,
+    'comprehensionFailures', v_assignment.comprehension_failures,
+    'screenedOutAt', v_assignment.screened_out_at,
     'pairNumber', v_stimulus.pair_number,
     'pairRole', v_stimulus.pair_role,
     'postId', v_stimulus.stimulus_id,
@@ -300,6 +314,104 @@ begin
   end if;
 
   return v_result;
+end;
+$$;
+
+create or replace function public.record_source_detection_comprehension_failure(
+  p_assignment_id text,
+  p_selected_option text default null,
+  p_payload jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_assignment public.source_detection_assignments%rowtype;
+begin
+  p_assignment_id := nullif(trim(p_assignment_id), '');
+  p_selected_option := nullif(trim(p_selected_option), '');
+
+  if p_assignment_id is null then
+    raise exception 'Missing assignment id';
+  end if;
+  if p_selected_option is null then
+    raise exception 'Missing selected option';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('source_detection_assignment'));
+
+  select *
+    into v_assignment
+    from public.source_detection_assignments
+   where assignment_id = p_assignment_id
+   for update;
+
+  if v_assignment.id is null then
+    raise exception 'Assignment not found';
+  end if;
+
+  if v_assignment.status = 'submitted' then
+    return jsonb_build_object(
+      'ok', true,
+      'assignmentId', v_assignment.assignment_id,
+      'status', v_assignment.status,
+      'comprehensionFailures', v_assignment.comprehension_failures,
+      'screenedOut', false
+    );
+  end if;
+
+  if v_assignment.status = 'screened_out' then
+    return jsonb_build_object(
+      'ok', true,
+      'assignmentId', v_assignment.assignment_id,
+      'status', v_assignment.status,
+      'comprehensionFailures', v_assignment.comprehension_failures,
+      'screenedOut', true
+    );
+  end if;
+
+  if v_assignment.status in ('excluded', 'abandoned') then
+    raise exception 'This research session is no longer active';
+  end if;
+
+  update public.source_detection_assignments
+     set comprehension_failures = comprehension_failures + 1,
+         last_comprehension_failure_at = now(),
+         last_comprehension_failure_option = p_selected_option,
+         status = case
+           when comprehension_failures + 1 >= 2 then 'screened_out'
+           else status
+         end,
+         screened_out_at = case
+           when comprehension_failures + 1 >= 2 then coalesce(screened_out_at, now())
+           else screened_out_at
+         end
+   where assignment_id = p_assignment_id
+   returning * into v_assignment;
+
+  if v_assignment.status = 'screened_out'
+     and v_assignment.slot_id is not null then
+    update public.source_detection_slots
+       set status = 'open',
+           assignment_id = null,
+           claimed_at = null,
+           submitted_at = null
+     where slot_id = v_assignment.slot_id
+       and assignment_id = v_assignment.assignment_id
+       and status = 'claimed';
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'assignmentId', v_assignment.assignment_id,
+    'status', v_assignment.status,
+    'comprehensionFailures', v_assignment.comprehension_failures,
+    'screenedOut', v_assignment.status = 'screened_out',
+    'slotReopened', v_assignment.status = 'screened_out'
+      and v_assignment.slot_id is not null
+  );
 end;
 $$;
 
@@ -340,7 +452,7 @@ begin
   if v_assignment.id is null then
     raise exception 'Assignment not found';
   end if;
-  if v_assignment.status in ('excluded', 'abandoned') then
+  if v_assignment.status in ('screened_out', 'excluded', 'abandoned') then
     raise exception 'This research session is no longer active';
   end if;
 
@@ -584,6 +696,9 @@ revoke execute on function public.claim_source_detection_assignment(
 revoke execute on function public.submit_source_detection_payload(
   text, jsonb
 ) from public;
+revoke execute on function public.record_source_detection_comprehension_failure(
+  text, text, jsonb
+) from public;
 revoke execute on function public.review_source_detection_assignment(
   text, text, text
 ) from public;
@@ -593,6 +708,9 @@ grant execute on function public.claim_source_detection_assignment(
 ) to anon, authenticated;
 grant execute on function public.submit_source_detection_payload(
   text, jsonb
+) to anon, authenticated;
+grant execute on function public.record_source_detection_comprehension_failure(
+  text, text, jsonb
 ) to anon, authenticated;
 grant execute on function public.review_source_detection_assignment(
   text, text, text

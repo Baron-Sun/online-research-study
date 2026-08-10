@@ -37,6 +37,27 @@ test("participant UI requests one five-comment assignment and one required ratin
   assert.doesNotMatch(client, /localStorage|sessionStorage|stimuli\.json|modelLabel/);
 });
 
+test("restores consent, a two-strike attention check, and clipboard blocking", async () => {
+  const [client, consent, css] = await Promise.all([
+    read("src/SourceDetectionTask.jsx"),
+    read("src/source-consent.js"),
+    read("src/source-detection.css"),
+  ]);
+
+  assert.match(consent, /Principal Investigator: William J\. Brady/);
+  assert.match(consent, /IRB #: STU00218134/);
+  assert.match(client, /Informed Consent/);
+  assert.match(client, /Consent Confirmation/);
+  assert.match(client, /record_source_detection_comprehension_failure/);
+  assert.match(client, /nextAttempts >= 2/);
+  assert.match(client, /This research session has ended after two incorrect answers/);
+  for (const eventName of ["copy", "cut", "paste", "drop", "dragstart", "contextmenu"]) {
+    assert.match(client, new RegExp(`"${eventName}"`));
+  }
+  assert.match(client, /window\.getSelection\(\)\?\.removeAllRanges\(\)/);
+  assert.match(css, /user-select: none/);
+});
+
 test("uses Prolific identifiers, separates test records, and validates completion redirects", async () => {
   const client = await read("src/SourceDetectionTask.jsx");
 
@@ -59,6 +80,10 @@ test("formal SQL defines 20 quota cells, five slots per cell, and exact-cell rep
   assert.match(sql, /pg_advisory_xact_lock/);
   assert.match(sql, /order by coalesce\(counts\.occupied_count, 0\) asc, random\(\)/);
   assert.match(sql, /review_source_detection_assignment/);
+  assert.match(sql, /record_source_detection_comprehension_failure/);
+  assert.match(sql, /comprehension_failures = comprehension_failures \+ 1/);
+  assert.match(sql, /when comprehension_failures \+ 1 >= 2 then 'screened_out'/);
+  assert.match(sql, /status in \('claimed', 'submitted', 'screened_out', 'excluded', 'abandoned'\)/);
   assert.match(sql, /set status = 'open',[\s\S]*assignment_id = null/);
   assert.match(sql, /source_detection_cell_progress/);
   assert.match(sql, /to service_role/);
