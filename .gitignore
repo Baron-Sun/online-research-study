@@ -11,6 +11,7 @@
 !RATING_TASK_FLOW.md
 !supabase_setup.sql
 !supabase_advice_setup.sql
+!supabase_source_detection_formal.sql
 !scripts/
 !scripts/prepare_full153k_imports.py
 !.github/
@@ -25,12 +26,19 @@
 !src/portal.jsx
 !src/judgment.jsx
 !src/ratings.jsx
+!src/SourceDetectionTask.jsx
+!src/comment-source.jsx
+!src/source-detection.css
 !advice/
 !advice/index.html
 !judgment/
 !judgment/index.html
 !ratings/
 !ratings/index.html
+!comment-source/
+!comment-source/index.html
+!tests/
+!tests/comment-source.test.mjs
 
 node_modules/
 dist/

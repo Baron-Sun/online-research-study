@@ -19,6 +19,7 @@ export default defineConfig({
         advice: resolve(__dirname, "advice/index.html"),
         judgment: resolve(__dirname, "judgment/index.html"),
         ratings: resolve(__dirname, "ratings/index.html"),
+        commentSource: resolve(__dirname, "comment-source/index.html"),
       },
     },
   },

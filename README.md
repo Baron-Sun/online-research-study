@@ -14,8 +14,35 @@ separate pages.
 - `/advice/`: one-shot advice exposure task
 - `/judgment/`: single-post response task
 - `/ratings/`: multi-post rating task
+- `/comment-source/`: one-post, five-comment source-likelihood task
 
 Use separate crowdsourcing studies or separate study links for these pages.
+
+## Comment-source pretest
+
+The formal comment-source task uses 10 primary posts crossed with two
+between-participant comment-source conditions. Supabase creates five quota
+slots per post × source cell, for 100 valid responses in total. Three reserve
+posts remain inactive. Test IDs beginning with `test-`, `preview-`, or `qa-`
+are balanced separately and never consume a formal slot.
+
+Run `supabase_source_detection_formal.sql` after the original 13-post
+source-detection schema and seed. The migration restricts formal allocation to
+the 10 primary posts, creates the 100 quota slots, and adds the researcher-only
+review helper used to reopen an excluded or abandoned participant's exact
+cell.
+
+For Prolific External Study Link:
+
+```text
+https://baron-sun.github.io/online-research-study/comment-source/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}&completion_code=YOUR_PROLIFIC_CODE
+```
+
+For a test session, use a unique test ID and optionally add `debug=1`:
+
+```text
+https://baron-sun.github.io/online-research-study/comment-source/?PROLIFIC_PID=test-review-001&STUDY_ID=source-pretest&SESSION_ID=review-001&debug=1
+```
 
 ## Local Development
 

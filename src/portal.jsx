@@ -50,7 +50,7 @@ const Portal = () => (
           assigned to their study.
         </p>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
           <a
             className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:bg-white hover:shadow-sm"
             href="./advice/"
@@ -96,6 +96,22 @@ const Portal = () => (
             <span className="mt-2 block text-sm leading-6 text-slate-600">
               Five posts, three rating questions per post, then one final
               submission.
+            </span>
+          </a>
+
+          <a
+            className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:bg-white hover:shadow-sm"
+            href="./comment-source/"
+          >
+            <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Task D
+            </span>
+            <span className="mt-2 block text-lg font-semibold text-slate-950">
+              Comment Source Evaluation
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-slate-600">
+              One post, five anonymous comments, and one source-likelihood
+              judgment.
             </span>
           </a>
         </div>
