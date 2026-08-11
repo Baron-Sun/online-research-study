@@ -7,7 +7,7 @@ The following is a short summary of this study to help you decide whether to be 
 
 • The purpose of this study is to gain a deeper understanding of your attitudes, beliefs, and opinions on various topics.
 • You will be asked to complete a set of questionnaires. You may also be asked to do activities like judging messages written in different contexts.
-• We expect that you will be in this research study for around 8 minutes.
+• We expect that you will be in this research study for about 5–7 minutes.
 • The primary potential risk of participation is emotional distress from thinking about politically charged issues.
 • The main benefit of being in this study is contributing to the scientific understanding of how the mind works and society functions.
 • We cannot tell you every detail of this study ahead of time, but if you are willing to participate under these conditions, we will explain the procedure to you fully after your participation.
@@ -57,7 +57,7 @@ De-identified data from this study may be shared with the research community, wi
 The results of this study could be shared in articles and presentations, but will not include any information that identifies you unless you give permission for use of information that identifies you in articles and presentations.
 
 Will I be paid or given anything for taking part in this study?
-You will receive $1.50 for your participation in this 8-minute study.
+You will receive $1.50 for your participation in this 5–7-minute study.
 
 Who can I talk to?
 If you have questions, concerns, or complaints, you can contact the Principal Investigator, William Brady, at william.brady@kellogg.northwestern.edu (or, if email does not work for you, via phone at 704-904-6420).
