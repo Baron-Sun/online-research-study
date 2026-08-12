@@ -123,34 +123,49 @@ const supabaseRpc = async (config, functionName, payload) => {
 };
 
 const validateAssignment = (value) => {
-  if (
-    !value ||
-    !value.assignmentId ||
-    !value.postId ||
-    !value.postTitle ||
-    !value.postBody
-  ) {
+  if (!value || !value.assignmentId || !Array.isArray(value.items)) {
     throw new Error("The assigned study material was incomplete.");
   }
-  if (
-    !Array.isArray(value.comments) ||
-    value.comments.length !== 5 ||
-    !Array.isArray(value.commentHashes) ||
-    value.commentHashes.length !== 5 ||
-    !Array.isArray(value.commentOrder) ||
-    value.commentOrder.length !== 5
-  ) {
-    throw new Error("The assigned comment set failed its completeness check.");
+  if (value.items.length < 1 || value.items.length > 2) {
+    throw new Error("The assignment contained an invalid number of items.");
   }
-  if (value.comments.some((comment) => !String(comment).trim())) {
-    throw new Error("The assigned comment set contained an empty comment.");
+  if (value.status === "claimed" && value.items.length !== 2) {
+    throw new Error("The active assignment did not contain two items.");
   }
+
+  value.items.forEach((item) => {
+    if (!item?.postId || !item.postTitle || !item.postBody) {
+      throw new Error("An assigned post was incomplete.");
+    }
+    if (
+      !Array.isArray(item.comments) ||
+      item.comments.length !== 5 ||
+      !Array.isArray(item.commentHashes) ||
+      item.commentHashes.length !== 5 ||
+      !Array.isArray(item.commentOrder) ||
+      item.commentOrder.length !== 5
+    ) {
+      throw new Error("An assigned comment set failed its completeness check.");
+    }
+    if (item.comments.some((comment) => !String(comment).trim())) {
+      throw new Error("An assigned comment set contained an empty comment.");
+    }
+    if (
+      item.comments.some(
+        (comment) =>
+          /[^\x09\x0a\x0d\x20-\x7e]/.test(String(comment)) ||
+          /[\\*]/.test(String(comment)),
+      )
+    ) {
+      throw new Error("An assigned comment set was not fully cleaned.");
+    }
+  });
+
   if (
-    value.comments.some(
-      (comment) => /[^\x09\x0a\x0d\x20-\x7e]/.test(String(comment)) || /[\\*]/.test(String(comment)),
-    )
+    value.items.length === 2 &&
+    value.items[0].postId === value.items[1].postId
   ) {
-    throw new Error("The assigned comment set was not fully cleaned.");
+    throw new Error("The two assigned posts were not distinct.");
   }
 };
 
@@ -201,7 +216,10 @@ export default function SourceDetectionTask() {
   const [comprehension, setComprehension] = useState("");
   const [comprehensionAttempts, setComprehensionAttempts] = useState(0);
   const [comprehensionError, setComprehensionError] = useState("");
-  const [rating, setRating] = useState(null);
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const [ratings, setRatings] = useState([null, null]);
+  const [itemOpenedAt, setItemOpenedAt] = useState(["", ""]);
+  const [itemResponseTimes, setItemResponseTimes] = useState([null, null]);
   const [error, setError] = useState("");
   const [startedAt, setStartedAt] = useState("");
   const [consentedAt, setConsentedAt] = useState("");
@@ -309,7 +327,12 @@ export default function SourceDetectionTask() {
   };
 
   const beginTask = () => {
-    setTaskOpenedAt(new Date().toISOString());
+    const now = new Date().toISOString();
+    setTaskOpenedAt(now);
+    setCurrentItemIndex(0);
+    setRatings([null, null]);
+    setItemOpenedAt([now, ""]);
+    setItemResponseTimes([null, null]);
     setScreen("task");
     window.scrollTo({ top: 0, behavior: "auto" });
   };
@@ -370,28 +393,64 @@ export default function SourceDetectionTask() {
     }
   };
 
+  const continueToSecondItem = () => {
+    if (ratings[0] === null) return;
+    const now = new Date().toISOString();
+    const firstResponseTime = Math.max(
+      0,
+      new Date(now).getTime() - new Date(itemOpenedAt[0]).getTime(),
+    );
+    setItemResponseTimes([firstResponseTime, null]);
+    setItemOpenedAt([itemOpenedAt[0], now]);
+    setCurrentItemIndex(1);
+    setSubmissionError("");
+    setSubmissionState("idle");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
   const submitResponse = async () => {
-    if (!assignment || rating === null || submissionState === "submitting") return;
+    if (
+      !assignment ||
+      ratings.some((value) => value === null) ||
+      submissionState === "submitting"
+    ) {
+      return;
+    }
 
     const now = new Date().toISOString();
+    const finalResponseTimes = [
+      itemResponseTimes[0],
+      Math.max(
+        0,
+        new Date(now).getTime() - new Date(itemOpenedAt[1]).getTime(),
+      ),
+    ];
     const payload = {
-      schemaVersion: "source-detection-v3",
+      schemaVersion: "source-detection-v4-two-item",
       status: "completed",
       submittedAt: now,
       participant: assignment.participant,
       assignment: {
         assignmentId: assignment.assignmentId,
-        pairNumber: assignment.pairNumber,
-        pairRole: assignment.pairRole,
-        postId: assignment.postId,
-        commentOrder: assignment.commentOrder,
-        commentHashes: assignment.commentHashes,
-        postBodySha256: assignment.postBodySha256,
+        assignmentVersion: assignment.assignmentVersion,
+        itemCount: assignment.items.length,
+        items: assignment.items.map((item) => ({
+          itemIndex: item.itemIndex,
+          pairNumber: item.pairNumber,
+          pairRole: item.pairRole,
+          postId: item.postId,
+          commentOrder: item.commentOrder,
+          commentHashes: item.commentHashes,
+          postBodySha256: item.postBodySha256,
+        })),
       },
-      response: {
+      responses: assignment.items.map((item, index) => ({
+        itemIndex: item.itemIndex,
+        postId: item.postId,
         question: QUESTION,
-        rating,
-      },
+        rating: ratings[index],
+        responseTimeMs: finalResponseTimes[index],
+      })),
       protocol: {
         consentConfirmed: Boolean(consentedAt),
         comprehensionPassed: comprehension === CORRECT_COMPREHENSION,
@@ -411,6 +470,7 @@ export default function SourceDetectionTask() {
           0,
           new Date(now).getTime() - new Date(taskOpenedAt).getTime(),
         ),
+        itemOpenedAt,
       },
     };
 
@@ -467,6 +527,9 @@ export default function SourceDetectionTask() {
 
   if (!assignment) return null;
 
+  const currentItem = assignment.items[currentItemIndex];
+  const currentRating = ratings[currentItemIndex];
+
   if (screen === "intro") {
     return (
       <main className="source-study-page">
@@ -474,20 +537,20 @@ export default function SourceDetectionTask() {
           <StudyHeader ready />
           <section className="source-panel source-intro-panel">
             <p className="source-eyebrow">Study overview</p>
-            <h2>Read a short online discussion</h2>
+            <h2>Read two short online discussions</h2>
             <p className="source-intro-copy">
-              In this task, you will read one anonymous, public online post and
-              one set of five comments about it. You will then answer one short
-              question about those comments.
+              In this task, you will read two anonymous, public online posts and
+              one set of five comments about each post. You will answer the same
+              short question after each comment set.
             </p>
             <div className="source-overview-grid">
               <div>
                 <span>Task</span>
-                <strong>1 post, 5 comments, and 1 judgment</strong>
+                <strong>2 posts, 10 comments, and 2 judgments</strong>
               </div>
               <div>
                 <span>Time</span>
-                <strong>Most participants finish in about 5–7 minutes</strong>
+                <strong>Most participants finish in about 9–11 minutes</strong>
               </div>
             </div>
             <div className="source-intro-action">
@@ -502,8 +565,9 @@ export default function SourceDetectionTask() {
             </div>
             {assignment.debug && (
               <div className="source-debug-note">
-                Debug only · Assignment {assignment.assignmentId} · Pair{" "}
-                {assignment.pairNumber} · {assignment.debugCondition || "source hidden"}
+                Debug only · Assignment {assignment.assignmentId} · Pairs{" "}
+                {assignment.items.map((item) => item.pairNumber).join(" and ")} ·{" "}
+                {assignment.debugCondition || "source hidden"}
               </div>
             )}
           </section>
@@ -588,15 +652,16 @@ export default function SourceDetectionTask() {
               <h2>Instructions</h2>
               <div className="source-instructions-copy">
                 <p>
-                  You will read one anonymous public online post about a social
-                  dilemma and a set of five comments responding to that post.
+                  You will read two different anonymous public online posts
+                  about social dilemmas. Each post is followed by a set of five
+                  comments responding to it.
                 </p>
                 <p>
-                  After reading all five comments, <strong>you will give one
-                  overall rating of how likely it is that the comments were
-                  generated by artificial intelligence</strong>. Rate the five
-                  comments as a group, rather than rating each comment
-                  separately.
+                  After reading each set of five comments, <strong>you will give
+                  one overall rating of how likely it is that the comments were
+                  generated by artificial intelligence</strong>. Rate each set
+                  of five comments as a group, rather than rating individual
+                  comments separately.
                 </p>
                 <p>
                   Please rely on your own judgment. Do not use outside tools,
@@ -628,8 +693,8 @@ export default function SourceDetectionTask() {
                   I will give a separate AI rating to each of the five comments.
                 </option>
                 <option value={CORRECT_COMPREHENSION}>
-                  I will read one post and five comments, then give one overall
-                  AI-likelihood rating for the comments.
+                  I will read two posts and two sets of comments, giving one
+                  overall AI-likelihood rating after each set.
                 </option>
                 <option value="write-advice">
                   I will write advice to the person who created the post.
@@ -732,8 +797,9 @@ export default function SourceDetectionTask() {
             )}
             {assignment.debug && (
               <div className="source-debug-note">
-                Debug only · Assignment {assignment.assignmentId} · Pair{" "}
-                {assignment.pairNumber} · {assignment.debugCondition || "source hidden"}
+                Debug only · Assignment {assignment.assignmentId} · Pairs{" "}
+                {assignment.items.map((item) => item.pairNumber).join(" and ")} ·{" "}
+                {assignment.debugCondition || "source hidden"}
               </div>
             )}
           </section>
@@ -751,17 +817,17 @@ export default function SourceDetectionTask() {
             <p className="source-eyebrow">Comment evaluation</p>
             <h2>Read the post and comments carefully</h2>
           </div>
-          <span>1 of 1</span>
+          <span>{currentItemIndex + 1} of 2</span>
         </div>
 
         <div className="source-stimulus-grid">
           <section className="source-panel source-post-panel">
             <div className="source-panel-heading">
               <p className="source-eyebrow">Online post</p>
-              <h3>{assignment.postTitle}</h3>
+              <h3>{currentItem.postTitle}</h3>
             </div>
             <div className="source-text source-post-text">
-              {assignment.postBody}
+              {currentItem.postBody}
             </div>
           </section>
 
@@ -777,10 +843,10 @@ export default function SourceDetectionTask() {
               Please read all five comments before answering the question below.
             </p>
             <div className="source-comment-feed">
-              {assignment.comments.map((comment, index) => (
+              {currentItem.comments.map((comment, index) => (
                 <article
                   className="source-comment-card"
-                  key={assignment.commentHashes[index]}
+                  key={currentItem.commentHashes[index]}
                 >
                   <div>Comment {index + 1}</div>
                   <p>{comment}</p>
@@ -791,14 +857,16 @@ export default function SourceDetectionTask() {
         </div>
 
         <section className="source-panel source-rating-panel">
-          <p className="source-eyebrow">Question 1</p>
+          <p className="source-eyebrow">
+            Question {currentItemIndex + 1} of 2
+          </p>
           <fieldset>
             <legend>{QUESTION}</legend>
             <div className="source-rating-options">
               {[1, 2, 3, 4, 5, 6, 7].map((score) => (
                 <label
                   className={
-                    rating === score
+                    currentRating === score
                       ? "source-rating-option selected"
                       : "source-rating-option"
                   }
@@ -806,11 +874,15 @@ export default function SourceDetectionTask() {
                 >
                   <input
                     type="radio"
-                    name="ai-likelihood"
+                    name={`ai-likelihood-${currentItemIndex + 1}`}
                     value={score}
-                    checked={rating === score}
+                    checked={currentRating === score}
                     onChange={() => {
-                      setRating(score);
+                      setRatings((current) =>
+                        current.map((value, index) =>
+                          index === currentItemIndex ? score : value,
+                        ),
+                      );
                       setSubmissionError("");
                       setSubmissionState("idle");
                     }}
@@ -834,9 +906,9 @@ export default function SourceDetectionTask() {
           <div className="source-submit-row">
             <div>
               <p>
-                {rating === null
+                {currentRating === null
                   ? "Select one response to continue."
-                  : `Response selected: ${rating}`}
+                  : `Response selected: ${currentRating}`}
               </p>
               {submissionError && (
                 <p className="source-submission-error" role="alert">
@@ -845,12 +917,18 @@ export default function SourceDetectionTask() {
               )}
             </div>
             <PrimaryButton
-              disabled={rating === null || submissionState === "submitting"}
-              onClick={submitResponse}
+              disabled={
+                currentRating === null || submissionState === "submitting"
+              }
+              onClick={
+                currentItemIndex === 0 ? continueToSecondItem : submitResponse
+              }
             >
               {submissionState === "submitting"
                 ? "Saving…"
-                : "Submit response"}
+                : currentItemIndex === 0
+                  ? "Continue to discussion 2"
+                  : "Submit both responses"}
             </PrimaryButton>
           </div>
         </section>
@@ -858,8 +936,8 @@ export default function SourceDetectionTask() {
         {assignment.debug && (
           <aside className="source-debug-note source-debug-fixed">
             Debug only · Assignment {assignment.assignmentId} · Pair{" "}
-            {assignment.pairNumber} · {assignment.debugCondition || "source hidden"} · order{" "}
-            {assignment.commentOrder.join("-")}
+            {currentItem.pairNumber} · {assignment.debugCondition || "source hidden"} · order{" "}
+            {currentItem.commentOrder.join("-")}
           </aside>
         )}
       </div>

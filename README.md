@@ -14,23 +14,27 @@ separate pages.
 - `/advice/`: one-shot advice exposure task
 - `/judgment/`: single-post response task
 - `/ratings/`: multi-post rating task
-- `/comment-source/`: one-post, five-comment source-likelihood task
+- `/comment-source/`: two-post, same-source comment-likelihood task
 
 Use separate crowdsourcing studies or separate study links for these pages.
 
 ## Comment-source pretest
 
 The formal comment-source task uses 10 primary posts crossed with two
-between-participant comment-source conditions. Supabase creates five quota
-slots per post × source cell, for 100 valid responses in total. Three reserve
-posts remain inactive. Test IDs beginning with `test-`, `preview-`, or `qa-`
-are balanced separately and never consume a formal slot.
+between-participant comment-source conditions. Each participant is assigned
+once to Human or AI, then sees two different posts whose five-comment sets both
+come from that assigned source. Supabase creates 50 two-post participant slots
+per condition, for 100 valid participants and 200 item ratings in total. Every
+post receives exactly 10 ratings per condition. Three reserve posts remain
+inactive. Test IDs beginning with `test-`, `preview-`, or `qa-` are balanced
+separately and never consume a formal slot.
 
 The participant flow is overview → informed consent → instructions and
-attention check → one-post rating task → completion. Incorrect attention-check
-answers are persisted in Supabase. The first failure allows one retry; the
-second marks the assignment `screened_out`, permanently ends that participant
-session, and reopens the exact formal quota slot. Copy, cut, paste, drag/drop,
+attention check → two sequential post ratings → completion. The two post and
+comment orders are fixed for that participant across refreshes. Incorrect
+attention-check answers are persisted in Supabase. The first failure allows one
+retry; the second marks the assignment `screened_out`, permanently ends that
+participant session, and reopens the exact formal quota slot. Copy, cut, paste, drag/drop,
 and the context menu are disabled throughout the participant page.
 
 All 130 stored exposure comments are normalized to plain ASCII: emoji,
@@ -40,10 +44,13 @@ stimulus JSON and seed with the prototype's `scripts/build_stimuli.py` before
 applying the seed to Supabase.
 
 Run `supabase_source_detection_formal.sql` after the original 13-post
-source-detection schema and seed. The migration restricts formal allocation to
-the 10 primary posts, creates the 100 quota slots, and adds the researcher-only
-review helper used to reopen an excluded or abandoned participant's exact
-cell. It also installs the persisted two-strike attention-check RPC.
+source-detection schema and seed, then run
+`supabase_source_detection_dual.sql`. The first migration restricts formal
+allocation to the 10 primary posts and installs the persisted two-strike
+attention check. The second creates 100 same-source, two-post participant slots
+and replaces the assignment, submission, review, and progress routines. An
+excluded, abandoned, or twice-screened participant reopens the exact two-post
+slot for replacement recruitment.
 
 For Prolific External Study Link:
 
