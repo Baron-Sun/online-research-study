@@ -550,7 +550,7 @@ export default function SourceDetectionTask() {
               </div>
               <div>
                 <span>Time</span>
-                <strong>Most participants finish in about 9–11 minutes</strong>
+                <strong>Most participants finish in about 5–7 minutes</strong>
               </div>
             </div>
             <div className="source-intro-action">

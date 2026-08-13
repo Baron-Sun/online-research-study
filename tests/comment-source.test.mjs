@@ -56,6 +56,8 @@ test("restores consent, a two-strike attention check, and clipboard blocking", a
 
   assert.match(consent, /Principal Investigator: William J\. Brady/);
   assert.match(consent, /IRB #: STU00218134/);
+  assert.match(consent, /about 5–7 minutes/);
+  assert.match(client, /finish in about 5–7 minutes/);
   assert.match(client, /Informed Consent/);
   assert.match(client, /Consent Confirmation/);
   assert.match(client, /record_source_detection_comprehension_failure/);
