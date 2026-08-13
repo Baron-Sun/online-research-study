@@ -652,9 +652,19 @@ export default function SourceDetectionTask() {
               <h2>Instructions</h2>
               <div className="source-instructions-copy">
                 <p>
-                  You will read two different anonymous public online posts
-                  about social dilemmas. Each post is followed by a set of five
-                  comments responding to it.
+                  These comments are from a Reddit community where people write
+                  about a dilemma and ask others if they are “the asshole.” You
+                  will read two different anonymous public posts from this
+                  community, each followed by five comments.
+                </p>
+                <p>
+                  You may see the following abbreviations in people’s comments: {" "}
+                  <strong>AITA</strong> = “Am I the Asshole?”; {" "}
+                  <strong>NTA</strong> = “Not the Asshole”; {" "}
+                  <strong>YTA</strong> = “You’re the Asshole”; {" "}
+                  <strong>ESH</strong> = “Everyone Sucks Here”; {" "}
+                  <strong>NAH</strong> = “No Assholes Here”; and {" "}
+                  <strong>INFO</strong> = “Not Enough Information.”
                 </p>
                 <p>
                   After reading each set of five comments, <strong>you will give
