@@ -653,8 +653,8 @@ export default function SourceDetectionTask() {
               <div className="source-instructions-copy">
                 <p>
                   These comments are from a Reddit community where people write
-                  about a dilemma and ask others if “they are the asshole.” You
-                  may see the following abbreviations in people’s comments: {" "}
+                  about a dilemma and ask others if "they are the asshole". You
+                  may see the following abbreviations in people's comments: {" "}
                   <strong>AITA</strong> = “Am I the Asshole?”; {" "}
                   <strong>NTA</strong> = “Not the Asshole”; {" "}
                   <strong>YTA</strong> = “You’re the Asshole”; {" "}
