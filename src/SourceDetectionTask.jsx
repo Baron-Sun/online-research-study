@@ -652,6 +652,11 @@ export default function SourceDetectionTask() {
               <h2>Instructions</h2>
               <div className="source-instructions-copy">
                 <p>
+                  You will read two different anonymous public online posts
+                  about social dilemmas. Each post is followed by a set of five
+                  comments responding to it.
+                </p>
+                <p>
                   These comments are from a Reddit community where people write
                   about a dilemma and ask others if "they are the asshole". You
                   may see the following abbreviations in people's comments: {" "}
