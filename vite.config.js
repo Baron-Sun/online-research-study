@@ -20,6 +20,7 @@ export default defineConfig({
         judgment: resolve(__dirname, "judgment/index.html"),
         ratings: resolve(__dirname, "ratings/index.html"),
         commentSource: resolve(__dirname, "comment-source/index.html"),
+        adviceTransfer: resolve(__dirname, "advice-transfer/index.html"),
       },
     },
   },

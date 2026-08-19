@@ -1,0 +1,1082 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
+
+const CORRECT_COMPREHENSION = "read-then-advise";
+const SCHEMA_VERSION = "advice-transfer-v1";
+const PROLIFIC_COMPLETION_BASE_URL =
+  "https://app.prolific.com/submissions/complete";
+const LOCKED_SCREENS = new Set([
+  "advice",
+  "ratings",
+  "funnel-purpose",
+  "funnel-notice",
+  "funnel-ai",
+  "debrief",
+]);
+
+const nowIso = () => new Date().toISOString();
+
+export const countEnglishWords = (value) =>
+  String(value || "").match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)?.length || 0;
+
+const elapsedMs = (start, end) => {
+  if (!start || !end) return 0;
+  const value = new Date(end).getTime() - new Date(start).getTime();
+  return Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
+};
+
+const cleanParameter = (value) => {
+  if (!value || value.includes("{{%") || value.includes("%}}")) return "";
+  return value.trim();
+};
+
+const getQueryParams = () => new URLSearchParams(window.location.search);
+
+const getParticipant = () => {
+  const params = getQueryParams();
+  return {
+    prolificPid: cleanParameter(
+      params.get("PROLIFIC_PID") || params.get("prolific_pid"),
+    ),
+    studyId: cleanParameter(params.get("STUDY_ID") || params.get("study_id")),
+    sessionId: cleanParameter(
+      params.get("SESSION_ID") || params.get("session_id"),
+    ),
+  };
+};
+
+export const isTestParticipant = (prolificPid) =>
+  /^(test|preview|qa)[-_]/i.test(prolificPid);
+
+const getTestOverrides = (prolificPid) => {
+  const params = getQueryParams();
+  const pairText = cleanParameter(params.get("pair"));
+  const conditionText = cleanParameter(params.get("condition")).toLowerCase();
+
+  if (!isTestParticipant(prolificPid)) {
+    return { pairNumber: null, condition: null };
+  }
+
+  if (pairText && !/^(?:[1-9]|1[0-3])$/.test(pairText)) {
+    throw new Error("The test parameter pair must be an integer from 1 to 13.");
+  }
+  if (conditionText && !["human", "ai"].includes(conditionText)) {
+    throw new Error("The test parameter condition must be human or ai.");
+  }
+
+  return {
+    pairNumber: pairText ? Number(pairText) : null,
+    condition: conditionText || null,
+  };
+};
+
+const getSupabaseConfig = () => {
+  const url = String(import.meta.env.VITE_SUPABASE_URL || "")
+    .trim()
+    .replace(/\/$/, "");
+  const anonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
+  if (!url || !anonKey) return null;
+  return { url, anonKey };
+};
+
+const getCompletion = () => {
+  const params = getQueryParams();
+  const code = cleanParameter(
+    params.get("completion_code") ||
+      params.get("COMPLETION_CODE") ||
+      import.meta.env.VITE_ADVICE_TRANSFER_COMPLETION_CODE,
+  );
+  if (!code || !/^[A-Za-z0-9_-]{3,80}$/.test(code)) {
+    return { code: "", url: "" };
+  }
+  return {
+    code,
+    url: `${PROLIFIC_COMPLETION_BASE_URL}?cc=${encodeURIComponent(code)}`,
+  };
+};
+
+const supabaseRpc = async (config, functionName, payload) => {
+  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.anonKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const responseText = await response.text();
+  let data = null;
+  try {
+    data = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    data = null;
+  }
+  if (!response.ok) {
+    throw new Error(
+      data?.message || `The study database returned HTTP ${response.status}.`,
+    );
+  }
+  return data;
+};
+
+export const validateAdviceTransferAssignment = (value) => {
+  if (!value?.assignmentId || !value?.exposurePost || !value?.targetPost) {
+    throw new Error("The assigned study material was incomplete.");
+  }
+  if (Object.prototype.hasOwnProperty.call(value, "condition")) {
+    throw new Error("The assignment disclosed information that should remain masked.");
+  }
+  if (
+    value.exposurePost.postId === value.targetPost.postId ||
+    !value.exposurePost.title ||
+    !value.exposurePost.body ||
+    !value.targetPost.title ||
+    !value.targetPost.body
+  ) {
+    throw new Error("The assigned post pair failed its completeness check.");
+  }
+  for (const post of [value.exposurePost, value.targetPost]) {
+    if (!/^[a-f0-9]{64}$/i.test(String(post.sha256 || ""))) {
+      throw new Error("An assigned post failed its audit-hash check.");
+    }
+  }
+  if (
+    !Array.isArray(value.comments) ||
+    value.comments.length !== 5 ||
+    !Array.isArray(value.commentHashes) ||
+    value.commentHashes.length !== 5 ||
+    !Array.isArray(value.commentOrder) ||
+    value.commentOrder.length !== 5
+  ) {
+    throw new Error("The assigned comment set failed its completeness check.");
+  }
+  if (
+    value.comments.some(
+      (comment) =>
+        !String(comment).trim() ||
+        /[^\x09\x0a\x0d\x20-\x7e]/.test(String(comment)) ||
+        /[\\*]/.test(String(comment)),
+    )
+  ) {
+    throw new Error("The assigned comment set was not fully cleaned.");
+  }
+  if (
+    value.commentHashes.some(
+      (hash) => !/^[a-f0-9]{64}$/i.test(String(hash || "")),
+    )
+  ) {
+    throw new Error("An assigned comment failed its audit-hash check.");
+  }
+  const sortedOrder = [...value.commentOrder].map(Number).sort((a, b) => a - b);
+  if (sortedOrder.join(",") !== "0,1,2,3,4") {
+    throw new Error("The comment order was not a valid five-item permutation.");
+  }
+};
+
+const useGlobalClipboardBlock = () => {
+  useEffect(() => {
+    const blockClipboard = (event) => {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+    };
+    const blockedEvents = [
+      "copy",
+      "cut",
+      "paste",
+      "drop",
+      "dragstart",
+      "contextmenu",
+    ];
+    blockedEvents.forEach((eventName) =>
+      document.addEventListener(eventName, blockClipboard, true),
+    );
+    return () =>
+      blockedEvents.forEach((eventName) =>
+        document.removeEventListener(eventName, blockClipboard, true),
+      );
+  }, []);
+};
+
+const StudyHeader = ({ ready = false }) => (
+  <header className="source-study-header">
+    <div>
+      <p className="source-institution">Northwestern University Research Study</p>
+      <h1>Online Research Study</h1>
+    </div>
+    <div className="source-session-card" aria-label="Research session status">
+      <strong>Research Session</strong>
+      <span>{ready ? "Assignment ready" : "Preparing…"}</span>
+    </div>
+  </header>
+);
+
+const PrimaryButton = ({ children, disabled = false, onClick }) => (
+  <button
+    type="button"
+    className="source-primary-button"
+    disabled={disabled}
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
+
+const SecondaryButton = ({ children, onClick }) => (
+  <button type="button" className="source-secondary-button" onClick={onClick}>
+    {children}
+  </button>
+);
+
+const Page = ({ children, wide = false, ready = true }) => (
+  <main className="source-study-page transfer-study-page">
+    <div
+      className={`source-page-wrap ${wide ? "source-wide-wrap" : "source-narrow-wrap"}`}
+    >
+      <StudyHeader ready={ready} />
+      {children}
+    </div>
+  </main>
+);
+
+const PostPanel = ({ eyebrow, post, friend = false }) => (
+  <article className="source-panel source-post-panel transfer-post-panel">
+    <div className="source-panel-heading">
+      <p className="source-eyebrow">{eyebrow}</p>
+      {friend && (
+        <p className="transfer-friend-frame">
+          Imagine that a close friend is facing the situation below and has asked
+          you what they should do.
+        </p>
+      )}
+      <h2>{post.title}</h2>
+    </div>
+    <div className="source-post-text">{post.body}</div>
+  </article>
+);
+
+const ScaleQuestion = ({ legend, value, onChange, low, middle, high }) => (
+  <fieldset className="transfer-scale-fieldset">
+    <legend>{legend}</legend>
+    <div className="source-rating-options transfer-rating-options">
+      {[1, 2, 3, 4, 5, 6, 7].map((number) => (
+        <label
+          className={`source-rating-option ${value === number ? "selected" : ""}`}
+          key={number}
+        >
+          <input
+            type="radio"
+            name={legend}
+            value={number}
+            checked={value === number}
+            onChange={() => onChange(number)}
+          />
+          <span>{number}</span>
+        </label>
+      ))}
+    </div>
+    <div className="source-rating-anchors transfer-rating-anchors">
+      <span><b>1</b> — {low}</span>
+      <span><b>4</b> — {middle}</span>
+      <span><b>7</b> — {high}</span>
+    </div>
+  </fieldset>
+);
+
+const ThreeWayChoice = ({ name, value, onChange }) => (
+  <div className="transfer-choice-row" role="radiogroup">
+    {[
+      ["yes", "Yes"],
+      ["no", "No"],
+      ["unsure", "Unsure"],
+    ].map(([optionValue, label]) => (
+      <label
+        key={optionValue}
+        className={`transfer-choice ${value === optionValue ? "selected" : ""}`}
+      >
+        <input
+          type="radio"
+          name={name}
+          value={optionValue}
+          checked={value === optionValue}
+          onChange={() => onChange(optionValue)}
+        />
+        {label}
+      </label>
+    ))}
+  </div>
+);
+
+export default function AdviceTransferTask() {
+  useGlobalClipboardBlock();
+
+  const [screen, setScreen] = useState("loading");
+  const [assignment, setAssignment] = useState(null);
+  const [error, setError] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [comprehension, setComprehension] = useState("");
+  const [comprehensionAttempts, setComprehensionAttempts] = useState(0);
+  const [comprehensionError, setComprehensionError] = useState("");
+  const [advice, setAdvice] = useState("");
+  const [difficulty, setDifficulty] = useState(null);
+  const [effort, setEffort] = useState(null);
+  const [confidence, setConfidence] = useState(null);
+  const [purposeGuess, setPurposeGuess] = useState("");
+  const [commentsStoodOut, setCommentsStoodOut] = useState("");
+  const [commentsStoodOutDetails, setCommentsStoodOutDetails] = useState("");
+  const [aiGeneratedBelief, setAiGeneratedBelief] = useState("");
+  const [aiLikelihood, setAiLikelihood] = useState(null);
+  const [timestamps, setTimestamps] = useState({});
+  const [submissionState, setSubmissionState] = useState("idle");
+  const [submissionError, setSubmissionError] = useState("");
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const completion = useMemo(() => getCompletion(), []);
+  const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
+
+  useEffect(() => {
+    let active = true;
+    const participant = getParticipant();
+    const config = getSupabaseConfig();
+
+    if (!participant.prolificPid) {
+      setError(
+        "Missing PROLIFIC_PID. Open the study from Prolific, or use a test-, preview-, or qa- identifier when reviewing it.",
+      );
+      setScreen("error");
+      return () => {
+        active = false;
+      };
+    }
+    if (!config) {
+      setError("The study database is not configured.");
+      setScreen("error");
+      return () => {
+        active = false;
+      };
+    }
+
+    let overrides;
+    try {
+      overrides = getTestOverrides(participant.prolificPid);
+    } catch (parameterError) {
+      setError(parameterError.message);
+      setScreen("error");
+      return () => {
+        active = false;
+      };
+    }
+
+    supabaseRpc(config, "claim_advice_transfer_assignment", {
+      p_prolific_pid: participant.prolificPid,
+      p_study_id: participant.studyId || null,
+      p_session_id: participant.sessionId || null,
+      p_is_test: isTestParticipant(participant.prolificPid),
+      p_pair_number: overrides.pairNumber,
+      p_condition: overrides.condition,
+    })
+      .then((response) => {
+        if (!active) return;
+        validateAdviceTransferAssignment(response);
+        const nextAssignment = { ...response, participant, config };
+        const failures = Number(response.comprehensionFailures) || 0;
+        setAssignment(nextAssignment);
+        setComprehensionAttempts(failures);
+        if (response.status === "screened_out" || failures >= 2) {
+          setScreen("comprehension-failed");
+        } else if (response.status === "submitted") {
+          setAlreadySubmitted(true);
+          setScreen("complete");
+        } else {
+          setScreen("overview");
+        }
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "The study could not be loaded.");
+        setScreen("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!LOCKED_SCREENS.has(screen)) return undefined;
+    const preventBack = () => {
+      window.history.pushState({ adviceTransferLocked: true }, "", window.location.href);
+      window.alert("You cannot return to the earlier discussion after opening the advice task.");
+    };
+    window.addEventListener("popstate", preventBack);
+    return () => window.removeEventListener("popstate", preventBack);
+  }, [screen]);
+
+  const goTop = () => window.scrollTo({ top: 0, behavior: "auto" });
+
+  const beginConsent = () => {
+    setTimestamps({ studyStartedAt: nowIso() });
+    setScreen("consent");
+    goTop();
+  };
+
+  const acceptConsent = () => {
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      consentedAt: time,
+      instructionsOpenedAt: time,
+    }));
+    setScreen("instructions");
+    goTop();
+  };
+
+  const handleComprehension = async (selectedOption) => {
+    if (!selectedOption) return;
+    if (selectedOption === CORRECT_COMPREHENSION) {
+      setComprehension(selectedOption);
+      setComprehensionError("");
+      return;
+    }
+
+    setComprehension("");
+    setComprehensionError("");
+    try {
+      const result = await supabaseRpc(
+        assignment.config,
+        "record_advice_transfer_comprehension_failure",
+        {
+          p_assignment_id: assignment.assignmentId,
+          p_selected_option: selectedOption,
+          p_payload: {
+            schemaVersion: SCHEMA_VERSION,
+            occurredAt: nowIso(),
+            participant: assignment.participant,
+          },
+        },
+      );
+      const failures = Number(result.comprehensionFailures) || comprehensionAttempts + 1;
+      const screenedOut = Boolean(result.screenedOut) || failures >= 2;
+      setComprehensionAttempts(failures);
+      if (screenedOut) {
+        setScreen("comprehension-failed");
+        goTop();
+        return;
+      }
+      setComprehensionError("Incorrect. Please read the instructions and try once more.");
+      window.alert("Incorrect. Please read the instructions and try once more.");
+    } catch (saveError) {
+      setComprehensionError(
+        saveError instanceof Error
+          ? saveError.message
+          : "The attention-check result could not be saved.",
+      );
+    }
+  };
+
+  const beginExposure = () => {
+    const time = nowIso();
+    setTimestamps((current) => ({ ...current, exposureOpenedAt: time }));
+    setScreen("exposure");
+    goTop();
+  };
+
+  const continueToAdvice = () => {
+    const time = nowIso();
+    window.history.pushState({ adviceTransferLocked: true }, "", window.location.href);
+    setTimestamps((current) => ({
+      ...current,
+      exposureCompletedAt: time,
+      targetOpenedAt: time,
+    }));
+    setScreen("advice");
+    goTop();
+  };
+
+  const updateAdvice = (event) => {
+    const value = event.target.value;
+    const time = nowIso();
+    setAdvice(value);
+    setTimestamps((current) => ({
+      ...current,
+      firstInputAt: current.firstInputAt || (value ? time : ""),
+      lastEditAt: time,
+    }));
+  };
+
+  const continueToRatings = () => {
+    if (wordCount < 50) return;
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      adviceCompletedAt: time,
+      ratingsOpenedAt: time,
+    }));
+    setScreen("ratings");
+    goTop();
+  };
+
+  const continueToPurpose = () => {
+    if ([difficulty, effort, confidence].some((value) => value === null)) return;
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      ratingsCompletedAt: time,
+      funnelPurposeOpenedAt: time,
+    }));
+    setScreen("funnel-purpose");
+    goTop();
+  };
+
+  const continueToNotice = () => {
+    if (!purposeGuess.trim()) return;
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      funnelPurposeCompletedAt: time,
+      funnelNoticeOpenedAt: time,
+    }));
+    setScreen("funnel-notice");
+    goTop();
+  };
+
+  const continueToAi = () => {
+    if (!commentsStoodOut) return;
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      funnelNoticeCompletedAt: time,
+      funnelAiOpenedAt: time,
+    }));
+    setScreen("funnel-ai");
+    goTop();
+  };
+
+  const submitStudy = async () => {
+    if (
+      !assignment ||
+      !aiGeneratedBelief ||
+      aiLikelihood === null ||
+      submissionState === "submitting"
+    ) {
+      return;
+    }
+    setSubmissionState("submitting");
+    setSubmissionError("");
+    const submittedAt = nowIso();
+    const finalTimestamps = {
+      ...timestamps,
+      funnelAiCompletedAt: submittedAt,
+      clientSubmittedAt: submittedAt,
+    };
+    finalTimestamps.exposureTimeMs = elapsedMs(
+      finalTimestamps.exposureOpenedAt,
+      finalTimestamps.exposureCompletedAt,
+    );
+    finalTimestamps.adviceResponseTimeMs = elapsedMs(
+      finalTimestamps.targetOpenedAt,
+      finalTimestamps.adviceCompletedAt,
+    );
+    finalTimestamps.totalStudyTimeMs = elapsedMs(
+      finalTimestamps.studyStartedAt,
+      submittedAt,
+    );
+
+    const payload = {
+      schemaVersion: SCHEMA_VERSION,
+      assignmentId: assignment.assignmentId,
+      participant: assignment.participant,
+      adviceText: advice.trim(),
+      adviceWordCount: wordCount,
+      adviceCharacterCount: advice.trim().length,
+      difficulty,
+      effort,
+      confidence,
+      purposeGuess: purposeGuess.trim(),
+      commentsStoodOut,
+      commentsStoodOutDetails: commentsStoodOutDetails.trim(),
+      aiGeneratedBelief,
+      aiLikelihood,
+      timings: finalTimestamps,
+      clientAudit: {
+        pairNumber: assignment.pairNumber,
+        pairRole: assignment.pairRole,
+        exposurePostId: assignment.exposurePost.postId,
+        exposurePostSha256: assignment.exposurePost.sha256,
+        targetPostId: assignment.targetPost.postId,
+        targetPostSha256: assignment.targetPost.sha256,
+        commentOrder: assignment.commentOrder,
+        commentHashes: assignment.commentHashes,
+      },
+      clientEnvironment: {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      },
+    };
+
+    try {
+      const result = await supabaseRpc(
+        assignment.config,
+        "submit_advice_transfer_payload",
+        {
+          p_assignment_id: assignment.assignmentId,
+          p_payload: payload,
+        },
+      );
+      setTimestamps(finalTimestamps);
+      setAssignment((current) => ({
+        ...current,
+        status: result.status || "submitted",
+        submittedAt: result.submittedAt || submittedAt,
+      }));
+      setSubmissionState("submitted");
+      setScreen("debrief");
+      goTop();
+    } catch (submitError) {
+      setSubmissionState("error");
+      setSubmissionError(
+        submitError instanceof Error
+          ? submitError.message
+          : "Your response could not be saved. Please try again.",
+      );
+    }
+  };
+
+  if (screen === "loading") {
+    return (
+      <main className="source-study-page source-centered-page">
+        <div className="source-loading-card" role="status">
+          <span className="source-loading-dot" />
+          <strong>Preparing your research session…</strong>
+          <p>Assigning study materials securely.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (screen === "error") {
+    return (
+      <Page ready={false}>
+        <section className="source-panel source-error-panel">
+          <p className="source-eyebrow">Unable to open study</p>
+          <h2>This research session could not be prepared.</h2>
+          <p>{error}</p>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "overview") {
+    return (
+      <Page>
+        <section className="source-panel source-intro-panel">
+          <p className="source-eyebrow">Study overview</p>
+          <h2>Read an online discussion and give thoughtful advice</h2>
+          <p className="source-intro-copy">
+            You will first read one public online post and five comments. You
+            will then read a related but different situation described by a
+            close friend and write the advice you would give that friend.
+          </p>
+          <div className="source-overview-grid">
+            <div><span>Estimated time</span><strong>About 10–12 minutes</strong></div>
+            <div><span>Writing task</span><strong>At least 50 English words</strong></div>
+            <div><span>Study material</span><strong>Interpersonal situations and comments</strong></div>
+            <div><span>Important</span><strong>Complete the study in one sitting</strong></div>
+          </div>
+          <div className="source-intro-action">
+            <div>
+              <h3>Ready to review the consent form?</h3>
+              <p>Your assigned material will remain the same if this page is refreshed.</p>
+            </div>
+            <PrimaryButton onClick={beginConsent}>Review consent</PrimaryButton>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "consent") {
+    return (
+      <Page wide>
+        <div className="source-consent-layout">
+          <section className="source-panel source-consent-panel">
+            <p className="source-eyebrow">Participant information</p>
+            <h2>Informed Consent</h2>
+            <div className="source-consent-text">{ADVICE_TRANSFER_CONSENT_TEXT}</div>
+          </section>
+          <aside className="source-panel source-consent-confirmation">
+            <h3>Consent Confirmation</h3>
+            <label className="source-consent-checkbox">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(event) => setAgreed(event.target.checked)}
+              />
+              <span>
+                I am at least 18 years old, I have read the consent information,
+                and I voluntarily agree to participate.
+              </span>
+            </label>
+            <div className="source-button-row">
+              <SecondaryButton onClick={() => setScreen("declined")}>I Disagree</SecondaryButton>
+              <PrimaryButton disabled={!agreed} onClick={acceptConsent}>I Agree</PrimaryButton>
+            </div>
+          </aside>
+        </div>
+      </Page>
+    );
+  }
+
+  if (screen === "declined") {
+    return (
+      <Page>
+        <section className="source-panel source-completion-panel">
+          <p className="source-eyebrow">Participation declined</p>
+          <h2>You have not consented to participate.</h2>
+          <p>You may close this browser window. No task response was submitted.</p>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "instructions") {
+    return (
+      <Page>
+        <section className="source-panel source-intro-panel">
+          <p className="source-eyebrow">Instructions and attention check</p>
+          <h2>Please read these instructions carefully</h2>
+          <div className="source-instructions-copy transfer-instructions">
+            <p>
+              First, read one online discussion post and all five anonymous
+              comments responding to it. Next, you will see a <strong>related but
+              different</strong> situation faced by a close friend. The earlier
+              post and comments will no longer be visible, and you cannot return
+              to them. Write the advice you would genuinely give your friend in
+              at least 50 English words. Afterwards, answer brief questions about
+              your experience and your impressions of the study.
+            </p>
+            <p>
+              Common community shorthand: <strong>AITA</strong> = “Am I the
+              Asshole?”, <strong>NTA</strong> = “Not the Asshole,” <strong>YTA</strong>
+              = “You're the Asshole,” <strong>ESH</strong> = “Everyone Sucks Here,”
+              <strong> NAH</strong> = “No Assholes Here,” and <strong>INFO</strong>
+              = “More Information Needed.”
+            </p>
+            <p>
+              Copying, pasting, dragging, and the context menu are disabled. Please
+              complete the task on your own without external tools.
+            </p>
+          </div>
+          <label className="source-check-label" htmlFor="transfer-check">
+            Which option best describes what you will do?
+          </label>
+          <p className="source-check-copy">
+            An incorrect answer may be retried once. Two incorrect answers end this session.
+          </p>
+          <select
+            id="transfer-check"
+            className="source-check-select"
+            value={comprehension}
+            onChange={(event) => handleComprehension(event.target.value)}
+          >
+            <option value="">Select one answer</option>
+            <option value="classify-comments">Classify each comment by its political viewpoint</option>
+            <option value={CORRECT_COMPREHENSION}>Read a post and comments, then advise a friend in a related but different situation</option>
+            <option value="copy-comments">Copy one of the comments as the advice response</option>
+          </select>
+          <p className="source-attempt-note">Incorrect answers recorded: {comprehensionAttempts} of 2</p>
+          {comprehensionError && <p className="source-inline-error">{comprehensionError}</p>}
+          <div className="transfer-action-row">
+            <PrimaryButton disabled={comprehension !== CORRECT_COMPREHENSION} onClick={beginExposure}>
+              Begin Part 1
+            </PrimaryButton>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "comprehension-failed") {
+    return (
+      <Page>
+        <section className="source-panel source-error-panel">
+          <p className="source-eyebrow">Session ended</p>
+          <h2>This research session has ended after two incorrect answers.</h2>
+          <p>
+            The same participant ID cannot restart this study. Please return the
+            study on Prolific if you entered through a Prolific listing.
+          </p>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "exposure") {
+    return (
+      <Page wide>
+        <div className="source-task-heading transfer-task-heading">
+          <div>
+            <p className="source-eyebrow">Part 1 of 4</p>
+            <h2>Read the discussion</h2>
+          </div>
+          <span>Read the post and all five comments at your own pace.</span>
+        </div>
+        <div className="source-stimulus-grid transfer-exposure-grid">
+          <PostPanel eyebrow="Online discussion post" post={assignment.exposurePost} />
+          <section className="source-panel source-comments-panel">
+            <div className="source-comments-heading">
+              <div>
+                <p className="source-eyebrow">Anonymous responses</p>
+                <h3>Comments on this post</h3>
+              </div>
+              <span>5 comments</span>
+            </div>
+            <p className="source-comments-instruction">Please read every comment before continuing.</p>
+            <div className="source-comment-feed">
+              {assignment.comments.map((comment, index) => (
+                <article className="source-comment-card" key={assignment.commentHashes[index]}>
+                  <div><span>{index + 1}</span></div>
+                  <p>{comment}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        </div>
+        <div className="source-submit-row transfer-submit-row">
+          <p>After continuing, this discussion will not be shown again.</p>
+          <PrimaryButton onClick={continueToAdvice}>Continue to the new situation</PrimaryButton>
+        </div>
+      </Page>
+    );
+  }
+
+  if (screen === "advice") {
+    return (
+      <Page wide>
+        <div className="source-task-heading transfer-task-heading">
+          <div>
+            <p className="source-eyebrow">Part 2 of 4</p>
+            <h2>Advise a close friend</h2>
+          </div>
+          <span>The earlier discussion is no longer available.</span>
+        </div>
+        <div className="transfer-advice-grid">
+          <PostPanel eyebrow="Your friend's situation" post={assignment.targetPost} friend />
+          <section className="source-panel transfer-response-panel">
+            <p className="source-eyebrow">Your response</p>
+            <h3>What advice would you give your friend?</h3>
+            <p>
+              Write what you genuinely think your friend should do and explain
+              your reasoning. Your response must contain at least 50 English words.
+            </p>
+            <textarea
+              className="transfer-textarea transfer-advice-textarea"
+              value={advice}
+              onChange={updateAdvice}
+              onPaste={(event) => event.preventDefault()}
+              onDrop={(event) => event.preventDefault()}
+              placeholder="Write your advice here…"
+              aria-describedby="advice-word-count"
+            />
+            <div
+              id="advice-word-count"
+              className={`transfer-word-count ${wordCount >= 50 ? "complete" : ""}`}
+            >
+              <strong>{wordCount}</strong> / 50 words minimum
+            </div>
+            <div className="transfer-action-row">
+              <PrimaryButton disabled={wordCount < 50} onClick={continueToRatings}>
+                Continue
+              </PrimaryButton>
+            </div>
+          </section>
+        </div>
+      </Page>
+    );
+  }
+
+  if (screen === "ratings") {
+    return (
+      <Page>
+        <section className="source-panel source-rating-panel transfer-ratings-panel">
+          <p className="source-eyebrow">Part 3 of 4</p>
+          <h2>How did the advice task feel?</h2>
+          <p className="transfer-section-copy">Please answer all three questions.</p>
+          <ScaleQuestion
+            legend="How difficult was it to decide what advice to give?"
+            value={difficulty}
+            onChange={setDifficulty}
+            low="Not at all difficult"
+            middle="Moderately difficult"
+            high="Extremely difficult"
+          />
+          <ScaleQuestion
+            legend="How effortful was it to decide what to say?"
+            value={effort}
+            onChange={setEffort}
+            low="Not at all effortful"
+            middle="Moderately effortful"
+            high="Extremely effortful"
+          />
+          <ScaleQuestion
+            legend="How confident are you that the advice you gave was right?"
+            value={confidence}
+            onChange={setConfidence}
+            low="Not at all confident"
+            middle="Moderately confident"
+            high="Extremely confident"
+          />
+          <div className="transfer-action-row">
+            <PrimaryButton
+              disabled={[difficulty, effort, confidence].some((value) => value === null)}
+              onClick={continueToPurpose}
+            >
+              Continue
+            </PrimaryButton>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "funnel-purpose") {
+    return (
+      <Page>
+        <section className="source-panel transfer-question-panel">
+          <p className="source-eyebrow">Part 4 of 4 · Question 1 of 3</p>
+          <h2>In your own words, what do you think this study was about?</h2>
+          <textarea
+            className="transfer-textarea"
+            value={purposeGuess}
+            onChange={(event) => setPurposeGuess(event.target.value)}
+            onPaste={(event) => event.preventDefault()}
+            placeholder="Enter your answer…"
+          />
+          <div className="transfer-action-row">
+            <PrimaryButton disabled={!purposeGuess.trim()} onClick={continueToNotice}>Continue</PrimaryButton>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "funnel-notice") {
+    return (
+      <Page>
+        <section className="source-panel transfer-question-panel">
+          <p className="source-eyebrow">Part 4 of 4 · Question 2 of 3</p>
+          <h2>Did you notice anything unusual or noteworthy about the comments or where they may have come from?</h2>
+          <ThreeWayChoice name="comments-stood-out" value={commentsStoodOut} onChange={setCommentsStoodOut} />
+          <label className="transfer-optional-label" htmlFor="stood-out-details">
+            If you would like, please explain. <span>Optional</span>
+          </label>
+          <textarea
+            id="stood-out-details"
+            className="transfer-textarea transfer-small-textarea"
+            value={commentsStoodOutDetails}
+            onChange={(event) => setCommentsStoodOutDetails(event.target.value)}
+            onPaste={(event) => event.preventDefault()}
+            placeholder="Optional explanation…"
+          />
+          <div className="transfer-action-row">
+            <PrimaryButton disabled={!commentsStoodOut} onClick={continueToAi}>Continue</PrimaryButton>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "funnel-ai") {
+    return (
+      <Page>
+        <section className="source-panel transfer-question-panel">
+          <p className="source-eyebrow">Part 4 of 4 · Question 3 of 3</p>
+          <h2>Do you think the comments you read may have been generated by artificial intelligence?</h2>
+          <ThreeWayChoice name="ai-generated-belief" value={aiGeneratedBelief} onChange={setAiGeneratedBelief} />
+          <div className="transfer-likelihood-block">
+            <ScaleQuestion
+              legend="How likely is it that the comments were generated by artificial intelligence (e.g. ChatGPT)?"
+              value={aiLikelihood}
+              onChange={setAiLikelihood}
+              low="Not at all likely"
+              middle="Somewhat likely"
+              high="Very likely"
+            />
+          </div>
+          {submissionError && <p className="source-submission-error">{submissionError}</p>}
+          <div className="transfer-action-row">
+            <PrimaryButton
+              disabled={!aiGeneratedBelief || aiLikelihood === null || submissionState === "submitting"}
+              onClick={submitStudy}
+            >
+              {submissionState === "submitting" ? "Saving…" : "Submit responses"}
+            </PrimaryButton>
+          </div>
+        </section>
+      </Page>
+    );
+  }
+
+  if (screen === "debrief") {
+    return (
+      <Page>
+        <section className="source-panel source-completion-panel transfer-debrief-panel">
+          <div className="source-completion-mark" aria-hidden="true">✓</div>
+          <p className="source-eyebrow">Response saved</p>
+          <h2>Thank you. Your responses were saved successfully.</h2>
+          <div className="transfer-debrief-copy">
+            <h3>Debrief</h3>
+            <p>
+              This study examines whether reading an earlier set of opinions can
+              influence the advice people later give in a different but related
+              situation. Some participants read comments written by people, while
+              others read comments generated by artificial-intelligence systems.
+              The study also examines how consistent the advice is across people,
+              which considerations appear in their reasoning, and how difficult or
+              confident the judgment feels.
+            </p>
+            <p>
+              We did not explain the comment-source comparison before the task
+              because knowing the full hypothesis could change how participants
+              read the material. Please do not share these details with potential
+              participants while data collection is underway.
+            </p>
+          </div>
+          <PrimaryButton onClick={() => { setScreen("complete"); goTop(); }}>
+            Continue to completion
+          </PrimaryButton>
+        </section>
+      </Page>
+    );
+  }
+
+  return (
+    <Page>
+      <section className="source-panel source-completion-panel">
+        <div className="source-completion-mark" aria-hidden="true">✓</div>
+        <p className="source-eyebrow">Study complete</p>
+        <h2>{assignment?.isTest ? "Test preview complete" : "Your study is complete"}</h2>
+        <p>
+          {alreadySubmitted
+            ? "This participant ID already submitted a response. No duplicate response was created."
+            : "Your saved response has been confirmed."}
+        </p>
+        {assignment?.isTest ? (
+          <p className="source-completion-meta">
+            This was a test session and does not occupy a formal study slot.
+          </p>
+        ) : completion.url ? (
+          <a className="source-primary-button transfer-completion-link" href={completion.url}>
+            Return to Prolific
+          </a>
+        ) : (
+          <p className="source-completion-help">
+            The formal completion code has not been configured. Please contact the research team.
+          </p>
+        )}
+      </section>
+    </Page>
+  );
+}
