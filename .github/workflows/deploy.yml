@@ -2,7 +2,7 @@ name: Deploy Online Research Study
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "agent/study2-advice-transfer-preview"]
   workflow_dispatch:
 
 permissions:
