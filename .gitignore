@@ -30,6 +30,10 @@
 !src/comment-source.jsx
 !src/source-detection.css
 !src/source-consent.js
+!src/AdviceTransferTask.jsx
+!src/advice-transfer.jsx
+!src/advice-transfer.css
+!src/advice-transfer-consent.js
 !advice/
 !advice/index.html
 !judgment/
@@ -38,8 +42,11 @@
 !ratings/index.html
 !comment-source/
 !comment-source/index.html
+!advice-transfer/
+!advice-transfer/index.html
 !tests/
 !tests/comment-source.test.mjs
+!tests/advice-transfer.test.mjs
 
 node_modules/
 dist/
