@@ -149,6 +149,22 @@
   color: #047857;
 }
 
+.transfer-save-status {
+  margin: 9px 0 0;
+  color: var(--source-slate-500);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.transfer-save-status.saved {
+  color: #047857;
+}
+
+.transfer-save-status.offline {
+  color: #b45309;
+}
+
 .source-rating-panel .transfer-scale-fieldset {
   padding: 20px 0 24px;
   margin: 0;

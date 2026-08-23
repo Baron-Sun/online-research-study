@@ -11,6 +11,8 @@
 !RATING_TASK_FLOW.md
 !supabase_setup.sql
 !supabase_advice_setup.sql
+!supabase_advice_transfer_setup.sql
+!supabase_advice_transfer_seed.sql
 !supabase_source_detection_formal.sql
 !scripts/
 !scripts/prepare_full153k_imports.py

@@ -96,6 +96,39 @@ test("all ratings and the three-stage funnel are required and saved", async () =
   assert.match(client, /lastEditAt/);
 });
 
+test("the Study 2 client survives traffic bursts and interrupted final saves", async () => {
+  const [client, css] = await Promise.all([
+    read("src/AdviceTransferTask.jsx"),
+    read("src/advice-transfer.css"),
+  ]);
+
+  assert.match(client, /heartbeat_advice_transfer_assignment/);
+  assert.match(client, /save_advice_transfer_draft/);
+  assert.match(client, /withdraw_advice_transfer_assignment/);
+  assert.match(client, /CLAIM_RETRY_DELAYS_MS/);
+  assert.match(client, /SUBMIT_RETRY_DELAYS_MS/);
+  assert.match(client, /pendingSubmission/);
+  assert.match(client, /Retry submission/);
+  assert.match(client, /window\.localStorage/);
+  assert.match(css, /transfer-save-status/);
+});
+
+test("the formal database separates valid-response quotas from temporary leases", async () => {
+  const schema = await read("supabase_advice_transfer_setup.sql");
+
+  assert.match(schema, /formal_target_per_cell/);
+  assert.match(schema, /assignment_lease_minutes/);
+  assert.match(schema, /reclaim_expired_advice_transfer_assignments/);
+  assert.match(schema, /lease_expires_at/);
+  assert.match(schema, /validity_status in \('pending', 'valid'\)/);
+  assert.match(schema, /heartbeat_advice_transfer_assignment/);
+  assert.match(schema, /save_advice_transfer_draft/);
+  assert.match(schema, /review_advice_transfer_assignment/);
+  assert.match(schema, /advice_transfer_formal_cell_progress/);
+  assert.match(schema, /completed\.completed_count, 0\) < v_target_per_cell/);
+  assert.doesNotMatch(schema, /create table if not exists public\.advice_transfer_slots/);
+});
+
 test("100 least-filled test claims produce five assignments in every primary cell", () => {
   const cells = Array.from({ length: 10 }, (_, pairIndex) =>
     ["human", "ai"].map((condition) => ({
@@ -121,4 +154,34 @@ test("100 least-filled test claims produce five assignments in every primary cel
     cells.filter(({ condition }) => condition === "ai").reduce((sum, cell) => sum + cell.occupied, 0),
     50,
   );
+});
+
+test("returned participants do not permanently consume Study 2 assignment capacity", () => {
+  const cells = Array.from({ length: 20 }, (_, index) => ({
+    index,
+    active: 0,
+    completed: 0,
+  }));
+  const claims = [];
+
+  const claimLeastFilled = () => {
+    const minimumCompleted = Math.min(...cells.map(({ completed }) => completed));
+    const eligible = cells.filter(({ completed }) => completed === minimumCompleted);
+    const minimumActive = Math.min(...eligible.map(({ active }) => active));
+    const selected = eligible.find(({ active }) => active === minimumActive);
+    selected.active += 1;
+    claims.push(selected.index);
+    return selected.index;
+  };
+
+  for (let participant = 0; participant < 100; participant += 1) claimLeastFilled();
+  assert.ok(cells.every(({ active }) => active === 5));
+
+  for (const returnedIndex of [0, 7, 14, 22, 31, 48, 59, 63, 74, 88]) {
+    cells[claims[returnedIndex]].active -= 1;
+  }
+  for (let replacement = 0; replacement < 10; replacement += 1) claimLeastFilled();
+
+  assert.ok(cells.every(({ active }) => active === 5));
+  assert.equal(claims.length, 110);
 });

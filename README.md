@@ -15,6 +15,7 @@ separate pages.
 - `/judgment/`: single-post response task
 - `/ratings/`: multi-post rating task
 - `/comment-source/`: two-post, same-source comment-likelihood task
+- `/advice-transfer/`: Study 2 A-to-B moral-advice transfer task
 
 Use separate crowdsourcing studies or separate study links for these pages.
 
@@ -63,6 +64,58 @@ For a test session, use a unique test ID and optionally add `debug=1`:
 ```text
 https://baron-sun.github.io/online-research-study/comment-source/?PROLIFIC_PID=test-review-001&STUDY_ID=source-pretest&SESSION_ID=review-001&debug=1
 ```
+
+## Study 2 advice-transfer task
+
+The formal Study 2 task crosses 10 active A/B dilemma pairs with two masked
+comment-source conditions. A participant reads dilemma A and five Human or five
+AI comments, then writes advice for the related but different dilemma B. The
+three reserve pairs remain inactive.
+
+Run `supabase_advice_transfer_setup.sql`, then
+`supabase_advice_transfer_seed.sql`. The setup is safe to rerun on the preview
+database: it preserves assignments and submissions while upgrading the formal
+allocator, renewable leases, draft autosave, idempotent submission, review
+status, and progress view.
+
+Formal recruitment is closed by default. Set the number of usable responses
+required in each of the 20 pair-by-condition cells before opening recruitment.
+For example, a balanced target of 100 usable responses means 5 per cell:
+
+```sql
+update public.advice_transfer_settings
+   set setting_value = '5'::jsonb, updated_at = now()
+ where setting_key = 'formal_target_per_cell';
+
+update public.advice_transfer_settings
+   set setting_value = 'true'::jsonb, updated_at = now()
+ where setting_key = 'formal_recruitment_open';
+```
+
+To close new allocation without interrupting already assigned participants,
+set `formal_recruitment_open` back to `false`. Monitor cell completion and
+active leases with:
+
+```sql
+select * from public.advice_transfer_formal_cell_progress;
+```
+
+The allocator never treats historical page opens as completed quota. A
+participant receives a renewable assignment lease, the browser sends a
+heartbeat every minute, unfinished responses are saved both locally and in
+Supabase, and final submission retries safely. Expired, screened-out, excluded,
+or withdrawn attempts therefore do not permanently consume capacity.
+
+Use this Prolific External Study Link:
+
+```text
+https://baron-sun.github.io/online-research-study/advice-transfer/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}&completion_code=YOUR_PROLIFIC_CODE
+```
+
+For launch, use single submission and limit simultaneous participant access to
+15 rather than Unlimited. Start with 10 paid participants, verify Supabase
+submissions and the progress view, and then increase places while retaining the
+same concurrency limit.
 
 ## Local Development
 

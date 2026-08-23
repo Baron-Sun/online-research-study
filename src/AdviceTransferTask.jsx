@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
 
 const CORRECT_COMPREHENSION = "read-then-advise";
-const SCHEMA_VERSION = "advice-transfer-v1";
+const SCHEMA_VERSION = "advice-transfer-v2-resilient";
+const HEARTBEAT_INTERVAL_MS = 60_000;
+const DRAFT_SAVE_DELAY_MS = 1_500;
+const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
+const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
 const PROLIFIC_COMPLETION_BASE_URL =
   "https://app.prolific.com/submissions/complete";
 const LOCKED_SCREENS = new Set([
@@ -13,8 +17,50 @@ const LOCKED_SCREENS = new Set([
   "funnel-ai",
   "debrief",
 ]);
+const DRAFTABLE_SCREENS = new Set([
+  "overview",
+  "consent",
+  "instructions",
+  "exposure",
+  "advice",
+  "ratings",
+  "funnel-purpose",
+  "funnel-notice",
+  "funnel-ai",
+]);
+const RESTORABLE_SCREENS = new Set(DRAFTABLE_SCREENS);
 
 const nowIso = () => new Date().toISOString();
+const wait = (milliseconds) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+const storageKeyFor = ({ prolificPid, studyId, sessionId }) =>
+  ["advice-transfer-v2", prolificPid, studyId || "study", sessionId || "session"].join(":");
+
+const readLocalDraft = (participant) => {
+  try {
+    const raw = window.localStorage.getItem(storageKeyFor(participant));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeLocalDraft = (participant, payload) => {
+  try {
+    window.localStorage.setItem(storageKeyFor(participant), JSON.stringify(payload));
+  } catch {
+    // Server autosave remains available if local storage is blocked.
+  }
+};
+
+const clearLocalDraft = (participant) => {
+  try {
+    window.localStorage.removeItem(storageKeyFor(participant));
+  } catch {
+    // A stale local backup is harmless because submitted sessions bypass it.
+  }
+};
 
 export const countEnglishWords = (value) =>
   String(value || "").match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)?.length || 0;
@@ -96,15 +142,23 @@ const getCompletion = () => {
 };
 
 const supabaseRpc = async (config, functionName, payload) => {
-  const response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
-    method: "POST",
-    headers: {
-      apikey: config.anonKey,
-      Authorization: `Bearer ${config.anonKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
+      method: "POST",
+      headers: {
+        apikey: config.anonKey,
+        Authorization: `Bearer ${config.anonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (networkError) {
+    const error = new Error("The study database could not be reached.");
+    error.retryable = true;
+    error.cause = networkError;
+    throw error;
+  }
 
   const responseText = await response.text();
   let data = null;
@@ -114,11 +168,40 @@ const supabaseRpc = async (config, functionName, payload) => {
     data = null;
   }
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       data?.message || `The study database returned HTTP ${response.status}.`,
     );
+    error.status = response.status;
+    error.code = data?.code || "";
+    error.retryable =
+      response.status === 408 ||
+      response.status === 409 ||
+      response.status === 425 ||
+      response.status === 429 ||
+      response.status >= 500 ||
+      ["40001", "40P01", "55P03", "57014"].includes(error.code);
+    throw error;
   }
   return data;
+};
+
+export const supabaseRpcWithRetry = async (
+  config,
+  functionName,
+  payload,
+  delays = SUBMIT_RETRY_DELAYS_MS,
+) => {
+  let lastError;
+  for (const delay of delays) {
+    if (delay) await wait(delay);
+    try {
+      return await supabaseRpc(config, functionName, payload);
+    } catch (error) {
+      lastError = error;
+      if (!error?.retryable) throw error;
+    }
+  }
+  throw lastError || new Error("The study database could not be reached.");
 };
 
 export const validateAdviceTransferAssignment = (value) => {
@@ -308,6 +391,20 @@ const ThreeWayChoice = ({ name, value, onChange }) => (
   </div>
 );
 
+const SaveStatus = ({ state }) => {
+  const message = {
+    saving: "Saving your progress…",
+    saved: "Progress saved",
+    offline: "Progress is saved on this device and will sync automatically.",
+  }[state];
+  if (!message) return null;
+  return (
+    <p className={`transfer-save-status ${state}`} role="status" aria-live="polite">
+      {message}
+    </p>
+  );
+};
+
 export default function AdviceTransferTask() {
   useGlobalClipboardBlock();
 
@@ -331,13 +428,53 @@ export default function AdviceTransferTask() {
   const [submissionState, setSubmissionState] = useState("idle");
   const [submissionError, setSubmissionError] = useState("");
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [loadNonce, setLoadNonce] = useState(0);
+  const [draftReady, setDraftReady] = useState(false);
+  const [saveState, setSaveState] = useState("idle");
   const completion = useMemo(() => getCompletion(), []);
   const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
+  const draftPayload = useMemo(() => {
+    if (!assignment || !DRAFTABLE_SCREENS.has(screen)) return null;
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      assignmentId: assignment.assignmentId,
+      savedAt: nowIso(),
+      screen,
+      agreed,
+      comprehension,
+      advice,
+      difficulty,
+      effort,
+      confidence,
+      purposeGuess,
+      commentsStoodOut,
+      commentsStoodOutDetails,
+      aiGeneratedBelief,
+      aiLikelihood,
+      timestamps,
+    };
+  }, [
+    assignment?.assignmentId,
+    screen,
+    agreed,
+    comprehension,
+    advice,
+    difficulty,
+    effort,
+    confidence,
+    purposeGuess,
+    commentsStoodOut,
+    commentsStoodOutDetails,
+    aiGeneratedBelief,
+    aiLikelihood,
+    timestamps,
+  ]);
 
   useEffect(() => {
     let active = true;
     const participant = getParticipant();
     const config = getSupabaseConfig();
+    setDraftReady(false);
 
     if (!participant.prolificPid) {
       setError(
@@ -367,14 +504,19 @@ export default function AdviceTransferTask() {
       };
     }
 
-    supabaseRpc(config, "claim_advice_transfer_assignment", {
-      p_prolific_pid: participant.prolificPid,
-      p_study_id: participant.studyId || null,
-      p_session_id: participant.sessionId || null,
-      p_is_test: isTestParticipant(participant.prolificPid),
-      p_pair_number: overrides.pairNumber,
-      p_condition: overrides.condition,
-    })
+    supabaseRpcWithRetry(
+      config,
+      "claim_advice_transfer_assignment",
+      {
+        p_prolific_pid: participant.prolificPid,
+        p_study_id: participant.studyId || null,
+        p_session_id: participant.sessionId || null,
+        p_is_test: isTestParticipant(participant.prolificPid),
+        p_pair_number: overrides.pairNumber,
+        p_condition: overrides.condition,
+      },
+      CLAIM_RETRY_DELAYS_MS,
+    )
       .then((response) => {
         if (!active) return;
         validateAdviceTransferAssignment(response);
@@ -383,12 +525,89 @@ export default function AdviceTransferTask() {
         setAssignment(nextAssignment);
         setComprehensionAttempts(failures);
         if (response.status === "screened_out" || failures >= 2) {
+          clearLocalDraft(participant);
+          setDraftReady(true);
           setScreen("comprehension-failed");
         } else if (response.status === "submitted") {
+          clearLocalDraft(participant);
           setAlreadySubmitted(true);
+          setDraftReady(true);
           setScreen("complete");
         } else {
-          setScreen("overview");
+          const serverDraft = response.draftPayload;
+          const localDraft = readLocalDraft(participant);
+          const candidates = [serverDraft, localDraft]
+            .filter(
+              (draft) =>
+                draft &&
+                draft.assignmentId === response.assignmentId &&
+                RESTORABLE_SCREENS.has(draft.screen),
+            )
+            .sort(
+              (left, right) =>
+                new Date(right.savedAt || 0).getTime() -
+                new Date(left.savedAt || 0).getTime(),
+            );
+          const restored = candidates[0] || null;
+          if (restored) {
+            const scaleValue = (value) => {
+              const number = Number(value);
+              return Number.isInteger(number) && number >= 1 && number <= 7
+                ? number
+                : null;
+            };
+            const restoredAgreed = Boolean(restored.agreed);
+            const restoredComprehension =
+              restored.comprehension === CORRECT_COMPREHENSION
+                ? CORRECT_COMPREHENSION
+                : "";
+            let restoredScreen = restored.screen;
+            if (restoredScreen !== "overview" && !restoredAgreed) {
+              restoredScreen = "consent";
+            } else if (
+              !["overview", "consent", "instructions"].includes(restoredScreen) &&
+              restoredComprehension !== CORRECT_COMPREHENSION
+            ) {
+              restoredScreen = "instructions";
+            }
+            setAgreed(restoredAgreed);
+            setComprehension(restoredComprehension);
+            setAdvice(String(restored.advice || ""));
+            setDifficulty(scaleValue(restored.difficulty));
+            setEffort(scaleValue(restored.effort));
+            setConfidence(scaleValue(restored.confidence));
+            setPurposeGuess(String(restored.purposeGuess || ""));
+            setCommentsStoodOut(
+              ["yes", "no", "unsure"].includes(restored.commentsStoodOut)
+                ? restored.commentsStoodOut
+                : "",
+            );
+            setCommentsStoodOutDetails(
+              String(restored.commentsStoodOutDetails || ""),
+            );
+            setAiGeneratedBelief(
+              ["yes", "no", "unsure"].includes(restored.aiGeneratedBelief)
+                ? restored.aiGeneratedBelief
+                : "",
+            );
+            setAiLikelihood(scaleValue(restored.aiLikelihood));
+            setTimestamps(
+              restored.timestamps && typeof restored.timestamps === "object"
+                ? restored.timestamps
+                : {},
+            );
+            if (restored.pendingSubmission) {
+              setSubmissionState("error");
+              setSubmissionError(
+                "Your previous final submission was not confirmed. Your responses were recovered; please select Retry submission.",
+              );
+              restoredScreen = "funnel-ai";
+            }
+            setScreen(restoredScreen);
+          } else {
+            setScreen("overview");
+          }
+          setDraftReady(true);
         }
       })
       .catch((loadError) => {
@@ -400,7 +619,103 @@ export default function AdviceTransferTask() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadNonce]);
+
+  useEffect(() => {
+    if (!assignment || assignment.status !== "claimed") return undefined;
+    let active = true;
+
+    const heartbeat = async () => {
+      try {
+        const result = await supabaseRpcWithRetry(
+          assignment.config,
+          "heartbeat_advice_transfer_assignment",
+          {
+            p_assignment_id: assignment.assignmentId,
+            p_prolific_pid: assignment.participant.prolificPid,
+          },
+          [0, 1_000],
+        );
+        if (!active) return;
+        setAssignment((current) =>
+          current
+            ? {
+                ...current,
+                status: result.status || current.status,
+                leaseExpiresAt: result.leaseExpiresAt || current.leaseExpiresAt,
+              }
+            : current,
+        );
+      } catch {
+        if (active) setSaveState("offline");
+      }
+    };
+
+    const intervalId = window.setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") heartbeat();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [assignment?.assignmentId, assignment?.status]);
+
+  useEffect(() => {
+    if (
+      !draftReady ||
+      !assignment ||
+      assignment.status !== "claimed" ||
+      !draftPayload ||
+      submissionState === "submitted"
+    ) {
+      return undefined;
+    }
+
+    writeLocalDraft(assignment.participant, draftPayload);
+    let active = true;
+    const timeoutId = window.setTimeout(async () => {
+      setSaveState("saving");
+      try {
+        const result = await supabaseRpcWithRetry(
+          assignment.config,
+          "save_advice_transfer_draft",
+          {
+            p_assignment_id: assignment.assignmentId,
+            p_prolific_pid: assignment.participant.prolificPid,
+            p_payload: draftPayload,
+          },
+          [0, 750, 1_500],
+        );
+        if (!active) return;
+        if (result.alreadySubmitted) {
+          clearLocalDraft(assignment.participant);
+          setAlreadySubmitted(true);
+          setSubmissionState("submitted");
+          setScreen("complete");
+          return;
+        }
+        setAssignment((current) =>
+          current
+            ? {
+                ...current,
+                leaseExpiresAt: result.leaseExpiresAt || current.leaseExpiresAt,
+              }
+            : current,
+        );
+        setSaveState("saved");
+      } catch {
+        if (active) setSaveState("offline");
+      }
+    }, DRAFT_SAVE_DELAY_MS);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [assignment?.assignmentId, assignment?.status, draftPayload, draftReady, submissionState]);
 
   useEffect(() => {
     if (!LOCKED_SCREENS.has(screen)) return undefined;
@@ -431,6 +746,34 @@ export default function AdviceTransferTask() {
     goTop();
   };
 
+  const declineConsent = async () => {
+    if (!assignment) return;
+    clearLocalDraft(assignment.participant);
+    setDraftReady(false);
+    setAssignment((current) =>
+      current ? { ...current, status: "abandoned" } : current,
+    );
+    setScreen("declined");
+    goTop();
+    try {
+      const result = await supabaseRpcWithRetry(
+        assignment.config,
+        "withdraw_advice_transfer_assignment",
+        {
+          p_assignment_id: assignment.assignmentId,
+          p_prolific_pid: assignment.participant.prolificPid,
+          p_reason: "consent_declined",
+        },
+        [0, 750, 1_500],
+      );
+      setAssignment((current) =>
+        current ? { ...current, status: result.status || "abandoned" } : current,
+      );
+    } catch {
+      // The renewable lease will expire automatically if immediate release fails.
+    }
+  };
+
   const handleComprehension = async (selectedOption) => {
     if (!selectedOption) return;
     if (selectedOption === CORRECT_COMPREHENSION) {
@@ -458,7 +801,12 @@ export default function AdviceTransferTask() {
       const failures = Number(result.comprehensionFailures) || comprehensionAttempts + 1;
       const screenedOut = Boolean(result.screenedOut) || failures >= 2;
       setComprehensionAttempts(failures);
+      setAssignment((current) =>
+        current ? { ...current, status: result.status || current.status } : current,
+      );
       if (screenedOut) {
+        clearLocalDraft(assignment.participant);
+        setDraftReady(false);
         setScreen("comprehension-failed");
         goTop();
         return;
@@ -555,6 +903,10 @@ export default function AdviceTransferTask() {
   const submitStudy = async () => {
     if (
       !assignment ||
+      wordCount < 50 ||
+      [difficulty, effort, confidence].some((value) => value === null) ||
+      !purposeGuess.trim() ||
+      !commentsStoodOut ||
       !aiGeneratedBelief ||
       aiLikelihood === null ||
       submissionState === "submitting"
@@ -616,15 +968,25 @@ export default function AdviceTransferTask() {
       },
     };
 
+    writeLocalDraft(assignment.participant, {
+      ...(draftPayload || {}),
+      assignmentId: assignment.assignmentId,
+      savedAt: submittedAt,
+      screen: "funnel-ai",
+      pendingSubmission: payload,
+    });
+
     try {
-      const result = await supabaseRpc(
+      const result = await supabaseRpcWithRetry(
         assignment.config,
         "submit_advice_transfer_payload",
         {
           p_assignment_id: assignment.assignmentId,
           p_payload: payload,
         },
+        SUBMIT_RETRY_DELAYS_MS,
       );
+      clearLocalDraft(assignment.participant);
       setTimestamps(finalTimestamps);
       setAssignment((current) => ({
         ...current,
@@ -632,14 +994,15 @@ export default function AdviceTransferTask() {
         submittedAt: result.submittedAt || submittedAt,
       }));
       setSubmissionState("submitted");
+      setSaveState("saved");
       setScreen("debrief");
       goTop();
     } catch (submitError) {
       setSubmissionState("error");
       setSubmissionError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Your response could not be saved. Please try again.",
+        `Your responses are still saved on this device, but the final confirmation did not reach the study database. Please keep this page open and select Retry submission. ${
+          submitError instanceof Error ? submitError.message : ""
+        }`.trim(),
       );
     }
   };
@@ -663,6 +1026,17 @@ export default function AdviceTransferTask() {
           <p className="source-eyebrow">Unable to open study</p>
           <h2>This research session could not be prepared.</h2>
           <p>{error}</p>
+          <div className="transfer-action-row">
+            <PrimaryButton
+              onClick={() => {
+                setError("");
+                setScreen("loading");
+                setLoadNonce((current) => current + 1);
+              }}
+            >
+              Try again
+            </PrimaryButton>
+          </div>
         </section>
       </Page>
     );
@@ -720,7 +1094,7 @@ export default function AdviceTransferTask() {
               </span>
             </label>
             <div className="source-button-row">
-              <SecondaryButton onClick={() => setScreen("declined")}>I Disagree</SecondaryButton>
+              <SecondaryButton onClick={declineConsent}>I Disagree</SecondaryButton>
               <PrimaryButton disabled={!agreed} onClick={acceptConsent}>I Agree</PrimaryButton>
             </div>
           </aside>
@@ -886,6 +1260,7 @@ export default function AdviceTransferTask() {
             >
               <strong>{wordCount}</strong> / 50 words minimum
             </div>
+            <SaveStatus state={saveState} />
             <div className="transfer-action-row">
               <PrimaryButton disabled={wordCount < 50} onClick={continueToRatings}>
                 Continue
@@ -1005,13 +1380,18 @@ export default function AdviceTransferTask() {
               high="Very likely"
             />
           </div>
+          <SaveStatus state={saveState} />
           {submissionError && <p className="source-submission-error">{submissionError}</p>}
           <div className="transfer-action-row">
             <PrimaryButton
               disabled={!aiGeneratedBelief || aiLikelihood === null || submissionState === "submitting"}
               onClick={submitStudy}
             >
-              {submissionState === "submitting" ? "Saving…" : "Submit responses"}
+              {submissionState === "submitting"
+                ? "Saving…"
+                : submissionState === "error"
+                  ? "Retry submission"
+                  : "Submit responses"}
             </PrimaryButton>
           </div>
         </section>
