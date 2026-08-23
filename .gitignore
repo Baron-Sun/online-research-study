@@ -49,6 +49,7 @@
 !tests/
 !tests/comment-source.test.mjs
 !tests/advice-transfer.test.mjs
+!tests/advice-transfer-integration.sql
 
 node_modules/
 dist/

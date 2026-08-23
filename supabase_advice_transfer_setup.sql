@@ -1,5 +1,6 @@
--- Study 2 advice-transfer database. This namespace is intentionally separate
--- from the existing advice_* and source_detection_* studies.
+-- Study 2 advice-transfer database, resilient admission-control version.
+-- This namespace is intentionally separate from the existing advice_* and
+-- source_detection_* studies.
 begin;
 
 create extension if not exists pgcrypto;
@@ -16,7 +17,11 @@ insert into public.advice_transfer_settings (setting_key, setting_value)
 values
   ('formal_recruitment_open', 'false'::jsonb),
   ('formal_target_per_cell', '0'::jsonb),
-  ('assignment_lease_minutes', '30'::jsonb)
+  ('assignment_lease_minutes', '5'::jsonb),
+  ('departure_grace_seconds', '90'::jsonb),
+  ('waitlist_ttl_seconds', '180'::jsonb),
+  ('admission_poll_seconds', '3'::jsonb),
+  ('standby_after_seconds', '90'::jsonb)
 on conflict (setting_key) do nothing;
 
 create table if not exists public.advice_transfer_stimuli (
@@ -71,6 +76,10 @@ create table if not exists public.advice_transfer_assignments (
   claimed_at timestamptz not null default now(),
   last_heartbeat_at timestamptz,
   lease_expires_at timestamptz,
+  disconnect_noted_at timestamptz,
+  reservation_kind text not null default 'test'
+    check (reservation_kind in ('test', 'quota', 'standby', 'released', 'overflow')),
+  standby_enqueued_at timestamptz,
   draft_payload jsonb not null default '{}'::jsonb
     check (jsonb_typeof(draft_payload) = 'object'),
   draft_updated_at timestamptz,
@@ -81,6 +90,61 @@ create table if not exists public.advice_transfer_assignments (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Formal entrants wait here only while all exact cell reservations are in use.
+-- Waiting never consumes a pair x condition quota. Rows are refreshed by the
+-- browser and expire quickly when a participant closes the page.
+create table if not exists public.advice_transfer_waitlist (
+  id uuid primary key default gen_random_uuid(),
+  waiter_id text not null unique,
+  prolific_pid text not null,
+  study_id text not null default '',
+  session_id text not null default '',
+  enqueued_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (prolific_pid, study_id)
+);
+
+create index if not exists advice_transfer_waitlist_order_idx
+  on public.advice_transfer_waitlist (expires_at, enqueued_at, id);
+
+-- Every formal observation is represented by one reusable token. The number
+-- of tokens in a cell is the hard upper bound for quota-bearing observations.
+create table if not exists public.advice_transfer_quota_tokens (
+  id uuid primary key default gen_random_uuid(),
+  stimulus_id text not null references public.advice_transfer_stimuli(stimulus_id),
+  pair_number integer not null check (pair_number between 1 and 13),
+  condition text not null check (condition in ('human', 'ai')),
+  slot_index integer not null check (slot_index >= 1),
+  state text not null default 'available'
+    check (state in ('available', 'reserved', 'pending', 'valid')),
+  current_assignment_id text unique
+    references public.advice_transfer_assignments(assignment_id),
+  reservation_expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (stimulus_id, condition, slot_index),
+  check (
+    (state = 'available' and current_assignment_id is null and reservation_expires_at is null)
+    or (state = 'reserved' and current_assignment_id is not null and reservation_expires_at is not null)
+    or (state in ('pending', 'valid') and current_assignment_id is not null and reservation_expires_at is null)
+  )
+);
+
+alter table public.advice_transfer_assignments
+  add column if not exists quota_token_id uuid
+    references public.advice_transfer_quota_tokens(id);
+
+create index if not exists advice_transfer_quota_token_state_idx
+  on public.advice_transfer_quota_tokens
+    (stimulus_id, condition, state, reservation_expires_at, slot_index);
+
+create unique index if not exists advice_transfer_assignment_quota_token_unique
+  on public.advice_transfer_assignments (quota_token_id)
+  where quota_token_id is not null;
 
 create unique index if not exists advice_transfer_participant_session_unique
   on public.advice_transfer_assignments (
@@ -124,6 +188,8 @@ create table if not exists public.advice_transfer_submissions (
   ai_generated_belief text not null check (ai_generated_belief in ('yes', 'no', 'unsure')),
   ai_likelihood integer not null check (ai_likelihood between 1 and 7),
   full_payload jsonb not null,
+  quota_disposition text not null default 'quota'
+    check (quota_disposition in ('quota', 'standby', 'overflow_late')),
   validity_status text not null default 'pending'
     check (validity_status in ('pending', 'valid', 'excluded')),
   reviewed_at timestamptz,
@@ -136,18 +202,46 @@ create table if not exists public.advice_transfer_submissions (
 alter table public.advice_transfer_assignments
   add column if not exists last_heartbeat_at timestamptz,
   add column if not exists lease_expires_at timestamptz,
+  add column if not exists disconnect_noted_at timestamptz,
+  add column if not exists reservation_kind text not null default 'test',
+  add column if not exists standby_enqueued_at timestamptz,
+  add column if not exists quota_token_id uuid
+    references public.advice_transfer_quota_tokens(id),
   add column if not exists draft_payload jsonb not null default '{}'::jsonb,
   add column if not exists draft_updated_at timestamptz,
   add column if not exists abandoned_at timestamptz,
   add column if not exists abandonment_reason text;
 
 alter table public.advice_transfer_submissions
+  add column if not exists quota_disposition text not null default 'quota',
   add column if not exists validity_status text not null default 'pending',
   add column if not exists reviewed_at timestamptz,
   add column if not exists exclusion_reason text;
 
 do $$
 begin
+  if not exists (
+    select 1
+      from pg_constraint
+     where conname = 'advice_transfer_assignments_reservation_kind_check'
+       and conrelid = 'public.advice_transfer_assignments'::regclass
+  ) then
+    alter table public.advice_transfer_assignments
+      add constraint advice_transfer_assignments_reservation_kind_check
+      check (reservation_kind in ('test', 'quota', 'standby', 'released', 'overflow'));
+  end if;
+
+  if not exists (
+    select 1
+      from pg_constraint
+     where conname = 'advice_transfer_submissions_quota_disposition_check'
+       and conrelid = 'public.advice_transfer_submissions'::regclass
+  ) then
+    alter table public.advice_transfer_submissions
+      add constraint advice_transfer_submissions_quota_disposition_check
+      check (quota_disposition in ('quota', 'standby', 'overflow_late'));
+  end if;
+
   if not exists (
     select 1
       from pg_constraint
@@ -179,9 +273,58 @@ create index if not exists advice_transfer_assignment_lease_idx
   on public.advice_transfer_assignments (status, lease_expires_at)
   where status = 'claimed';
 
-create index if not exists advice_transfer_submission_validity_idx
+create index if not exists advice_transfer_submission_quota_validity_idx
   on public.advice_transfer_submissions
-    (is_test, validity_status, stimulus_id, condition);
+    (is_test, quota_disposition, validity_status, stimulus_id, condition);
+
+do $$
+begin
+  if exists (
+    select 1
+      from public.advice_transfer_assignments
+     where not is_test
+       and reservation_kind = 'test'
+  ) then
+    raise exception 'Existing formal Study 2 assignments require an explicit v2-to-v3 token backfill';
+  end if;
+end;
+$$;
+
+create unique index if not exists advice_transfer_formal_participant_study_unique
+  on public.advice_transfer_assignments (prolific_pid, coalesce(study_id, ''))
+  where not is_test;
+
+create or replace function public.guard_advice_transfer_target_reduction()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_new_target integer;
+begin
+  if new.setting_key <> 'formal_target_per_cell' then
+    return new;
+  end if;
+  v_new_target := coalesce((new.setting_value #>> '{}')::integer, 0);
+  if v_new_target < 0 then
+    raise exception 'The formal target cannot be negative';
+  end if;
+  if exists (
+    select 1
+      from public.advice_transfer_quota_tokens token
+     where token.slot_index > v_new_target
+  ) then
+    raise exception 'The formal target cannot be reduced after quota tokens have been created';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists advice_transfer_target_reduction_guard
+  on public.advice_transfer_settings;
+create trigger advice_transfer_target_reduction_guard
+before update of setting_value on public.advice_transfer_settings
+for each row execute function public.guard_advice_transfer_target_reduction();
 
 create or replace function public.advice_transfer_word_count(p_text text)
 returns integer
@@ -193,6 +336,164 @@ as $$
     from regexp_matches(coalesce(p_text, ''), $re$[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*$re$, 'g');
 $$;
 
+create or replace function public.ensure_advice_transfer_quota_tokens()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_target integer := 0;
+  v_inserted integer := 0;
+begin
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+
+  select coalesce((setting_value #>> '{}')::integer, 0)
+    into v_target
+    from public.advice_transfer_settings
+   where setting_key = 'formal_target_per_cell';
+
+  if coalesce(v_target, 0) < 1 then
+    return 0;
+  end if;
+
+  insert into public.advice_transfer_quota_tokens (
+    stimulus_id,
+    pair_number,
+    condition,
+    slot_index
+  )
+  select stimulus.stimulus_id,
+         stimulus.pair_number,
+         conditions.condition,
+         slot.slot_index
+    from public.advice_transfer_stimuli stimulus
+    cross join (values ('human'::text), ('ai'::text)) conditions(condition)
+    cross join generate_series(1, v_target) slot(slot_index)
+   where stimulus.active
+     and stimulus.pair_role = 'primary'
+  on conflict (stimulus_id, condition, slot_index) do nothing;
+
+  get diagnostics v_inserted = row_count;
+  return v_inserted;
+end;
+$$;
+
+create or replace function public.promote_advice_transfer_standby(
+  p_stimulus_id text,
+  p_condition text
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_token public.advice_transfer_quota_tokens%rowtype;
+  v_assignment public.advice_transfer_assignments%rowtype;
+  v_submission public.advice_transfer_submissions%rowtype;
+  v_promoted integer := 0;
+  v_token_state text;
+  v_target integer := 0;
+begin
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+
+  select coalesce((setting_value #>> '{}')::integer, 0)
+    into v_target
+    from public.advice_transfer_settings
+   where setting_key = 'formal_target_per_cell';
+
+  loop
+    select token.*
+      into v_token
+      from public.advice_transfer_quota_tokens token
+      join public.advice_transfer_stimuli stimulus
+        on stimulus.stimulus_id = token.stimulus_id
+     where token.stimulus_id = p_stimulus_id
+       and token.condition = p_condition
+       and token.state = 'available'
+       and token.slot_index <= v_target
+       and stimulus.active
+       and stimulus.pair_role = 'primary'
+     order by token.slot_index
+     limit 1
+     for update skip locked;
+
+    exit when v_token.id is null;
+
+    select assignment.*
+      into v_assignment
+      from public.advice_transfer_assignments assignment
+      left join public.advice_transfer_submissions submission
+        on submission.assignment_id = assignment.assignment_id
+     where not assignment.is_test
+       and assignment.stimulus_id = p_stimulus_id
+       and assignment.condition = p_condition
+       and assignment.reservation_kind = 'standby'
+       and (
+         (
+           assignment.status = 'submitted'
+           and submission.quota_disposition = 'standby'
+           and submission.validity_status in ('pending', 'valid')
+         )
+         or (
+           assignment.status = 'claimed'
+           and assignment.lease_expires_at is not null
+           and assignment.lease_expires_at >= now()
+         )
+       )
+     order by case when assignment.status = 'submitted' then 0 else 1 end,
+              coalesce(assignment.submitted_at, assignment.standby_enqueued_at, assignment.claimed_at),
+              assignment.id
+     limit 1
+     for update of assignment skip locked;
+
+    exit when v_assignment.id is null;
+
+    if v_assignment.status = 'submitted' then
+      select *
+        into v_submission
+        from public.advice_transfer_submissions
+       where assignment_id = v_assignment.assignment_id
+       for update;
+      v_token_state := case
+        when v_submission.validity_status = 'valid' then 'valid'
+        else 'pending'
+      end;
+
+      update public.advice_transfer_submissions
+         set quota_disposition = 'quota'
+       where assignment_id = v_assignment.assignment_id;
+    else
+      v_token_state := 'reserved';
+    end if;
+
+    update public.advice_transfer_quota_tokens
+       set state = v_token_state,
+           current_assignment_id = v_assignment.assignment_id,
+           reservation_expires_at = case
+             when v_token_state = 'reserved' then v_assignment.lease_expires_at
+             else null
+           end,
+           updated_at = now()
+     where id = v_token.id;
+
+    update public.advice_transfer_assignments
+       set reservation_kind = 'quota',
+           quota_token_id = v_token.id,
+           updated_at = now()
+     where id = v_assignment.id;
+
+    v_promoted := v_promoted + 1;
+    v_token := null;
+    v_assignment := null;
+    v_submission := null;
+  end loop;
+
+  return v_promoted;
+end;
+$$;
+
 create or replace function public.reclaim_expired_advice_transfer_assignments()
 returns integer
 language plpgsql
@@ -201,17 +502,53 @@ set search_path = public
 as $$
 declare
   v_reclaimed integer := 0;
+  v_expired_ids text[] := array[]::text[];
+  v_cell record;
 begin
-  update public.advice_transfer_assignments
-     set status = 'abandoned',
-         abandoned_at = now(),
-         abandonment_reason = 'lease_expired',
-         updated_at = now()
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+
+  select coalesce(array_agg(assignment_id), array[]::text[])
+    into v_expired_ids
+    from public.advice_transfer_assignments
    where status = 'claimed'
      and lease_expires_at is not null
      and lease_expires_at < now();
 
-  get diagnostics v_reclaimed = row_count;
+  v_reclaimed := coalesce(cardinality(v_expired_ids), 0);
+
+  update public.advice_transfer_quota_tokens token
+     set state = 'available',
+         current_assignment_id = null,
+         reservation_expires_at = null,
+         updated_at = now()
+   where token.state = 'reserved'
+     and token.current_assignment_id = any(v_expired_ids);
+
+  update public.advice_transfer_assignments
+     set status = 'abandoned',
+         abandoned_at = now(),
+         abandonment_reason = 'lease_expired',
+         lease_expires_at = null,
+         reservation_kind = case when is_test then 'test' else 'released' end,
+         quota_token_id = null,
+         updated_at = now()
+   where assignment_id = any(v_expired_ids);
+
+  delete from public.advice_transfer_waitlist
+   where expires_at < now();
+
+  for v_cell in
+    select distinct assignment.stimulus_id, assignment.condition
+      from public.advice_transfer_assignments assignment
+     where assignment.assignment_id = any(v_expired_ids)
+       and not assignment.is_test
+  loop
+    perform public.promote_advice_transfer_standby(
+      v_cell.stimulus_id,
+      v_cell.condition
+    );
+  end loop;
+
   return v_reclaimed;
 end;
 $$;
@@ -232,17 +569,26 @@ as $$
 declare
   v_assignment public.advice_transfer_assignments%rowtype;
   v_stimulus public.advice_transfer_stimuli%rowtype;
+  v_token public.advice_transfer_quota_tokens%rowtype;
+  v_waiter public.advice_transfer_waitlist%rowtype;
   v_stimulus_id text;
   v_is_test boolean;
   v_formal_open boolean := false;
   v_target_per_cell integer := 0;
-  v_lease_minutes integer := 30;
+  v_lease_minutes integer := 5;
+  v_waitlist_ttl_seconds integer := 180;
+  v_poll_seconds integer := 3;
+  v_standby_after_seconds integer := 90;
+  v_queue_position integer := 1;
+  v_waited_seconds integer := 0;
+  v_reservation_kind text;
   v_condition text;
   v_comment_order jsonb;
   v_source_comments jsonb;
   v_source_hashes jsonb;
   v_ordered_comments jsonb;
   v_ordered_hashes jsonb;
+  v_cell record;
   v_now timestamptz := now();
 begin
   p_prolific_pid := nullif(trim(p_prolific_pid), '');
@@ -279,57 +625,155 @@ begin
     from public.advice_transfer_settings
    where setting_key = 'formal_target_per_cell';
 
-  select greatest(5, least(120, coalesce((setting_value #>> '{}')::integer, 30)))
+  select greatest(3, least(30, coalesce((setting_value #>> '{}')::integer, 5)))
     into v_lease_minutes
     from public.advice_transfer_settings
    where setting_key = 'assignment_lease_minutes';
 
-  v_target_per_cell := coalesce(v_target_per_cell, 0);
-  v_lease_minutes := coalesce(v_lease_minutes, 30);
+  select greatest(120, least(600, coalesce((setting_value #>> '{}')::integer, 180)))
+    into v_waitlist_ttl_seconds
+    from public.advice_transfer_settings
+   where setting_key = 'waitlist_ttl_seconds';
 
-  -- The lock makes the least-filled allocation deterministic under bursts.
-  -- The critical section is short and no longer depends on a finite slot table.
-  perform pg_advisory_xact_lock(hashtext('advice_transfer_assignment_v2'));
+  select greatest(2, least(15, coalesce((setting_value #>> '{}')::integer, 3)))
+    into v_poll_seconds
+    from public.advice_transfer_settings
+   where setting_key = 'admission_poll_seconds';
+
+  select greatest(30, least(600, coalesce((setting_value #>> '{}')::integer, 90)))
+    into v_standby_after_seconds
+    from public.advice_transfer_settings
+   where setting_key = 'standby_after_seconds';
+
+  v_target_per_cell := coalesce(v_target_per_cell, 0);
+  v_lease_minutes := coalesce(v_lease_minutes, 5);
+  v_waitlist_ttl_seconds := coalesce(v_waitlist_ttl_seconds, 180);
+  v_poll_seconds := coalesce(v_poll_seconds, 3);
+  v_standby_after_seconds := coalesce(v_standby_after_seconds, 90);
+
+  -- Admission, token release and token promotion share one short transaction
+  -- lock. Token rows are the hard per-cell quota boundary.
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
   perform public.reclaim_expired_advice_transfer_assignments();
 
-  select *
-    into v_assignment
-    from public.advice_transfer_assignments
-   where prolific_pid = p_prolific_pid
-     and coalesce(study_id, '') = coalesce(p_study_id, '')
-     and coalesce(session_id, '') = coalesce(p_session_id, '')
-   order by created_at desc
-   limit 1
-   for update;
+  if v_is_test then
+    select *
+      into v_assignment
+      from public.advice_transfer_assignments
+     where prolific_pid = p_prolific_pid
+       and coalesce(study_id, '') = coalesce(p_study_id, '')
+       and coalesce(session_id, '') = coalesce(p_session_id, '')
+     order by created_at desc
+     limit 1
+     for update;
+  else
+    -- SESSION_ID can change when Prolific reopens a returned submission. A
+    -- formal participant must still recover the original assignment.
+    select *
+      into v_assignment
+      from public.advice_transfer_assignments
+     where prolific_pid = p_prolific_pid
+       and coalesce(study_id, '') = coalesce(p_study_id, '')
+       and not is_test
+     order by created_at desc
+     limit 1
+     for update;
+  end if;
 
   if v_assignment.id is not null and v_assignment.status = 'abandoned' then
     if v_assignment.abandonment_reason = 'lease_expired' then
+      v_reservation_kind := case when v_assignment.is_test then 'test' else 'standby' end;
       update public.advice_transfer_assignments
          set status = 'claimed',
              last_heartbeat_at = v_now,
              lease_expires_at = v_now + make_interval(mins => v_lease_minutes),
+             disconnect_noted_at = null,
              abandoned_at = null,
              abandonment_reason = null,
+             reservation_kind = v_reservation_kind,
+             quota_token_id = null,
+             standby_enqueued_at = case
+               when v_assignment.is_test then standby_enqueued_at
+               else coalesce(standby_enqueued_at, v_now)
+             end,
              updated_at = v_now
        where id = v_assignment.id
        returning * into v_assignment;
+
+      if not v_assignment.is_test then
+        perform public.promote_advice_transfer_standby(
+          v_assignment.stimulus_id,
+          v_assignment.condition
+        );
+        select * into v_assignment
+          from public.advice_transfer_assignments
+         where id = v_assignment.id;
+      end if;
     else
       raise exception 'This research session is no longer active';
     end if;
   elsif v_assignment.id is not null and v_assignment.status = 'excluded' then
     raise exception 'This research session is no longer active';
   elsif v_assignment.id is not null and v_assignment.status = 'claimed' then
+    if not v_assignment.is_test
+       and v_assignment.reservation_kind = 'quota'
+       and not exists (
+         select 1
+           from public.advice_transfer_quota_tokens token
+          where token.id = v_assignment.quota_token_id
+            and token.state = 'reserved'
+            and token.current_assignment_id = v_assignment.assignment_id
+       ) then
+      update public.advice_transfer_assignments
+         set reservation_kind = 'standby',
+             quota_token_id = null,
+             standby_enqueued_at = coalesce(standby_enqueued_at, v_now)
+       where id = v_assignment.id;
+      v_assignment.reservation_kind := 'standby';
+      v_assignment.quota_token_id := null;
+    end if;
+
     update public.advice_transfer_assignments
        set last_heartbeat_at = v_now,
            lease_expires_at = v_now + make_interval(mins => v_lease_minutes),
+           disconnect_noted_at = null,
            updated_at = v_now
      where id = v_assignment.id
      returning * into v_assignment;
+
+    if not v_assignment.is_test and v_assignment.reservation_kind = 'quota' then
+      update public.advice_transfer_quota_tokens
+         set reservation_expires_at = v_assignment.lease_expires_at,
+             updated_at = v_now
+       where id = v_assignment.quota_token_id
+         and state = 'reserved'
+         and current_assignment_id = v_assignment.assignment_id;
+    elsif not v_assignment.is_test and v_assignment.reservation_kind = 'standby' then
+      perform public.promote_advice_transfer_standby(
+        v_assignment.stimulus_id,
+        v_assignment.condition
+      );
+      select * into v_assignment
+        from public.advice_transfer_assignments
+       where id = v_assignment.id;
+    end if;
   end if;
 
   if v_assignment.id is null then
-    if not v_is_test and not coalesce(v_formal_open, false) then
-      raise exception 'Formal recruitment is not open yet';
+    if not v_is_test
+       and not coalesce(v_formal_open, false)
+       and not exists (
+         select 1
+           from public.advice_transfer_waitlist queued
+          where queued.prolific_pid = p_prolific_pid
+            and queued.study_id = coalesce(p_study_id, '')
+            and queued.expires_at >= v_now
+       ) then
+      return jsonb_build_object(
+        'admissionStatus', 'closed',
+        'message', 'Formal recruitment is not open yet',
+        'serverTime', v_now
+      );
     end if;
 
     if v_is_test then
@@ -373,67 +817,156 @@ begin
       select * into v_stimulus
         from public.advice_transfer_stimuli
        where stimulus_id = v_stimulus_id;
+      v_reservation_kind := 'test';
     else
       if v_target_per_cell < 1 then
         raise exception 'Formal assignment targets have not been configured';
       end if;
 
-      -- Formal capacity is defined by completed, non-excluded responses, not by
-      -- the historical number of people who opened the study. Active leases are
-      -- still used as a balancing signal so simultaneous entrants spread evenly.
-      with conditions(condition) as (
-        values ('human'::text), ('ai'::text)
-      ),
-      eligible_cells as (
-        select stimulus.stimulus_id,
-               stimulus.pair_number,
-               conditions.condition
-          from public.advice_transfer_stimuli stimulus
-          cross join conditions
-         where stimulus.active
-           and stimulus.pair_role = 'primary'
-      ),
-      completion_counts as (
-        select submission.stimulus_id,
-               submission.condition,
-               count(*)::integer as completed_count
-          from public.advice_transfer_submissions submission
-         where not submission.is_test
-           and submission.validity_status in ('pending', 'valid')
-         group by submission.stimulus_id, submission.condition
-      ),
-      active_counts as (
-        select assignment.stimulus_id,
-               assignment.condition,
-               count(*)::integer as active_count
-          from public.advice_transfer_assignments assignment
-         where not assignment.is_test
-           and assignment.status = 'claimed'
-           and (
-             assignment.lease_expires_at is null
-             or assignment.lease_expires_at >= v_now
-           )
-         group by assignment.stimulus_id, assignment.condition
-      )
-      select cell.stimulus_id,
-             cell.condition
-        into v_stimulus_id,
-             v_condition
-        from eligible_cells cell
-        left join completion_counts completed
-          on completed.stimulus_id = cell.stimulus_id
-         and completed.condition = cell.condition
-        left join active_counts active
-          on active.stimulus_id = cell.stimulus_id
-         and active.condition = cell.condition
-       where coalesce(completed.completed_count, 0) < v_target_per_cell
-       order by coalesce(completed.completed_count, 0),
-                coalesce(active.active_count, 0),
-                random()
-       limit 1;
+      perform public.ensure_advice_transfer_quota_tokens();
 
-      if v_stimulus_id is null then
-        raise exception 'The formal study has reached its configured response quota';
+      -- A target increase first promotes existing standby participants before
+      -- assigning newly arriving people.
+      for v_cell in
+        select distinct token.stimulus_id, token.condition
+          from public.advice_transfer_quota_tokens token
+         where token.state = 'available'
+           and token.slot_index <= v_target_per_cell
+      loop
+        perform public.promote_advice_transfer_standby(
+          v_cell.stimulus_id,
+          v_cell.condition
+        );
+      end loop;
+
+      insert into public.advice_transfer_waitlist (
+        waiter_id,
+        prolific_pid,
+        study_id,
+        session_id,
+        enqueued_at,
+        last_seen_at,
+        expires_at,
+        updated_at
+      ) values (
+        'atw-' || replace(gen_random_uuid()::text, '-', ''),
+        p_prolific_pid,
+        coalesce(p_study_id, ''),
+        coalesce(p_session_id, ''),
+        v_now,
+        v_now,
+        v_now + make_interval(secs => v_waitlist_ttl_seconds),
+        v_now
+      )
+      on conflict (prolific_pid, study_id)
+      do update set
+        session_id = excluded.session_id,
+        last_seen_at = excluded.last_seen_at,
+        expires_at = excluded.expires_at,
+        updated_at = excluded.updated_at
+      returning * into v_waiter;
+
+      select count(*)::integer + 1
+        into v_queue_position
+        from public.advice_transfer_waitlist queued
+       where queued.expires_at >= v_now
+         and queued.study_id = coalesce(p_study_id, '')
+         and (queued.enqueued_at, queued.id) < (v_waiter.enqueued_at, v_waiter.id);
+
+      v_waited_seconds := greatest(
+        0,
+        floor(extract(epoch from (v_now - v_waiter.enqueued_at)))::integer
+      );
+
+      if v_queue_position = 1 then
+        with cell_counts as (
+          select token.stimulus_id,
+                 token.condition,
+                 count(*) filter (where token.state in ('pending', 'valid'))::integer as completed,
+                 count(*) filter (where token.state = 'reserved')::integer as active
+            from public.advice_transfer_quota_tokens token
+           where token.slot_index <= v_target_per_cell
+           group by token.stimulus_id, token.condition
+        )
+        select token.*
+          into v_token
+          from public.advice_transfer_quota_tokens token
+          join public.advice_transfer_stimuli stimulus
+            on stimulus.stimulus_id = token.stimulus_id
+          join cell_counts counts
+            on counts.stimulus_id = token.stimulus_id
+           and counts.condition = token.condition
+         where token.state = 'available'
+           and token.slot_index <= v_target_per_cell
+           and stimulus.active
+           and stimulus.pair_role = 'primary'
+         order by counts.completed, counts.active, random(), token.slot_index
+         limit 1
+         for update of token skip locked;
+      end if;
+
+      if v_token.id is not null then
+        v_stimulus_id := v_token.stimulus_id;
+        v_condition := v_token.condition;
+        v_reservation_kind := 'quota';
+      elsif v_queue_position = 1 and v_waited_seconds >= v_standby_after_seconds then
+        -- Standby absorbs the brief mismatch between a Prolific return and
+        -- database lease expiry. It never consumes a quota token unless a real
+        -- vacancy later appears in the same cell.
+        with cells as (
+          select stimulus.stimulus_id,
+                 stimulus.pair_number,
+                 conditions.condition
+            from public.advice_transfer_stimuli stimulus
+            cross join (values ('human'::text), ('ai'::text)) conditions(condition)
+           where stimulus.active
+             and stimulus.pair_role = 'primary'
+        ),
+        token_status as (
+          select token.stimulus_id,
+                 token.condition,
+                 min(token.reservation_expires_at) filter (where token.state = 'reserved') as next_expiry
+            from public.advice_transfer_quota_tokens token
+           where token.slot_index <= v_target_per_cell
+           group by token.stimulus_id, token.condition
+        ),
+        standby_counts as (
+          select assignment.stimulus_id,
+                 assignment.condition,
+                 count(*)::integer as standby_count
+            from public.advice_transfer_assignments assignment
+           where not assignment.is_test
+             and assignment.reservation_kind = 'standby'
+             and assignment.status in ('claimed', 'submitted')
+           group by assignment.stimulus_id, assignment.condition
+        )
+        select cell.stimulus_id,
+               cell.condition
+          into v_stimulus_id,
+               v_condition
+          from cells cell
+          left join token_status token
+            on token.stimulus_id = cell.stimulus_id
+           and token.condition = cell.condition
+          left join standby_counts standby
+            on standby.stimulus_id = cell.stimulus_id
+           and standby.condition = cell.condition
+         order by (token.next_expiry is null),
+                  token.next_expiry,
+                  coalesce(standby.standby_count, 0),
+                  random()
+         limit 1;
+
+        v_reservation_kind := 'standby';
+      else
+        return jsonb_build_object(
+          'admissionStatus', 'waiting',
+          'queuePosition', v_queue_position,
+          'waitedSeconds', v_waited_seconds,
+          'retryAfterMs', v_poll_seconds * 1000,
+          'message', 'Your study place is being prepared.',
+          'serverTime', v_now
+        );
       end if;
 
       select * into v_stimulus
@@ -472,6 +1005,9 @@ begin
       comment_order,
       presented_comment_sha256,
       is_test,
+      reservation_kind,
+      quota_token_id,
+      standby_enqueued_at,
       last_heartbeat_at,
       lease_expires_at
     ) values (
@@ -485,10 +1021,33 @@ begin
       v_comment_order,
       v_ordered_hashes,
       v_is_test,
+      v_reservation_kind,
+      v_token.id,
+      case when v_reservation_kind = 'standby' then v_waiter.enqueued_at else null end,
       v_now,
       v_now + make_interval(mins => v_lease_minutes)
     )
     returning * into v_assignment;
+
+    if not v_is_test then
+      delete from public.advice_transfer_waitlist
+       where prolific_pid = p_prolific_pid
+         and study_id = coalesce(p_study_id, '')
+         ;
+    end if;
+
+    if v_reservation_kind = 'quota' then
+      update public.advice_transfer_quota_tokens
+         set state = 'reserved',
+             current_assignment_id = v_assignment.assignment_id,
+             reservation_expires_at = v_assignment.lease_expires_at,
+             updated_at = v_now
+       where id = v_token.id
+         and state = 'available';
+      if not found then
+        raise exception 'The selected Study 2 quota token was no longer available';
+      end if;
+    end if;
   else
     select * into v_stimulus
       from public.advice_transfer_stimuli
@@ -522,6 +1081,7 @@ begin
 
   -- Neither condition nor model names are returned to the participant client.
   return jsonb_build_object(
+    'admissionStatus', 'assigned',
     'assignmentId', v_assignment.assignment_id,
     'status', v_assignment.status,
     'isTest', v_assignment.is_test,
@@ -565,7 +1125,7 @@ set search_path = public
 as $$
 declare
   v_assignment public.advice_transfer_assignments%rowtype;
-  v_lease_minutes integer := 30;
+  v_lease_minutes integer := 5;
   v_now timestamptz := now();
 begin
   p_assignment_id := nullif(trim(p_assignment_id), '');
@@ -574,11 +1134,11 @@ begin
     raise exception 'Missing assignment or participant identifier';
   end if;
 
-  select greatest(5, least(120, coalesce((setting_value #>> '{}')::integer, 30)))
+  select greatest(3, least(30, coalesce((setting_value #>> '{}')::integer, 5)))
     into v_lease_minutes
     from public.advice_transfer_settings
    where setting_key = 'assignment_lease_minutes';
-  v_lease_minutes := coalesce(v_lease_minutes, 30);
+  v_lease_minutes := coalesce(v_lease_minutes, 5);
 
   select * into v_assignment
     from public.advice_transfer_assignments
@@ -590,24 +1150,75 @@ begin
     raise exception 'Assignment not found';
   end if;
 
-  if v_assignment.status = 'abandoned'
-     and v_assignment.abandonment_reason = 'lease_expired' then
+  if v_assignment.status = 'submitted' then
+    return jsonb_build_object(
+      'ok', true,
+      'status', 'submitted',
+      'active', false,
+      'serverTime', v_now
+    );
+  elsif v_assignment.status = 'abandoned'
+        and v_assignment.abandonment_reason = 'lease_expired' then
     update public.advice_transfer_assignments
        set status = 'claimed',
            last_heartbeat_at = v_now,
            lease_expires_at = v_now + make_interval(mins => v_lease_minutes),
+           disconnect_noted_at = null,
            abandoned_at = null,
            abandonment_reason = null,
+           reservation_kind = case when is_test then 'test' else 'standby' end,
+           quota_token_id = null,
+           standby_enqueued_at = case
+             when is_test then standby_enqueued_at
+             else coalesce(standby_enqueued_at, v_now)
+           end,
            updated_at = v_now
      where id = v_assignment.id
      returning * into v_assignment;
-  elsif v_assignment.status = 'claimed' then
+  end if;
+
+  if v_assignment.status = 'claimed' then
+    if not v_assignment.is_test
+       and v_assignment.reservation_kind = 'quota'
+       and not exists (
+         select 1
+           from public.advice_transfer_quota_tokens token
+          where token.id = v_assignment.quota_token_id
+            and token.state = 'reserved'
+            and token.current_assignment_id = v_assignment.assignment_id
+       ) then
+      update public.advice_transfer_assignments
+         set reservation_kind = 'standby',
+             quota_token_id = null,
+             standby_enqueued_at = coalesce(standby_enqueued_at, v_now)
+       where id = v_assignment.id
+       returning * into v_assignment;
+    end if;
+
     update public.advice_transfer_assignments
        set last_heartbeat_at = v_now,
            lease_expires_at = v_now + make_interval(mins => v_lease_minutes),
+           disconnect_noted_at = null,
            updated_at = v_now
      where id = v_assignment.id
      returning * into v_assignment;
+
+    if not v_assignment.is_test and v_assignment.reservation_kind = 'quota' then
+      update public.advice_transfer_quota_tokens
+         set reservation_expires_at = v_assignment.lease_expires_at,
+             updated_at = v_now
+       where id = v_assignment.quota_token_id
+         and state = 'reserved'
+         and current_assignment_id = v_assignment.assignment_id;
+    elsif not v_assignment.is_test and v_assignment.reservation_kind = 'standby' then
+      perform public.promote_advice_transfer_standby(
+        v_assignment.stimulus_id,
+        v_assignment.condition
+      );
+      select * into v_assignment
+        from public.advice_transfer_assignments
+       where id = v_assignment.id;
+    end if;
   end if;
 
   return jsonb_build_object(
@@ -632,7 +1243,7 @@ set search_path = public
 as $$
 declare
   v_assignment public.advice_transfer_assignments%rowtype;
-  v_lease_minutes integer := 30;
+  v_heartbeat jsonb;
   v_now timestamptz := now();
 begin
   p_assignment_id := nullif(trim(p_assignment_id), '');
@@ -647,11 +1258,31 @@ begin
     raise exception 'Draft payload is too large';
   end if;
 
-  select greatest(5, least(120, coalesce((setting_value #>> '{}')::integer, 30)))
-    into v_lease_minutes
-    from public.advice_transfer_settings
-   where setting_key = 'assignment_lease_minutes';
-  v_lease_minutes := coalesce(v_lease_minutes, 30);
+  v_heartbeat := public.heartbeat_advice_transfer_assignment(
+    p_assignment_id,
+    p_prolific_pid
+  );
+
+  if coalesce((v_heartbeat ->> 'status'), '') = 'submitted' then
+    select * into v_assignment
+      from public.advice_transfer_assignments
+     where assignment_id = p_assignment_id;
+    return jsonb_build_object(
+      'ok', true,
+      'status', 'submitted',
+      'savedAt', v_assignment.submitted_at,
+      'alreadySubmitted', true
+    );
+  end if;
+
+  if not coalesce((v_heartbeat ->> 'active')::boolean, false) then
+    return jsonb_build_object(
+      'ok', false,
+      'status', coalesce(v_heartbeat ->> 'status', 'inactive'),
+      'saved', false,
+      'alreadySubmitted', false
+    );
+  end if;
 
   select * into v_assignment
     from public.advice_transfer_assignments
@@ -662,28 +1293,13 @@ begin
   if v_assignment.id is null then
     raise exception 'Assignment not found';
   end if;
-  if v_assignment.status = 'submitted' then
-    return jsonb_build_object(
-      'ok', true,
-      'status', 'submitted',
-      'savedAt', v_assignment.submitted_at,
-      'alreadySubmitted', true
-    );
-  end if;
-  if v_assignment.status in ('screened_out', 'excluded')
-     or (v_assignment.status = 'abandoned'
-         and v_assignment.abandonment_reason is distinct from 'lease_expired') then
+  if v_assignment.status <> 'claimed' then
     raise exception 'This assignment is no longer active';
   end if;
 
   update public.advice_transfer_assignments
-     set status = 'claimed',
-         draft_payload = p_payload,
+     set draft_payload = p_payload,
          draft_updated_at = v_now,
-         last_heartbeat_at = v_now,
-         lease_expires_at = v_now + make_interval(mins => v_lease_minutes),
-         abandoned_at = null,
-         abandonment_reason = null,
          updated_at = v_now
    where id = v_assignment.id;
 
@@ -691,7 +1307,7 @@ begin
     'ok', true,
     'status', 'claimed',
     'savedAt', v_now,
-    'leaseExpiresAt', v_now + make_interval(mins => v_lease_minutes),
+    'leaseExpiresAt', v_assignment.lease_expires_at,
     'alreadySubmitted', false
   );
 end;
@@ -721,6 +1337,9 @@ begin
     raise exception 'Invalid withdrawal reason';
   end if;
 
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+  perform public.reclaim_expired_advice_transfer_assignments();
+
   select * into v_assignment
     from public.advice_transfer_assignments
    where assignment_id = p_assignment_id
@@ -736,13 +1355,31 @@ begin
   if v_assignment.status = 'claimed'
      or (v_assignment.status = 'abandoned'
          and v_assignment.abandonment_reason = 'lease_expired') then
+    update public.advice_transfer_quota_tokens
+       set state = 'available',
+           current_assignment_id = null,
+           reservation_expires_at = null,
+           updated_at = v_now
+     where current_assignment_id = v_assignment.assignment_id
+       and state = 'reserved';
+
     update public.advice_transfer_assignments
        set status = 'abandoned',
            lease_expires_at = null,
+           disconnect_noted_at = null,
            abandoned_at = v_now,
            abandonment_reason = p_reason,
+           reservation_kind = case when is_test then 'test' else 'released' end,
+           quota_token_id = null,
            updated_at = v_now
      where id = v_assignment.id;
+
+    if not v_assignment.is_test then
+      perform public.promote_advice_transfer_standby(
+        v_assignment.stimulus_id,
+        v_assignment.condition
+      );
+    end if;
   end if;
 
   return jsonb_build_object(
@@ -751,6 +1388,108 @@ begin
     'releasedAt', v_now
   );
 end;
+$$;
+
+create or replace function public.mark_advice_transfer_departure(
+  p_assignment_id text,
+  p_prolific_pid text,
+  p_draft_payload jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_assignment public.advice_transfer_assignments%rowtype;
+  v_grace_seconds integer := 90;
+  v_release_at timestamptz;
+  v_now timestamptz := now();
+begin
+  p_assignment_id := nullif(trim(p_assignment_id), '');
+  p_prolific_pid := nullif(trim(p_prolific_pid), '');
+  if p_assignment_id is null or p_prolific_pid is null then
+    raise exception 'Missing assignment or participant identifier';
+  end if;
+  if p_draft_payload is not null
+     and (
+       jsonb_typeof(p_draft_payload) <> 'object'
+       or octet_length(p_draft_payload::text) > 200000
+     ) then
+    raise exception 'Departure draft payload is invalid or too large';
+  end if;
+
+  select greatest(30, least(600, coalesce((setting_value #>> '{}')::integer, 90)))
+    into v_grace_seconds
+    from public.advice_transfer_settings
+   where setting_key = 'departure_grace_seconds';
+  v_grace_seconds := coalesce(v_grace_seconds, 90);
+  v_release_at := v_now + make_interval(secs => v_grace_seconds);
+
+  select * into v_assignment
+    from public.advice_transfer_assignments
+   where assignment_id = p_assignment_id
+     and prolific_pid = p_prolific_pid
+   for update;
+
+  if v_assignment.id is null then
+    raise exception 'Assignment not found';
+  end if;
+
+  if v_assignment.status = 'claimed' then
+    update public.advice_transfer_assignments
+       set disconnect_noted_at = v_now,
+           draft_payload = case
+             when p_draft_payload is null then draft_payload
+             else p_draft_payload
+           end,
+           draft_updated_at = case
+             when p_draft_payload is null then draft_updated_at
+             else v_now
+           end,
+           lease_expires_at = least(
+             coalesce(lease_expires_at, v_release_at),
+             v_release_at
+           ),
+           updated_at = v_now
+     where id = v_assignment.id
+     returning * into v_assignment;
+
+    if v_assignment.reservation_kind = 'quota' then
+      update public.advice_transfer_quota_tokens
+         set reservation_expires_at = v_assignment.lease_expires_at,
+             updated_at = v_now
+       where id = v_assignment.quota_token_id
+         and state = 'reserved'
+         and current_assignment_id = v_assignment.assignment_id;
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'status', v_assignment.status,
+    'releaseAfter', v_assignment.lease_expires_at,
+    'serverTime', v_now
+  );
+end;
+$$;
+
+-- Compatibility wrapper for a page that was opened before the v3 frontend
+-- deployment and therefore sends no final draft with its departure signal.
+create or replace function public.mark_advice_transfer_departure(
+  p_assignment_id text,
+  p_prolific_pid text
+)
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select public.mark_advice_transfer_departure(
+    p_assignment_id,
+    p_prolific_pid,
+    null::jsonb
+  );
 $$;
 
 create or replace function public.record_advice_transfer_comprehension_failure(
@@ -767,14 +1506,17 @@ declare
   v_assignment public.advice_transfer_assignments%rowtype;
   v_failures integer;
   v_status text;
-  v_lease_minutes integer := 30;
+  v_lease_minutes integer := 5;
   v_now timestamptz := now();
 begin
-  select greatest(5, least(120, coalesce((setting_value #>> '{}')::integer, 30)))
+  select greatest(3, least(30, coalesce((setting_value #>> '{}')::integer, 5)))
     into v_lease_minutes
     from public.advice_transfer_settings
    where setting_key = 'assignment_lease_minutes';
-  v_lease_minutes := coalesce(v_lease_minutes, 30);
+  v_lease_minutes := coalesce(v_lease_minutes, 5);
+
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+  perform public.reclaim_expired_advice_transfer_assignments();
 
   select * into v_assignment
     from public.advice_transfer_assignments
@@ -802,10 +1544,31 @@ begin
      and v_assignment.abandonment_reason = 'lease_expired' then
     update public.advice_transfer_assignments
        set status = 'claimed',
+           last_heartbeat_at = v_now,
+           lease_expires_at = v_now + make_interval(mins => v_lease_minutes),
+           disconnect_noted_at = null,
            abandoned_at = null,
-           abandonment_reason = null
+           abandonment_reason = null,
+           reservation_kind = case when is_test then 'test' else 'standby' end,
+           quota_token_id = null,
+           standby_enqueued_at = case
+             when is_test then standby_enqueued_at
+             else coalesce(standby_enqueued_at, v_now)
+           end
      where id = v_assignment.id;
     v_assignment.status := 'claimed';
+    v_assignment.reservation_kind := case when v_assignment.is_test then 'test' else 'standby' end;
+    v_assignment.quota_token_id := null;
+
+    if not v_assignment.is_test then
+      perform public.promote_advice_transfer_standby(
+        v_assignment.stimulus_id,
+        v_assignment.condition
+      );
+      select * into v_assignment
+        from public.advice_transfer_assignments
+       where id = v_assignment.id;
+    end if;
   end if;
   if v_assignment.status <> 'claimed' then
     raise exception 'This assignment is no longer active';
@@ -833,6 +1596,35 @@ begin
          updated_at = v_now
    where assignment_id = p_assignment_id;
 
+  if v_status = 'screened_out' and not v_assignment.is_test then
+    update public.advice_transfer_quota_tokens
+       set state = 'available',
+           current_assignment_id = null,
+           reservation_expires_at = null,
+           updated_at = v_now
+     where current_assignment_id = v_assignment.assignment_id
+       and state = 'reserved';
+
+    update public.advice_transfer_assignments
+       set reservation_kind = 'released',
+           quota_token_id = null
+     where id = v_assignment.id;
+
+    perform public.promote_advice_transfer_standby(
+      v_assignment.stimulus_id,
+      v_assignment.condition
+    );
+  elsif v_status = 'claimed'
+        and not v_assignment.is_test
+        and v_assignment.reservation_kind = 'quota' then
+    update public.advice_transfer_quota_tokens
+       set reservation_expires_at = v_now + make_interval(mins => v_lease_minutes),
+           updated_at = v_now
+     where id = v_assignment.quota_token_id
+       and state = 'reserved'
+       and current_assignment_id = v_assignment.assignment_id;
+  end if;
+
   return jsonb_build_object(
     'status', v_status,
     'comprehensionFailures', v_failures,
@@ -854,6 +1646,7 @@ declare
   v_assignment public.advice_transfer_assignments%rowtype;
   v_stimulus public.advice_transfer_stimuli%rowtype;
   v_existing public.advice_transfer_submissions%rowtype;
+  v_token public.advice_transfer_quota_tokens%rowtype;
   v_advice text;
   v_word_count integer;
   v_character_count integer;
@@ -867,11 +1660,15 @@ declare
   v_stood_out_details text;
   v_ai_belief text;
   v_ai_likelihood integer;
+  v_quota_disposition text := 'standby';
   v_now timestamptz := now();
 begin
   if p_payload is null or jsonb_typeof(p_payload) <> 'object' then
     raise exception 'Submission payload must be a JSON object';
   end if;
+
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+  perform public.reclaim_expired_advice_transfer_assignments();
 
   select * into v_assignment
     from public.advice_transfer_assignments
@@ -881,17 +1678,6 @@ begin
   if v_assignment.id is null then
     raise exception 'Assignment not found';
   end if;
-  if v_assignment.status = 'screened_out' then
-    raise exception 'This session ended after two incorrect attention-check answers';
-  end if;
-  if v_assignment.status not in ('claimed', 'submitted')
-     and not (
-       v_assignment.status = 'abandoned'
-       and v_assignment.abandonment_reason = 'lease_expired'
-     ) then
-    raise exception 'This assignment is no longer active';
-  end if;
-
   if nullif(trim(p_payload #>> '{participant,prolificPid}'), '')
        is distinct from v_assignment.prolific_pid then
     raise exception 'Participant does not match assignment';
@@ -907,6 +1693,61 @@ begin
       'submittedAt', v_existing.submitted_at,
       'alreadySubmitted', true
     );
+  end if;
+
+  if v_assignment.status = 'screened_out' then
+    raise exception 'This session ended after two incorrect attention-check answers';
+  end if;
+  if v_assignment.status = 'abandoned'
+     and v_assignment.abandonment_reason = 'lease_expired' then
+    update public.advice_transfer_assignments
+       set status = 'claimed',
+           reservation_kind = case when is_test then 'test' else 'standby' end,
+           quota_token_id = null,
+           standby_enqueued_at = case
+             when is_test then standby_enqueued_at
+             else coalesce(standby_enqueued_at, v_now)
+           end,
+           last_heartbeat_at = v_now,
+           abandoned_at = null,
+           abandonment_reason = null,
+           updated_at = v_now
+     where id = v_assignment.id
+     returning * into v_assignment;
+  elsif v_assignment.status <> 'claimed' then
+    raise exception 'This assignment is no longer active';
+  end if;
+
+  if not v_assignment.is_test and v_assignment.reservation_kind = 'standby' then
+    perform public.promote_advice_transfer_standby(
+      v_assignment.stimulus_id,
+      v_assignment.condition
+    );
+    select * into v_assignment
+      from public.advice_transfer_assignments
+     where id = v_assignment.id;
+  end if;
+
+  if v_assignment.is_test then
+    v_quota_disposition := 'quota';
+  elsif v_assignment.reservation_kind = 'quota' then
+    select * into v_token
+      from public.advice_transfer_quota_tokens
+     where id = v_assignment.quota_token_id
+       and state = 'reserved'
+       and current_assignment_id = v_assignment.assignment_id
+     for update;
+    if v_token.id is not null then
+      v_quota_disposition := 'quota';
+    else
+      update public.advice_transfer_assignments
+         set reservation_kind = 'standby',
+             quota_token_id = null,
+             standby_enqueued_at = coalesce(standby_enqueued_at, v_now)
+       where id = v_assignment.id
+       returning * into v_assignment;
+      v_quota_disposition := 'standby';
+    end if;
   end if;
 
   select * into v_stimulus
@@ -975,6 +1816,7 @@ begin
     ai_generated_belief,
     ai_likelihood,
     full_payload,
+    quota_disposition,
     submitted_at
   ) values (
     v_assignment.assignment_id,
@@ -1007,7 +1849,7 @@ begin
     v_ai_likelihood,
     coalesce(p_payload, '{}'::jsonb) || jsonb_build_object(
       'serverAudit', jsonb_build_object(
-        'schemaVersion', 'advice-transfer-v2-resilient',
+        'schemaVersion', 'advice-transfer-v3-admission',
         'stimulusId', v_assignment.stimulus_id,
         'pairNumber', v_assignment.pair_number,
         'pairRole', v_stimulus.pair_role,
@@ -1022,8 +1864,33 @@ begin
         'serverReceivedAt', v_now
       )
     ),
+    v_quota_disposition,
     v_now
   );
+
+  if not v_assignment.is_test and v_quota_disposition = 'quota' then
+    update public.advice_transfer_quota_tokens
+       set state = 'pending',
+           reservation_expires_at = null,
+           updated_at = v_now
+     where id = v_assignment.quota_token_id
+       and state = 'reserved'
+       and current_assignment_id = v_assignment.assignment_id;
+
+    if not found then
+      -- A late browser must never steal a token that has already been given
+      -- to its replacement. The response is retained as paid standby data.
+      v_quota_disposition := 'standby';
+      update public.advice_transfer_submissions
+         set quota_disposition = 'standby'
+       where assignment_id = p_assignment_id;
+      update public.advice_transfer_assignments
+         set reservation_kind = 'standby',
+             quota_token_id = null,
+             standby_enqueued_at = coalesce(standby_enqueued_at, v_now)
+       where assignment_id = p_assignment_id;
+    end if;
+  end if;
 
   update public.advice_transfer_assignments
      set status = 'submitted',
@@ -1036,6 +1903,13 @@ begin
          abandonment_reason = null,
          updated_at = v_now
    where assignment_id = p_assignment_id;
+
+  if not v_assignment.is_test and v_quota_disposition = 'standby' then
+    perform public.promote_advice_transfer_standby(
+      v_assignment.stimulus_id,
+      v_assignment.condition
+    );
+  end if;
 
   return jsonb_build_object(
     'ok', true,
@@ -1058,6 +1932,8 @@ set search_path = public
 as $$
 declare
   v_assignment public.advice_transfer_assignments%rowtype;
+  v_submission public.advice_transfer_submissions%rowtype;
+  v_reopened boolean := false;
   v_now timestamptz := now();
 begin
   p_assignment_id := nullif(trim(p_assignment_id), '');
@@ -1071,7 +1947,8 @@ begin
     raise exception 'Decision must be valid, excluded, or abandoned';
   end if;
 
-  perform pg_advisory_xact_lock(hashtext('advice_transfer_assignment_v2'));
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+  perform public.reclaim_expired_advice_transfer_assignments();
   select * into v_assignment
     from public.advice_transfer_assignments
    where assignment_id = p_assignment_id
@@ -1084,12 +1961,13 @@ begin
     raise exception 'Test assignments do not occupy formal quotas';
   end if;
 
+  select * into v_submission
+    from public.advice_transfer_submissions
+   where assignment_id = p_assignment_id
+   for update;
+
   if p_decision = 'valid' then
-    if v_assignment.status <> 'submitted' or not exists (
-      select 1
-        from public.advice_transfer_submissions
-       where assignment_id = p_assignment_id
-    ) then
+    if v_assignment.status <> 'submitted' or v_submission.id is null then
       raise exception 'Only a submitted response can be marked valid';
     end if;
 
@@ -1098,16 +1976,47 @@ begin
            reviewed_at = v_now,
            exclusion_reason = null
      where assignment_id = p_assignment_id;
+
+    if v_submission.quota_disposition = 'quota' then
+      update public.advice_transfer_quota_tokens
+         set state = 'valid',
+             reservation_expires_at = null,
+             updated_at = v_now
+       where id = v_assignment.quota_token_id
+         and current_assignment_id = p_assignment_id
+         and state in ('pending', 'valid');
+      if not found then
+        raise exception 'A quota response could not be matched to its quota token';
+      end if;
+    end if;
   elsif p_decision = 'excluded' then
+    if v_submission.id is null then
+      raise exception 'Only a submitted response can be excluded';
+    end if;
+
     update public.advice_transfer_submissions
        set validity_status = 'excluded',
            reviewed_at = v_now,
            exclusion_reason = p_reason
      where assignment_id = p_assignment_id;
 
+    if v_submission.quota_disposition = 'quota' then
+      update public.advice_transfer_quota_tokens
+         set state = 'available',
+             current_assignment_id = null,
+             reservation_expires_at = null,
+             updated_at = v_now
+       where id = v_assignment.quota_token_id
+         and current_assignment_id = p_assignment_id
+         and state in ('pending', 'valid');
+      v_reopened := found;
+    end if;
+
     update public.advice_transfer_assignments
        set status = 'excluded',
            lease_expires_at = null,
+           reservation_kind = 'released',
+           quota_token_id = null,
            abandoned_at = null,
            abandonment_reason = p_reason,
            updated_at = v_now
@@ -1117,20 +2026,39 @@ begin
       raise exception 'A submitted response must be marked valid or excluded';
     end if;
 
+    update public.advice_transfer_quota_tokens
+       set state = 'available',
+           current_assignment_id = null,
+           reservation_expires_at = null,
+           updated_at = v_now
+     where id = v_assignment.quota_token_id
+       and current_assignment_id = p_assignment_id
+       and state = 'reserved';
+    v_reopened := found;
+
     update public.advice_transfer_assignments
        set status = 'abandoned',
            lease_expires_at = null,
+           reservation_kind = 'released',
+           quota_token_id = null,
            abandoned_at = v_now,
            abandonment_reason = coalesce(p_reason, 'researcher_released'),
            updated_at = v_now
      where assignment_id = p_assignment_id;
   end if;
 
+  if v_reopened then
+    perform public.promote_advice_transfer_standby(
+      v_assignment.stimulus_id,
+      v_assignment.condition
+    );
+  end if;
+
   return jsonb_build_object(
     'ok', true,
     'assignmentId', p_assignment_id,
     'decision', p_decision,
-    'quotaReopened', p_decision in ('excluded', 'abandoned'),
+    'quotaReopened', v_reopened,
     'reviewedAt', v_now
   );
 end;
@@ -1151,7 +2079,8 @@ select stimulus.pair_number,
    and assignment.is_test
  group by stimulus.pair_number, stimulus.pair_role, conditions.condition;
 
-create or replace view public.advice_transfer_formal_cell_progress as
+drop view if exists public.advice_transfer_formal_cell_progress;
+create view public.advice_transfer_formal_cell_progress as
 with settings as (
   select coalesce(max(
            case when setting_key = 'formal_target_per_cell'
@@ -1169,18 +2098,25 @@ cells as (
    where stimulus.active
      and stimulus.pair_role = 'primary'
 ),
+token_counts as (
+  select token.stimulus_id,
+         token.condition,
+         count(*)::integer as token_total,
+         count(*) filter (where token.state = 'available')::integer as available,
+         count(*) filter (where token.state = 'reserved')::integer as reserved,
+         count(*) filter (where token.state = 'pending')::integer as pending,
+         count(*) filter (where token.state = 'valid')::integer as valid
+    from public.advice_transfer_quota_tokens token
+   group by token.stimulus_id, token.condition
+),
 assignment_counts as (
   select assignment.stimulus_id,
          assignment.condition,
          count(*) filter (
            where assignment.status = 'claimed'
-             and (assignment.lease_expires_at is null
-                  or assignment.lease_expires_at >= now())
-         )::integer as active_leases,
-         count(*) filter (
-           where assignment.status = 'claimed'
-             and assignment.lease_expires_at < now()
-         )::integer as stale_leases,
+             and assignment.reservation_kind = 'standby'
+             and assignment.lease_expires_at >= now()
+         )::integer as active_standby,
          count(*) filter (where assignment.status = 'screened_out')::integer as screened_out,
          count(*) filter (where assignment.status = 'abandoned')::integer as abandoned
     from public.advice_transfer_assignments assignment
@@ -1190,8 +2126,10 @@ assignment_counts as (
 submission_counts as (
   select submission.stimulus_id,
          submission.condition,
-         count(*) filter (where submission.validity_status = 'pending')::integer as pending,
-         count(*) filter (where submission.validity_status = 'valid')::integer as valid,
+         count(*) filter (
+           where submission.quota_disposition = 'standby'
+             and submission.validity_status in ('pending', 'valid')
+         )::integer as submitted_standby,
          count(*) filter (where submission.validity_status = 'excluded')::integer as excluded
     from public.advice_transfer_submissions submission
    where not submission.is_test
@@ -1202,22 +2140,41 @@ select cell.pair_number,
        cell.stimulus_id,
        cell.condition,
        settings.target_per_cell,
-       coalesce(assignments.active_leases, 0) as active_leases,
-       coalesce(assignments.stale_leases, 0) as stale_leases,
-       coalesce(submissions.pending, 0) as pending,
-       coalesce(submissions.valid, 0) as valid,
+       coalesce(tokens.token_total, 0) as token_total,
+       coalesce(tokens.available, 0) as available,
+       coalesce(tokens.reserved, 0) as reserved,
+       coalesce(tokens.pending, 0) as pending,
+       coalesce(tokens.valid, 0) as valid,
+       coalesce(tokens.reserved, 0)
+         + coalesce(tokens.pending, 0)
+         + coalesce(tokens.valid, 0) as quota_committed,
+       coalesce(assignments.active_standby, 0) as active_standby,
+       coalesce(submissions.submitted_standby, 0) as submitted_standby,
        coalesce(submissions.excluded, 0) as excluded,
        coalesce(assignments.screened_out, 0) as screened_out,
        coalesce(assignments.abandoned, 0) as abandoned,
-       coalesce(submissions.pending, 0) + coalesce(submissions.valid, 0) as usable_completed,
+       coalesce(tokens.pending, 0) + coalesce(tokens.valid, 0) as usable_completed,
        greatest(
          settings.target_per_cell
-           - coalesce(submissions.pending, 0)
-           - coalesce(submissions.valid, 0),
+           - coalesce(tokens.pending, 0)
+           - coalesce(tokens.valid, 0),
          0
-       ) as remaining
+       ) as remaining,
+       (
+         coalesce(tokens.token_total, 0) = settings.target_per_cell
+         and coalesce(tokens.available, 0)
+           + coalesce(tokens.reserved, 0)
+           + coalesce(tokens.pending, 0)
+           + coalesce(tokens.valid, 0) = coalesce(tokens.token_total, 0)
+         and coalesce(tokens.reserved, 0)
+           + coalesce(tokens.pending, 0)
+           + coalesce(tokens.valid, 0) <= settings.target_per_cell
+       ) as quota_invariant_ok
   from cells cell
   cross join settings
+  left join token_counts tokens
+    on tokens.stimulus_id = cell.stimulus_id
+   and tokens.condition = cell.condition
   left join assignment_counts assignments
     on assignments.stimulus_id = cell.stimulus_id
    and assignments.condition = cell.condition
@@ -1230,11 +2187,15 @@ alter table public.advice_transfer_settings enable row level security;
 alter table public.advice_transfer_stimuli enable row level security;
 alter table public.advice_transfer_assignments enable row level security;
 alter table public.advice_transfer_submissions enable row level security;
+alter table public.advice_transfer_waitlist enable row level security;
+alter table public.advice_transfer_quota_tokens enable row level security;
 
 revoke all on public.advice_transfer_settings from anon, authenticated;
 revoke all on public.advice_transfer_stimuli from anon, authenticated;
 revoke all on public.advice_transfer_assignments from anon, authenticated;
 revoke all on public.advice_transfer_submissions from anon, authenticated;
+revoke all on public.advice_transfer_waitlist from anon, authenticated;
+revoke all on public.advice_transfer_quota_tokens from anon, authenticated;
 revoke all on public.advice_transfer_test_cell_progress from anon, authenticated;
 revoke all on public.advice_transfer_formal_cell_progress from anon, authenticated;
 
@@ -1246,15 +2207,25 @@ revoke all on function public.save_advice_transfer_draft(text, text, jsonb)
   from public;
 revoke all on function public.withdraw_advice_transfer_assignment(text, text, text)
   from public;
+revoke all on function public.mark_advice_transfer_departure(text, text)
+  from public;
+revoke all on function public.mark_advice_transfer_departure(text, text, jsonb)
+  from public;
 revoke all on function public.record_advice_transfer_comprehension_failure(text, text, jsonb)
   from public;
 revoke all on function public.submit_advice_transfer_payload(text, jsonb)
   from public;
 revoke all on function public.reclaim_expired_advice_transfer_assignments()
   from public;
+revoke all on function public.ensure_advice_transfer_quota_tokens()
+  from public;
+revoke all on function public.promote_advice_transfer_standby(text, text)
+  from public;
 revoke all on function public.review_advice_transfer_assignment(text, text, text)
   from public;
 revoke all on function public.advice_transfer_word_count(text)
+  from public;
+revoke all on function public.guard_advice_transfer_target_reduction()
   from public;
 
 grant execute on function public.claim_advice_transfer_assignment(text, text, text, boolean, integer, text)
@@ -1265,6 +2236,10 @@ grant execute on function public.save_advice_transfer_draft(text, text, jsonb)
   to anon, authenticated;
 grant execute on function public.withdraw_advice_transfer_assignment(text, text, text)
   to anon, authenticated;
+grant execute on function public.mark_advice_transfer_departure(text, text)
+  to anon, authenticated;
+grant execute on function public.mark_advice_transfer_departure(text, text, jsonb)
+  to anon, authenticated;
 grant execute on function public.record_advice_transfer_comprehension_failure(text, text, jsonb)
   to anon, authenticated;
 grant execute on function public.submit_advice_transfer_payload(text, jsonb)
@@ -1274,10 +2249,16 @@ grant select, insert, update, delete on public.advice_transfer_settings to servi
 grant select, insert, update, delete on public.advice_transfer_stimuli to service_role;
 grant select, insert, update, delete on public.advice_transfer_assignments to service_role;
 grant select, insert, update, delete on public.advice_transfer_submissions to service_role;
+grant select, insert, update, delete on public.advice_transfer_waitlist to service_role;
+grant select, insert, update, delete on public.advice_transfer_quota_tokens to service_role;
 grant select on public.advice_transfer_test_cell_progress to service_role;
 grant select on public.advice_transfer_formal_cell_progress to service_role;
 grant execute on function public.advice_transfer_word_count(text) to service_role;
+grant execute on function public.guard_advice_transfer_target_reduction() to service_role;
 grant execute on function public.reclaim_expired_advice_transfer_assignments() to service_role;
+grant execute on function public.ensure_advice_transfer_quota_tokens() to service_role;
+grant execute on function public.promote_advice_transfer_standby(text, text) to service_role;
 grant execute on function public.review_advice_transfer_assignment(text, text, text) to service_role;
 
+notify pgrst, 'reload schema';
 commit;

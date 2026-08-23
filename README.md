@@ -100,11 +100,35 @@ active leases with:
 select * from public.advice_transfer_formal_cell_progress;
 ```
 
-The allocator never treats historical page opens as completed quota. A
-participant receives a renewable assignment lease, the browser sends a
-heartbeat every minute, unfinished responses are saved both locally and in
-Supabase, and final submission retries safely. Expired, screened-out, excluded,
-or withdrawn attempts therefore do not permanently consume capacity.
+The formal allocator uses hard, reusable quota tokens. At the balanced target
+above, each of the 20 pair-by-condition cells has exactly five tokens. A token
+can be `available`, `reserved` by one active participant, `pending` after a
+complete response, or `valid` after review. Consequently, the number of
+quota-bearing responses in a cell can never exceed its target, even when many
+participants open the link simultaneously.
+
+If all tokens are temporarily reserved, a new participant sees a short waiting
+screen that polls automatically; it never receives a database error or needs to
+refresh. Closing the tab shortens the reservation to a 90-second grace period,
+and a 30-second heartbeat renews active sessions. If a participant is still
+waiting after 90 seconds, they can begin as a masked standby. Standby responses
+are retained and paid, but do not enter the primary quota unless a token in the
+same cell becomes available. This prevents a late old browser and its
+replacement from both counting toward the designed sample.
+
+Unfinished responses are saved both locally and in Supabase, and an interrupted
+final submission retries automatically on reopening. Withdrawn, expired,
+twice-screened, or excluded observations release their token; the oldest
+eligible standby in that same cell is promoted automatically. Review status and
+token state are both visible in `advice_transfer_formal_cell_progress`. The
+study is complete only when every row has `valid = target_per_cell` and
+`quota_invariant_ok = true`.
+
+Before launch, run `tests/advice-transfer-integration.sql` in the seeded
+Supabase project while formal recruitment is closed and no formal records
+exist. It exercises waiting, expiry, replacement, late submission, exclusion,
+same-cell promotion, and the final token invariant inside a transaction that
+rolls every test mutation back.
 
 Use this Prolific External Study Link:
 
@@ -112,10 +136,13 @@ Use this Prolific External Study Link:
 https://baron-sun.github.io/online-research-study/advice-transfer/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}&completion_code=YOUR_PROLIFIC_CODE
 ```
 
-For launch, use single submission and limit simultaneous participant access to
-15 rather than Unlimited. Start with 10 paid participants, verify Supabase
-submissions and the progress view, and then increase places while retaining the
-same concurrency limit.
+For launch, use single submission and set Prolific concurrent submissions to
+10–15 rather than Unlimited. Set the initial maximum submissions to the planned
+total (for example 100), start with a 10-person paid soft launch, and check the
+progress view before releasing the rest. If review exclusions leave deficits,
+add only the number shown by the sum of `remaining`; the reopened tokens ensure
+replacements go to the correct cells. The target may be increased safely, but
+must not be lowered after tokens have been created.
 
 ## Local Development
 

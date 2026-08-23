@@ -105,6 +105,19 @@ test("the Study 2 client survives traffic bursts and interrupted final saves", a
   assert.match(client, /heartbeat_advice_transfer_assignment/);
   assert.match(client, /save_advice_transfer_draft/);
   assert.match(client, /withdraw_advice_transfer_assignment/);
+  assert.match(client, /mark_advice_transfer_departure/);
+  assert.match(client, /admissionStatus === "waiting"/);
+  assert.match(client, /Current queue position/);
+  assert.match(client, /HEARTBEAT_INTERVAL_MS = 30_000/);
+  assert.match(client, /keepalive: true/);
+  assert.match(client, /AbortController/);
+  assert.match(client, /data === null/);
+  assert.match(client, /result\.saved === false/);
+  assert.match(client, /result\.active === false/);
+  assert.match(client, /p_draft_payload: draftPayload/);
+  assert.match(client, /event\?\.persisted/);
+  assert.match(client, /Complete study on Prolific/);
+  assert.match(client, /sessionId \|\| "session" : "formal"/);
   assert.match(client, /CLAIM_RETRY_DELAYS_MS/);
   assert.match(client, /SUBMIT_RETRY_DELAYS_MS/);
   assert.match(client, /pendingSubmission/);
@@ -113,7 +126,7 @@ test("the Study 2 client survives traffic bursts and interrupted final saves", a
   assert.match(css, /transfer-save-status/);
 });
 
-test("the formal database separates valid-response quotas from temporary leases", async () => {
+test("the formal database enforces hard per-cell quota tokens and standby promotion", async () => {
   const schema = await read("supabase_advice_transfer_setup.sql");
 
   assert.match(schema, /formal_target_per_cell/);
@@ -125,63 +138,139 @@ test("the formal database separates valid-response quotas from temporary leases"
   assert.match(schema, /save_advice_transfer_draft/);
   assert.match(schema, /review_advice_transfer_assignment/);
   assert.match(schema, /advice_transfer_formal_cell_progress/);
-  assert.match(schema, /completed\.completed_count, 0\) < v_target_per_cell/);
-  assert.doesNotMatch(schema, /create table if not exists public\.advice_transfer_slots/);
+  assert.match(schema, /create table if not exists public\.advice_transfer_quota_tokens/);
+  assert.match(schema, /create table if not exists public\.advice_transfer_waitlist/);
+  assert.match(schema, /state in \('available', 'reserved', 'pending', 'valid'\)/);
+  assert.match(schema, /promote_advice_transfer_standby/);
+  assert.match(schema, /quota_invariant_ok/);
+  assert.match(schema, /advice_transfer_admission_v3/);
+  assert.match(schema, /unique \(prolific_pid, study_id\)/);
+  assert.match(schema, /where not is_test/);
+  assert.match(schema, /guard_advice_transfer_target_reduction/);
+  assert.match(schema, /advice_transfer_assignment_quota_token_unique/);
+  assert.match(schema, /drop view if exists public\.advice_transfer_formal_cell_progress/);
+  assert.match(schema, /queued\.study_id = coalesce\(p_study_id, ''\)/);
+  assert.match(schema, /The selected Study 2 quota token was no longer available/);
 });
 
-test("100 least-filled test claims produce five assignments in every primary cell", () => {
-  const cells = Array.from({ length: 10 }, (_, pairIndex) =>
-    ["human", "ai"].map((condition) => ({
-      pairNumber: pairIndex + 1,
-      condition,
-      occupied: 0,
-    })),
-  ).flat();
-
-  for (let participant = 0; participant < 100; participant += 1) {
-    const minimum = Math.min(...cells.map(({ occupied }) => occupied));
-    const tied = cells.filter(({ occupied }) => occupied === minimum);
-    tied[participant % tied.length].occupied += 1;
-  }
-
-  assert.equal(cells.length, 20);
-  assert.ok(cells.every(({ occupied }) => occupied === 5));
-  assert.equal(
-    cells.filter(({ condition }) => condition === "human").reduce((sum, cell) => sum + cell.occupied, 0),
-    50,
-  );
-  assert.equal(
-    cells.filter(({ condition }) => condition === "ai").reduce((sum, cell) => sum + cell.occupied, 0),
-    50,
-  );
+test("the rollback-only database acceptance script covers the full replacement lifecycle", async () => {
+  const integration = await read("tests/advice-transfer-integration.sql");
+  assert.match(integration, /^begin;/m);
+  assert.match(integration, /admissionStatus' <> 'waiting'/);
+  assert.match(integration, /reclaim_expired_advice_transfer_assignments/);
+  assert.match(integration, /late old browser should initially be standby/);
+  assert.match(integration, /review_advice_transfer_assignment[\s\S]*'excluded'/);
+  assert.match(integration, /quota_committed > target_per_cell/);
+  assert.match(integration, /^rollback;/m);
+  assert.match(integration, /integration_passed_and_rolled_back/);
 });
 
-test("returned participants do not permanently consume Study 2 assignment capacity", () => {
+const buildQuotaSimulation = (target = 5) => {
   const cells = Array.from({ length: 20 }, (_, index) => ({
     index,
-    active: 0,
-    completed: 0,
+    tokens: Array.from({ length: target }, () => ({ state: "available", owner: null })),
+    standby: [],
   }));
-  const claims = [];
+  const participants = new Map();
 
-  const claimLeastFilled = () => {
-    const minimumCompleted = Math.min(...cells.map(({ completed }) => completed));
-    const eligible = cells.filter(({ completed }) => completed === minimumCompleted);
-    const minimumActive = Math.min(...eligible.map(({ active }) => active));
-    const selected = eligible.find(({ active }) => active === minimumActive);
-    selected.active += 1;
-    claims.push(selected.index);
-    return selected.index;
+  const invariant = () => {
+    for (const cell of cells) {
+      assert.equal(cell.tokens.length, target);
+      assert.ok(cell.tokens.every(({ state }) => ["available", "reserved", "pending", "valid"].includes(state)));
+      assert.ok(cell.tokens.filter(({ state }) => state !== "available").length <= target);
+      assert.equal(new Set(cell.tokens.filter(({ owner }) => owner).map(({ owner }) => owner)).size,
+        cell.tokens.filter(({ owner }) => owner).length);
+    }
   };
 
-  for (let participant = 0; participant < 100; participant += 1) claimLeastFilled();
-  assert.ok(cells.every(({ active }) => active === 5));
+  const claim = (participantId) => {
+    if (participants.has(participantId)) return participants.get(participantId);
+    const eligible = cells.filter((cell) => cell.tokens.some(({ state }) => state === "available"));
+    if (!eligible.length) {
+      const cell = cells.slice().sort((a, b) => a.standby.length - b.standby.length || a.index - b.index)[0];
+      const record = { participantId, cell: cell.index, kind: "waiting", status: "waiting" };
+      participants.set(participantId, record);
+      return record;
+    }
+    const cell = eligible.slice().sort((a, b) =>
+      a.tokens.filter(({ state }) => state !== "available").length -
+        b.tokens.filter(({ state }) => state !== "available").length || a.index - b.index)[0];
+    const token = cell.tokens.find(({ state }) => state === "available");
+    token.state = "reserved";
+    token.owner = participantId;
+    const record = { participantId, cell: cell.index, kind: "quota", status: "claimed" };
+    participants.set(participantId, record);
+    invariant();
+    return record;
+  };
 
-  for (const returnedIndex of [0, 7, 14, 22, 31, 48, 59, 63, 74, 88]) {
-    cells[claims[returnedIndex]].active -= 1;
-  }
-  for (let replacement = 0; replacement < 10; replacement += 1) claimLeastFilled();
+  const toStandby = (participantId) => {
+    const record = participants.get(participantId);
+    assert.equal(record.kind, "waiting");
+    record.kind = "standby";
+    record.status = "claimed";
+    cells[record.cell].standby.push(participantId);
+    return record;
+  };
 
-  assert.ok(cells.every(({ active }) => active === 5));
-  assert.equal(claims.length, 110);
+  const release = (participantId) => {
+    const record = participants.get(participantId);
+    const cell = cells[record.cell];
+    const token = cell.tokens.find(({ owner }) => owner === participantId);
+    if (token?.state === "reserved") {
+      token.state = "available";
+      token.owner = null;
+    }
+    record.status = "abandoned";
+    const nextId = cell.standby.find((id) => participants.get(id).status === "claimed");
+    if (nextId) {
+      const next = participants.get(nextId);
+      token.state = "reserved";
+      token.owner = nextId;
+      next.kind = "quota";
+    }
+    invariant();
+  };
+
+  const submit = (participantId) => {
+    const record = participants.get(participantId);
+    const cell = cells[record.cell];
+    const token = cell.tokens.find(({ owner }) => owner === participantId);
+    record.status = "submitted";
+    record.countsTowardQuota = Boolean(token && record.kind === "quota");
+    if (record.countsTowardQuota) token.state = "pending";
+    invariant();
+  };
+
+  return { cells, participants, claim, toStandby, release, submit, invariant };
+};
+
+test("a 100-person burst reserves exactly five observations in every formal cell", () => {
+  const simulation = buildQuotaSimulation();
+  for (let index = 0; index < 100; index += 1) simulation.claim(`P${index}`);
+  simulation.invariant();
+  assert.ok(simulation.cells.every((cell) => cell.tokens.every(({ state }) => state === "reserved")));
+  assert.equal(simulation.claim("P0"), simulation.participants.get("P0"));
+  assert.equal(simulation.participants.size, 100, "the same Prolific ID cannot receive a second assignment");
+});
+
+test("extra arrivals wait, replacements inherit released tokens, and late tabs never double count", () => {
+  const simulation = buildQuotaSimulation();
+  for (let index = 0; index < 100; index += 1) simulation.claim(`P${index}`);
+  for (let index = 100; index < 110; index += 1) simulation.toStandby(simulation.claim(`P${index}`).participantId);
+
+  const returning = Array.from({ length: 10 }, (_, index) => `P${index}`);
+  returning.forEach((participantId) => simulation.release(participantId));
+  simulation.invariant();
+
+  const promoted = [...simulation.participants.values()].filter(
+    ({ kind, participantId }) => kind === "quota" && /^P10\d$/.test(participantId),
+  );
+  assert.equal(promoted.length, 10);
+  promoted.forEach(({ participantId }) => simulation.submit(participantId));
+
+  returning.forEach((participantId) => simulation.submit(participantId));
+  assert.ok(returning.every((participantId) => !simulation.participants.get(participantId).countsTowardQuota));
+  assert.equal(simulation.cells.reduce((sum, cell) =>
+    sum + cell.tokens.filter(({ state }) => state !== "available").length, 0), 100);
 });

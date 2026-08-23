@@ -284,6 +284,28 @@
   text-decoration: none;
 }
 
+.transfer-waiting-card {
+  width: min(560px, calc(100vw - 36px));
+}
+
+.transfer-waiting-card > p {
+  max-width: 470px;
+  line-height: 1.6;
+}
+
+.transfer-queue-note {
+  padding: 10px 14px;
+  border: 1px solid var(--source-slate-200);
+  border-radius: 8px;
+  background: var(--source-slate-50);
+  color: var(--source-slate-800);
+}
+
+.transfer-reconnect-note {
+  color: var(--source-slate-500);
+  font-size: 13px;
+}
+
 @media (max-width: 980px) {
   .transfer-advice-grid,
   .transfer-exposure-grid {

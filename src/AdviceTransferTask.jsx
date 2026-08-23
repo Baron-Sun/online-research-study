@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
 
 const CORRECT_COMPREHENSION = "read-then-advise";
-const SCHEMA_VERSION = "advice-transfer-v2-resilient";
-const HEARTBEAT_INTERVAL_MS = 60_000;
+const SCHEMA_VERSION = "advice-transfer-v3-admission";
+const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
 const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
@@ -35,15 +35,28 @@ const wait = (milliseconds) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 const storageKeyFor = ({ prolificPid, studyId, sessionId }) =>
-  ["advice-transfer-v2", prolificPid, studyId || "study", sessionId || "session"].join(":");
+  [
+    "advice-transfer-v3",
+    prolificPid,
+    studyId || "study",
+    isTestParticipant(prolificPid) ? sessionId || "session" : "formal",
+  ].join(":");
+
+const legacyStorageKeysFor = ({ prolificPid, studyId, sessionId }) => [
+  ["advice-transfer-v3", prolificPid, studyId || "study", sessionId || "session"].join(":"),
+  ["advice-transfer-v2", prolificPid, studyId || "study", sessionId || "session"].join(":"),
+];
 
 const readLocalDraft = (participant) => {
-  try {
-    const raw = window.localStorage.getItem(storageKeyFor(participant));
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+  for (const key of [storageKeyFor(participant), ...legacyStorageKeysFor(participant)]) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // Continue to the next backward-compatible key.
+    }
   }
+  return null;
 };
 
 const writeLocalDraft = (participant, payload) => {
@@ -55,10 +68,12 @@ const writeLocalDraft = (participant, payload) => {
 };
 
 const clearLocalDraft = (participant) => {
-  try {
-    window.localStorage.removeItem(storageKeyFor(participant));
-  } catch {
-    // A stale local backup is harmless because submitted sessions bypass it.
+  for (const key of [storageKeyFor(participant), ...legacyStorageKeysFor(participant)]) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // A stale local backup is harmless because submitted sessions bypass it.
+    }
   }
 };
 
@@ -141,8 +156,10 @@ const getCompletion = () => {
   };
 };
 
-const supabaseRpc = async (config, functionName, payload) => {
+const supabaseRpc = async (config, functionName, payload, timeoutMs = 12_000) => {
   let response;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
     response = await fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
       method: "POST",
@@ -152,12 +169,19 @@ const supabaseRpc = async (config, functionName, payload) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     });
   } catch (networkError) {
-    const error = new Error("The study database could not be reached.");
+    const error = new Error(
+      networkError?.name === "AbortError"
+        ? "The study database is taking longer than expected to respond."
+        : "The study database could not be reached.",
+    );
     error.retryable = true;
     error.cause = networkError;
     throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 
   const responseText = await response.text();
@@ -182,8 +206,25 @@ const supabaseRpc = async (config, functionName, payload) => {
       ["40001", "40P01", "55P03", "57014"].includes(error.code);
     throw error;
   }
+  if (data === null) {
+    const error = new Error("The study database returned an incomplete response.");
+    error.retryable = true;
+    throw error;
+  }
   return data;
 };
+
+const supabaseRpcKeepalive = (config, functionName, payload) =>
+  fetch(`${config.url}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    keepalive: true,
+    headers: {
+      apikey: config.anonKey,
+      Authorization: `Bearer ${config.anonKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => undefined);
 
 export const supabaseRpcWithRetry = async (
   config,
@@ -431,6 +472,7 @@ export default function AdviceTransferTask() {
   const [loadNonce, setLoadNonce] = useState(0);
   const [draftReady, setDraftReady] = useState(false);
   const [saveState, setSaveState] = useState("idle");
+  const [waitingInfo, setWaitingInfo] = useState(null);
   const completion = useMemo(() => getCompletion(), []);
   const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
   const draftPayload = useMemo(() => {
@@ -470,6 +512,15 @@ export default function AdviceTransferTask() {
     timestamps,
   ]);
 
+  const recoverSession = () => {
+    setSaveState("offline");
+    setDraftReady(false);
+    setAssignment(null);
+    setError("");
+    setScreen("loading");
+    setLoadNonce((current) => current + 1);
+  };
+
   useEffect(() => {
     let active = true;
     const participant = getParticipant();
@@ -492,6 +543,15 @@ export default function AdviceTransferTask() {
         active = false;
       };
     }
+    if (!isTestParticipant(participant.prolificPid) && !completion.url) {
+      setError(
+        "This formal study link is missing its Prolific completion code. Please return to Prolific and contact the researcher.",
+      );
+      setScreen("error");
+      return () => {
+        active = false;
+      };
+    }
 
     let overrides;
     try {
@@ -504,21 +564,72 @@ export default function AdviceTransferTask() {
       };
     }
 
-    supabaseRpcWithRetry(
-      config,
-      "claim_advice_transfer_assignment",
-      {
-        p_prolific_pid: participant.prolificPid,
-        p_study_id: participant.studyId || null,
-        p_session_id: participant.sessionId || null,
-        p_is_test: isTestParticipant(participant.prolificPid),
-        p_pair_number: overrides.pairNumber,
-        p_condition: overrides.condition,
-      },
-      CLAIM_RETRY_DELAYS_MS,
-    )
-      .then((response) => {
+    const claimPayload = {
+      p_prolific_pid: participant.prolificPid,
+      p_study_id: participant.studyId || null,
+      p_session_id: participant.sessionId || null,
+      p_is_test: isTestParticipant(participant.prolificPid),
+      p_pair_number: overrides.pairNumber,
+      p_condition: overrides.condition,
+    };
+
+    const prepareSession = async () => {
+      let response;
+      while (active) {
+        try {
+          response = await supabaseRpcWithRetry(
+            config,
+            "claim_advice_transfer_assignment",
+            claimPayload,
+            CLAIM_RETRY_DELAYS_MS,
+          );
+        } catch (loadError) {
+          if (!active) return;
+          if (loadError?.retryable) {
+            setWaitingInfo((current) => ({
+              ...(current || {}),
+              reconnecting: true,
+            }));
+            setScreen("waiting");
+            await wait(3_000);
+            continue;
+          }
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "The study could not be loaded.",
+          );
+          setScreen("error");
+          return;
+        }
+
         if (!active) return;
+        if (response?.admissionStatus === "waiting") {
+          setWaitingInfo({
+            queuePosition: Number(response.queuePosition) || 1,
+            waitedSeconds: Number(response.waitedSeconds) || 0,
+            reconnecting: false,
+          });
+          setScreen("waiting");
+          const retryAfter = Math.max(
+            2_000,
+            Math.min(15_000, Number(response.retryAfterMs) || 3_000),
+          );
+          await wait(retryAfter + Math.floor(Math.random() * 400));
+          continue;
+        }
+        if (response?.admissionStatus === "closed") {
+          setError(
+            "This study is not accepting new sessions right now. Please return to Prolific.",
+          );
+          setScreen("error");
+          return;
+        }
+        break;
+      }
+
+      if (!active || !response) return;
+      try {
         validateAdviceTransferAssignment(response);
         const nextAssignment = { ...response, participant, config };
         const failures = Number(response.comprehensionFailures) || 0;
@@ -597,11 +708,34 @@ export default function AdviceTransferTask() {
                 : {},
             );
             if (restored.pendingSubmission) {
-              setSubmissionState("error");
-              setSubmissionError(
-                "Your previous final submission was not confirmed. Your responses were recovered; please select Retry submission.",
-              );
-              restoredScreen = "funnel-ai";
+              setSubmissionState("submitting");
+              try {
+                const result = await supabaseRpcWithRetry(
+                  config,
+                  "submit_advice_transfer_payload",
+                  {
+                    p_assignment_id: response.assignmentId,
+                    p_payload: restored.pendingSubmission,
+                  },
+                  SUBMIT_RETRY_DELAYS_MS,
+                );
+                clearLocalDraft(participant);
+                setAssignment((current) => ({
+                  ...(current || nextAssignment),
+                  status: result.status || "submitted",
+                  submittedAt: result.submittedAt || nowIso(),
+                }));
+                setSubmissionState("submitted");
+                setDraftReady(true);
+                setScreen("debrief");
+                return;
+              } catch {
+                setSubmissionState("error");
+                setSubmissionError(
+                  "Your responses were recovered and remain saved. We are still reconnecting; please select Retry submission if the automatic retry does not finish.",
+                );
+                restoredScreen = "funnel-ai";
+              }
             }
             setScreen(restoredScreen);
           } else {
@@ -609,12 +743,14 @@ export default function AdviceTransferTask() {
           }
           setDraftReady(true);
         }
-      })
-      .catch((loadError) => {
+      } catch (loadError) {
         if (!active) return;
         setError(loadError instanceof Error ? loadError.message : "The study could not be loaded.");
         setScreen("error");
-      });
+      }
+    };
+
+    prepareSession();
 
     return () => {
       active = false;
@@ -624,8 +760,11 @@ export default function AdviceTransferTask() {
   useEffect(() => {
     if (!assignment || assignment.status !== "claimed") return undefined;
     let active = true;
+    let heartbeatInFlight = false;
 
     const heartbeat = async () => {
+      if (heartbeatInFlight) return;
+      heartbeatInFlight = true;
       try {
         const result = await supabaseRpcWithRetry(
           assignment.config,
@@ -637,6 +776,28 @@ export default function AdviceTransferTask() {
           [0, 1_000],
         );
         if (!active) return;
+        if (result.status === "submitted") {
+          clearLocalDraft(assignment.participant);
+          setAlreadySubmitted(true);
+          setSubmissionState("submitted");
+          setAssignment((current) =>
+            current ? { ...current, status: "submitted" } : current,
+          );
+          setScreen("complete");
+          return;
+        }
+        if (result.status === "screened_out") {
+          clearLocalDraft(assignment.participant);
+          setAssignment((current) =>
+            current ? { ...current, status: "screened_out" } : current,
+          );
+          setScreen("comprehension-failed");
+          return;
+        }
+        if (result.active === false || result.status !== "claimed") {
+          recoverSession();
+          return;
+        }
         setAssignment((current) =>
           current
             ? {
@@ -648,20 +809,54 @@ export default function AdviceTransferTask() {
         );
       } catch {
         if (active) setSaveState("offline");
+      } finally {
+        heartbeatInFlight = false;
       }
     };
 
+    heartbeat();
     const intervalId = window.setInterval(heartbeat, HEARTBEAT_INTERVAL_MS);
+    const onOnline = () => heartbeat();
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") heartbeat();
     };
+    window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       active = false;
       window.clearInterval(intervalId);
+      window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [assignment?.assignmentId, assignment?.status]);
+
+  useEffect(() => {
+    if (!assignment || assignment.status !== "claimed") return undefined;
+    const noteDeparture = (event) => {
+      if (event?.persisted) return;
+      if (draftPayload) writeLocalDraft(assignment.participant, draftPayload);
+      supabaseRpcKeepalive(
+        assignment.config,
+        "mark_advice_transfer_departure",
+        {
+          p_assignment_id: assignment.assignmentId,
+          p_prolific_pid: assignment.participant.prolificPid,
+          p_draft_payload: draftPayload,
+        },
+      );
+    };
+    const warnBeforeUnload = (event) => {
+      if (["overview", "consent", "debrief", "complete"].includes(screen)) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("pagehide", noteDeparture);
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => {
+      window.removeEventListener("pagehide", noteDeparture);
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [assignment?.assignmentId, assignment?.status, draftPayload, screen]);
 
   useEffect(() => {
     if (
@@ -695,6 +890,11 @@ export default function AdviceTransferTask() {
           setAlreadySubmitted(true);
           setSubmissionState("submitted");
           setScreen("complete");
+          return;
+        }
+        if (!result.ok || result.saved === false || result.status !== "claimed") {
+          setSaveState("offline");
+          recoverSession();
           return;
         }
         setAssignment((current) =>
@@ -1007,6 +1207,24 @@ export default function AdviceTransferTask() {
     }
   };
 
+  useEffect(() => {
+    if (submissionState !== "error" || !assignment) return undefined;
+    const retryWhenReady = () => {
+      if (navigator.onLine && document.visibilityState === "visible") {
+        submitStudy();
+      }
+    };
+    const timeoutId = window.setTimeout(retryWhenReady, 8_000);
+    const onVisibilityChange = () => retryWhenReady();
+    window.addEventListener("online", retryWhenReady);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("online", retryWhenReady);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [submissionState, assignment?.assignmentId]);
+
   if (screen === "loading") {
     return (
       <main className="source-study-page source-centered-page">
@@ -1014,6 +1232,35 @@ export default function AdviceTransferTask() {
           <span className="source-loading-dot" />
           <strong>Preparing your research session…</strong>
           <p>Assigning study materials securely.</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (screen === "waiting") {
+    return (
+      <main className="source-study-page source-centered-page">
+        <div className="source-loading-card transfer-waiting-card" role="status" aria-live="polite">
+          <span className="source-loading-dot" />
+          <strong>Your study place is being prepared…</strong>
+          <p>
+            Please keep this page open. The task will begin automatically as
+            soon as a place becomes available; there is no need to refresh.
+          </p>
+          {waitingInfo?.queuePosition ? (
+            <p className="transfer-queue-note">
+              Current queue position: <b>{waitingInfo.queuePosition}</b>
+            </p>
+          ) : null}
+          {waitingInfo?.reconnecting ? (
+            <p className="transfer-reconnect-note">
+              Reconnecting securely. This page will keep trying automatically.
+            </p>
+          ) : (
+            <p className="transfer-reconnect-note">
+              Your Prolific submission remains active while this page waits.
+            </p>
+          )}
         </div>
       </main>
     );
@@ -1424,9 +1671,15 @@ export default function AdviceTransferTask() {
               participants while data collection is underway.
             </p>
           </div>
-          <PrimaryButton onClick={() => { setScreen("complete"); goTop(); }}>
-            Continue to completion
-          </PrimaryButton>
+          {assignment?.isTest ? (
+            <PrimaryButton onClick={() => { setScreen("complete"); goTop(); }}>
+              Finish test preview
+            </PrimaryButton>
+          ) : (
+            <a className="source-primary-button transfer-completion-link" href={completion.url}>
+              Complete study on Prolific
+            </a>
+          )}
         </section>
       </Page>
     );
