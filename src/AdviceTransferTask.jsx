@@ -5,6 +5,9 @@ const CORRECT_COMPREHENSION = "read-then-advise";
 const SCHEMA_VERSION = "advice-transfer-v3-admission";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
+export const MIN_ADVICE_WORDS = 77;
+const AITA_RESPONSE_GUIDANCE =
+  "Imagine you are commenting on this post in Reddit’s r/AmItheAsshole community. Please respond as you normally would. Explain your reasoning and give the poster constructive advice. Focus on the behavior described in the post and do not insult or attack anyone.";
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
 const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
 const PROLIFIC_COMPLETION_BASE_URL =
@@ -370,7 +373,7 @@ const PostPanel = ({ eyebrow, post, adviceTarget = false }) => (
       <p className="source-eyebrow">{eyebrow}</p>
       {adviceTarget && (
         <p className="transfer-advice-prompt">
-          Imagine you are a Reddit user. Please give advice to this Reddit user.
+          {AITA_RESPONSE_GUIDANCE}
         </p>
       )}
       <h2>{post.title}</h2>
@@ -1052,7 +1055,7 @@ export default function AdviceTransferTask() {
   };
 
   const continueToRatings = () => {
-    if (wordCount < 50) return;
+    if (wordCount < MIN_ADVICE_WORDS) return;
     const time = nowIso();
     setTimestamps((current) => ({
       ...current,
@@ -1102,7 +1105,7 @@ export default function AdviceTransferTask() {
   const submitStudy = async () => {
     if (
       !assignment ||
-      wordCount < 50 ||
+      wordCount < MIN_ADVICE_WORDS ||
       [difficulty, effort, confidence].some((value) => value === null) ||
       !purposeGuess.trim() ||
       !commentsStoodOut ||
@@ -1301,7 +1304,7 @@ export default function AdviceTransferTask() {
           </p>
           <div className="source-overview-grid">
             <div><span>Estimated time</span><strong>About 10–12 minutes</strong></div>
-            <div><span>Writing task</span><strong>At least 50 English words</strong></div>
+            <div><span>Writing task</span><strong>At least {MIN_ADVICE_WORDS} English words</strong></div>
             <div><span>Study material</span><strong>Reddit posts and comments</strong></div>
             <div><span>Important</span><strong>Complete the study in one sitting</strong></div>
           </div>
@@ -1374,16 +1377,24 @@ export default function AdviceTransferTask() {
               different</strong> post written by another Reddit user. The earlier
               post and comments will no longer be visible, and you cannot return
               to them. Write the advice you would genuinely give that Reddit user in
-              at least 50 English words. Afterwards, answer brief questions about
+              at least {MIN_ADVICE_WORDS} English words. Afterwards, answer brief questions about
               your experience and your impressions of the study.
             </p>
-            <p>
-              Common community shorthand: <strong>AITA</strong> = “Am I the
-              Asshole?”, <strong>NTA</strong> = “Not the Asshole,” <strong>YTA</strong>
-              = “You're the Asshole,” <strong>ESH</strong> = “Everyone Sucks Here,”
-              <strong> NAH</strong> = “No Assholes Here,” and <strong>INFO</strong>
-              = “More Information Needed.”
-            </p>
+            <div className="transfer-community-guidance">
+              <h3>r/AmItheAsshole community guidance</h3>
+              <p>{AITA_RESPONSE_GUIDANCE}</p>
+              <p>
+                <strong>AITA</strong> means “Am I the Asshole?” If you choose to
+                include a judgment label, use no more than one of the following:
+              </p>
+              <ul>
+                <li><strong>YTA — You're the Asshole:</strong> the poster is in the wrong, and the other party is not.</li>
+                <li><strong>NTA — Not the Asshole:</strong> the poster is not in the wrong, and the other party is.</li>
+                <li><strong>ESH — Everyone Sucks Here:</strong> the poster and the other party are both in the wrong.</li>
+                <li><strong>NAH — No Assholes Here:</strong> no one is in the wrong.</li>
+                <li><strong>INFO — More Information Needed:</strong> there is not enough information to make a judgment.</li>
+              </ul>
+            </div>
             <p>
               Copying, pasting, dragging, and the context menu are disabled. Please
               complete the task on your own without external tools.
@@ -1489,7 +1500,7 @@ export default function AdviceTransferTask() {
             <h3>What advice would you give this Reddit user?</h3>
             <p>
               Write what you genuinely think this Reddit user should do and explain
-              your reasoning. Your response must contain at least 50 English words.
+              your reasoning. Your response must contain at least {MIN_ADVICE_WORDS} English words.
             </p>
             <textarea
               className="transfer-textarea transfer-advice-textarea"
@@ -1502,13 +1513,13 @@ export default function AdviceTransferTask() {
             />
             <div
               id="advice-word-count"
-              className={`transfer-word-count ${wordCount >= 50 ? "complete" : ""}`}
+              className={`transfer-word-count ${wordCount >= MIN_ADVICE_WORDS ? "complete" : ""}`}
             >
-              <strong>{wordCount}</strong> / 50 words minimum
+              <strong>{wordCount}</strong> / {MIN_ADVICE_WORDS} words minimum
             </div>
             <SaveStatus state={saveState} />
             <div className="transfer-action-row">
-              <PrimaryButton disabled={wordCount < 50} onClick={continueToRatings}>
+              <PrimaryButton disabled={wordCount < MIN_ADVICE_WORDS} onClick={continueToRatings}>
                 Continue
               </PrimaryButton>
             </div>

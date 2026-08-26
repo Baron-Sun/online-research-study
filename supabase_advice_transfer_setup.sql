@@ -175,7 +175,7 @@ create table if not exists public.advice_transfer_submissions (
   target_post_id text not null,
   target_post_body_sha256 text not null,
   advice_text text not null,
-  advice_word_count integer not null check (advice_word_count >= 50),
+  advice_word_count integer not null check (advice_word_count >= 77),
   advice_character_count integer not null check (advice_character_count >= 1),
   difficulty integer not null check (difficulty between 1 and 7),
   effort integer not null check (effort between 1 and 7),
@@ -262,6 +262,20 @@ begin
     alter table public.advice_transfer_submissions
       add constraint advice_transfer_submissions_validity_status_check
       check (validity_status in ('pending', 'valid', 'excluded'));
+  end if;
+
+  -- Preserve legacy test previews while enforcing the revised minimum on every
+  -- formal response in an upgraded database. The submission RPC below also
+  -- enforces 77 words for both formal and future test submissions.
+  if not exists (
+    select 1
+      from pg_constraint
+     where conname = 'advice_transfer_submissions_formal_word_count_check'
+       and conrelid = 'public.advice_transfer_submissions'::regclass
+  ) then
+    alter table public.advice_transfer_submissions
+      add constraint advice_transfer_submissions_formal_word_count_check
+      check (is_test or advice_word_count >= 77);
   end if;
 end;
 $$;
@@ -1768,8 +1782,8 @@ begin
   v_ai_belief := lower(trim(coalesce(p_payload ->> 'aiGeneratedBelief', '')));
   v_ai_likelihood := nullif(p_payload ->> 'aiLikelihood', '')::integer;
 
-  if v_word_count < 50 then
-    raise exception 'Advice must contain at least 50 English words';
+  if v_word_count < 77 then
+    raise exception 'Advice must contain at least 77 English words';
   end if;
   if v_difficulty not between 1 and 7
      or v_effort not between 1 and 7

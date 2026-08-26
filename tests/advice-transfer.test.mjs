@@ -36,14 +36,17 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   assert.match(client, /value\.exposurePost\.postId === value\.targetPost\.postId/);
   assert.match(client, /Object\.prototype\.hasOwnProperty\.call\(value, "condition"\)/);
   assert.match(client, /related but\s*\n?\s*different/);
-  assert.match(client, /Imagine you are a Reddit user\. Please give advice to this Reddit user\./);
+  assert.match(client, /Imagine you are commenting on this post in Reddit’s r\/AmItheAsshole community/);
+  for (const label of ["YTA", "NTA", "ESH", "NAH", "INFO"]) {
+    assert.match(client, new RegExp(`${label} —`));
+  }
   assert.doesNotMatch(client, /close friend|your friend/i);
   assert.match(client, /The second Reddit post/);
   assert.match(client, /The earlier discussion is no longer available/);
   assert.doesNotMatch(client, /modelLabel|deepseek_v3|gpt_oss_120b|glm_4_6_direct/);
 });
 
-test("the client enforces two-strike screening, clipboard blocking and 50 words", async () => {
+test("the client enforces two-strike screening, clipboard blocking and the 77-word minimum", async () => {
   const [client, css, baseCss, consent] = await Promise.all([
     read("src/AdviceTransferTask.jsx"),
     read("src/advice-transfer.css"),
@@ -60,13 +63,14 @@ test("the client enforces two-strike screening, clipboard blocking and 50 words"
   }
   assert.match(baseCss, /user-select: none/);
   assert.match(css, /user-select: text/);
-  assert.match(client, /wordCount < 50/);
+  assert.match(client, /MIN_ADVICE_WORDS = 77/);
+  assert.match(client, /wordCount < MIN_ADVICE_WORDS/);
   assert.match(client, /\[A-Za-z0-9\]\+\(\?:\['-\]\[A-Za-z0-9\]\+\)\*/);
 
   const count = (value) =>
     value.match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)?.length || 0;
-  assert.equal(count(Array(49).fill("word").join(" ")), 49);
-  assert.equal(count(Array(50).fill("word").join(" ")), 50);
+  assert.equal(count(Array(76).fill("word").join(" ")), 76);
+  assert.equal(count(Array(77).fill("word").join(" ")), 77);
 });
 
 test("all ratings and the three-stage funnel are required and saved", async () => {
@@ -154,6 +158,8 @@ test("the formal database enforces hard per-cell quota tokens and standby promot
   assert.match(schema, /drop view if exists public\.advice_transfer_formal_cell_progress/);
   assert.match(schema, /queued\.study_id = coalesce\(p_study_id, ''\)/);
   assert.match(schema, /The selected Study 2 quota token was no longer available/);
+  assert.match(schema, /advice_word_count >= 77/);
+  assert.match(schema, /v_word_count < 77/);
 });
 
 test("the rollback-only database acceptance script covers the full replacement lifecycle", async () => {

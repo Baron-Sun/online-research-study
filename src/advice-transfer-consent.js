@@ -6,7 +6,7 @@ Key Information about this research study
 The following is a short summary of this study to help you decide whether to be a part of this study. Information that is more detailed is explained later on in this form.
 
 • The purpose of this study is to gain a deeper understanding of your attitudes, beliefs, and opinions on various topics.
-• You will be asked to read an online discussion and complete questionnaires. You will also write advice in response to an online post.
+• You will be asked to read an online discussion and complete questionnaires. You will also write a response of at least 77 English words to a related online post.
 • We expect that you will be in this research study for about 10–12 minutes.
 • The primary potential risk of participation is emotional discomfort from thinking about interpersonal or morally charged situations.
 • The main benefit of being in this study is contributing to the scientific understanding of how the mind works and society functions.
@@ -27,7 +27,7 @@ What should I know about participating in a research study?
 • You do not have to answer any question you do not want to answer, although the online survey may require a response before advancing.
 
 What happens if I say, "Yes, I want to be in this research"?
-If you agree to participate, you will complete an online research survey. You will read a public online post and a set of comments, then read a different but related Reddit post and write advice for the user who wrote it. You will answer questions about your experience and about what you think the study was examining. The survey includes a comprehension question intended to make sure you understand the instructions.
+If you agree to participate, you will complete an online research survey. You will read a public online post and a set of comments, then read a different but related Reddit post and write at least 77 English words of advice for the user who wrote it. You will answer questions about your experience and about what you think the study was examining. The survey includes a comprehension question intended to make sure you understand the instructions.
 
 Will being in this study help me in any way?
 We cannot promise any benefits to you or others from your taking part in this research. However, possible benefits include the inherent interest you may find in responding to the survey and the value of contributing to society's understanding of the human mind.

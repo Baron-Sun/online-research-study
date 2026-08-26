@@ -73,6 +73,12 @@ AI comments, then writes advice to the Reddit user who posted the related but
 different dilemma B. The
 three reserve pairs remain inactive.
 
+The open-ended response requires at least 77 English words. This threshold is
+the rounded mean of the 3,846 words across the 50 Human exposure comments in
+the 10 active primary A stimuli (76.92 words per comment); the same English-word
+regular expression is used for the stimulus audit, browser validation, and
+database validation. Reserve-pair comments are not included in this benchmark.
+
 Run `supabase_advice_transfer_setup.sql`, then
 `supabase_advice_transfer_seed.sql`. The setup is safe to rerun on the preview
 database: it preserves assignments and submissions while upgrading the formal
