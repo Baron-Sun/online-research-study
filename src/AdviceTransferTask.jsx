@@ -364,14 +364,13 @@ const Page = ({ children, wide = false, ready = true }) => (
   </main>
 );
 
-const PostPanel = ({ eyebrow, post, friend = false }) => (
+const PostPanel = ({ eyebrow, post, adviceTarget = false }) => (
   <article className="source-panel source-post-panel transfer-post-panel">
     <div className="source-panel-heading">
       <p className="source-eyebrow">{eyebrow}</p>
-      {friend && (
-        <p className="transfer-friend-frame">
-          Imagine that a close friend is facing the situation below and has asked
-          you what they should do.
+      {adviceTarget && (
+        <p className="transfer-advice-prompt">
+          Imagine you are a Reddit user. Please give advice to this Reddit user.
         </p>
       )}
       <h2>{post.title}</h2>
@@ -1297,13 +1296,13 @@ export default function AdviceTransferTask() {
           <h2>Read an online discussion and give thoughtful advice</h2>
           <p className="source-intro-copy">
             You will first read one public online post and five comments. You
-            will then read a related but different situation described by a
-            close friend and write the advice you would give that friend.
+            will then read a related but different post written by another
+            Reddit user and write the advice you would give that user.
           </p>
           <div className="source-overview-grid">
             <div><span>Estimated time</span><strong>About 10–12 minutes</strong></div>
             <div><span>Writing task</span><strong>At least 50 English words</strong></div>
-            <div><span>Study material</span><strong>Interpersonal situations and comments</strong></div>
+            <div><span>Study material</span><strong>Reddit posts and comments</strong></div>
             <div><span>Important</span><strong>Complete the study in one sitting</strong></div>
           </div>
           <div className="source-intro-action">
@@ -1372,9 +1371,9 @@ export default function AdviceTransferTask() {
             <p>
               First, read one online discussion post and all five anonymous
               comments responding to it. Next, you will see a <strong>related but
-              different</strong> situation faced by a close friend. The earlier
+              different</strong> post written by another Reddit user. The earlier
               post and comments will no longer be visible, and you cannot return
-              to them. Write the advice you would genuinely give your friend in
+              to them. Write the advice you would genuinely give that Reddit user in
               at least 50 English words. Afterwards, answer brief questions about
               your experience and your impressions of the study.
             </p>
@@ -1404,7 +1403,7 @@ export default function AdviceTransferTask() {
           >
             <option value="">Select one answer</option>
             <option value="classify-comments">Classify each comment by its political viewpoint</option>
-            <option value={CORRECT_COMPREHENSION}>Read a post and comments, then advise a friend in a related but different situation</option>
+            <option value={CORRECT_COMPREHENSION}>Read a post and comments, then advise a Reddit user in a related but different post</option>
             <option value="copy-comments">Copy one of the comments as the advice response</option>
           </select>
           <p className="source-attempt-note">Incorrect answers recorded: {comprehensionAttempts} of 2</p>
@@ -1467,7 +1466,7 @@ export default function AdviceTransferTask() {
         </div>
         <div className="source-submit-row transfer-submit-row">
           <p>After continuing, this discussion will not be shown again.</p>
-          <PrimaryButton onClick={continueToAdvice}>Continue to the new situation</PrimaryButton>
+          <PrimaryButton onClick={continueToAdvice}>Continue to the second Reddit post</PrimaryButton>
         </div>
       </Page>
     );
@@ -1479,17 +1478,17 @@ export default function AdviceTransferTask() {
         <div className="source-task-heading transfer-task-heading">
           <div>
             <p className="source-eyebrow">Part 2 of 4</p>
-            <h2>Advise a close friend</h2>
+            <h2>Advise another Reddit user</h2>
           </div>
           <span>The earlier discussion is no longer available.</span>
         </div>
         <div className="transfer-advice-grid">
-          <PostPanel eyebrow="Your friend's situation" post={assignment.targetPost} friend />
+          <PostPanel eyebrow="The second Reddit post" post={assignment.targetPost} adviceTarget />
           <section className="source-panel transfer-response-panel">
             <p className="source-eyebrow">Your response</p>
-            <h3>What advice would you give your friend?</h3>
+            <h3>What advice would you give this Reddit user?</h3>
             <p>
-              Write what you genuinely think your friend should do and explain
+              Write what you genuinely think this Reddit user should do and explain
               your reasoning. Your response must contain at least 50 English words.
             </p>
             <textarea
@@ -1657,8 +1656,8 @@ export default function AdviceTransferTask() {
             <h3>Debrief</h3>
             <p>
               This study examines whether reading an earlier set of opinions can
-              influence the advice people later give in a different but related
-              situation. Some participants read comments written by people, while
+              influence the advice people later give in response to a different
+              but related Reddit post. Some participants read comments written by people, while
               others read comments generated by artificial-intelligence systems.
               The study also examines how consistent the advice is across people,
               which considerations appear in their reasoning, and how difficult or

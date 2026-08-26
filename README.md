@@ -69,7 +69,8 @@ https://baron-sun.github.io/online-research-study/comment-source/?PROLIFIC_PID=t
 
 The formal Study 2 task crosses 10 active A/B dilemma pairs with two masked
 comment-source conditions. A participant reads dilemma A and five Human or five
-AI comments, then writes advice for the related but different dilemma B. The
+AI comments, then writes advice to the Reddit user who posted the related but
+different dilemma B. The
 three reserve pairs remain inactive.
 
 Run `supabase_advice_transfer_setup.sql`, then

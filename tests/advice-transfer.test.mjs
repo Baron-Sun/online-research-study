@@ -36,6 +36,9 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   assert.match(client, /value\.exposurePost\.postId === value\.targetPost\.postId/);
   assert.match(client, /Object\.prototype\.hasOwnProperty\.call\(value, "condition"\)/);
   assert.match(client, /related but\s*\n?\s*different/);
+  assert.match(client, /Imagine you are a Reddit user\. Please give advice to this Reddit user\./);
+  assert.doesNotMatch(client, /close friend|your friend/i);
+  assert.match(client, /The second Reddit post/);
   assert.match(client, /The earlier discussion is no longer available/);
   assert.doesNotMatch(client, /modelLabel|deepseek_v3|gpt_oss_120b|glm_4_6_direct/);
 });
