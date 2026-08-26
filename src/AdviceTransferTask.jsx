@@ -7,7 +7,7 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
 export const MIN_ADVICE_WORDS = 77;
 const AITA_RESPONSE_GUIDANCE =
-  "Imagine you are commenting on this post in Reddit’s r/AmItheAsshole community. Please respond as you normally would. Explain your reasoning and give the poster constructive advice. Focus on the behavior described in the post and do not insult or attack anyone.";
+  "Imagine you are commenting on this post in Reddit’s r/AmItheAsshole community. Explain your reasoning and give the poster constructive advice. Focus on the behavior described in the post and do not insult or attack anyone.";
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
 const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
 const PROLIFIC_COMPLETION_BASE_URL =

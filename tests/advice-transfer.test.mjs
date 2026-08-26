@@ -37,6 +37,7 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   assert.match(client, /Object\.prototype\.hasOwnProperty\.call\(value, "condition"\)/);
   assert.match(client, /related but\s*\n?\s*different/);
   assert.match(client, /Imagine you are commenting on this post in Reddit’s r\/AmItheAsshole community/);
+  assert.doesNotMatch(client, /respond as you normally would/i);
   for (const label of ["YTA", "NTA", "ESH", "NAH", "INFO"]) {
     assert.match(client, new RegExp(`${label} —`));
   }
