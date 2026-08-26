@@ -38,10 +38,24 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   assert.match(client, /related but\s*\n?\s*different/);
   assert.match(client, /Imagine you are commenting on this post in Reddit’s r\/AmItheAsshole community/);
   assert.doesNotMatch(client, /respond as you normally would/i);
+  assert.match(client, /First, give one judgment label: YTA, NTA, ESH, NAH, or INFO/);
+  assert.match(client, /Begin your advice\s*\n?\s*response with exactly one/);
   for (const label of ["YTA", "NTA", "ESH", "NAH", "INFO"]) {
     assert.match(client, new RegExp(`${label} —`));
   }
   assert.doesNotMatch(client, /close friend|your friend/i);
+  assert.doesNotMatch(client, /adviceTransferLocked|preventBack|window\.history\.pushState/);
+  for (const backLabel of [
+    ">Back<",
+    "Back to consent",
+    "Back to instructions",
+    "Back to advice",
+    "Back to ratings",
+    "Back to previous question",
+  ]) {
+    assert.match(client, new RegExp(backLabel));
+  }
+  assert.match(client, /studyStartedAt: current\.studyStartedAt \|\| time/);
   assert.match(client, /The second Reddit post/);
   assert.match(client, /The earlier discussion is no longer available/);
   assert.doesNotMatch(client, /modelLabel|deepseek_v3|gpt_oss_120b|glm_4_6_direct/);

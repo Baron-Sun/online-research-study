@@ -7,19 +7,11 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
 export const MIN_ADVICE_WORDS = 77;
 const AITA_RESPONSE_GUIDANCE =
-  "Imagine you are commenting on this post in Reddit’s r/AmItheAsshole community. Explain your reasoning and give the poster constructive advice. Focus on the behavior described in the post and do not insult or attack anyone.";
+  "Imagine you are commenting on this post in Reddit’s r/AmItheAsshole community. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then explain your reasoning and give the poster constructive advice. Focus on the behavior described in the post and do not insult or attack anyone.";
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
 const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
 const PROLIFIC_COMPLETION_BASE_URL =
   "https://app.prolific.com/submissions/complete";
-const LOCKED_SCREENS = new Set([
-  "advice",
-  "ratings",
-  "funnel-purpose",
-  "funnel-notice",
-  "funnel-ai",
-  "debrief",
-]);
 const DRAFTABLE_SCREENS = new Set([
   "overview",
   "consent",
@@ -919,20 +911,20 @@ export default function AdviceTransferTask() {
     };
   }, [assignment?.assignmentId, assignment?.status, draftPayload, draftReady, submissionState]);
 
-  useEffect(() => {
-    if (!LOCKED_SCREENS.has(screen)) return undefined;
-    const preventBack = () => {
-      window.history.pushState({ adviceTransferLocked: true }, "", window.location.href);
-      window.alert("You cannot return to the earlier discussion after opening the advice task.");
-    };
-    window.addEventListener("popstate", preventBack);
-    return () => window.removeEventListener("popstate", preventBack);
-  }, [screen]);
-
   const goTop = () => window.scrollTo({ top: 0, behavior: "auto" });
 
+  const returnToScreen = (previousScreen) => {
+    if (submissionState === "submitting") return;
+    setScreen(previousScreen);
+    goTop();
+  };
+
   const beginConsent = () => {
-    setTimestamps({ studyStartedAt: nowIso() });
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      studyStartedAt: current.studyStartedAt || time,
+    }));
     setScreen("consent");
     goTop();
   };
@@ -1026,18 +1018,20 @@ export default function AdviceTransferTask() {
 
   const beginExposure = () => {
     const time = nowIso();
-    setTimestamps((current) => ({ ...current, exposureOpenedAt: time }));
+    setTimestamps((current) => ({
+      ...current,
+      exposureOpenedAt: current.exposureOpenedAt || time,
+    }));
     setScreen("exposure");
     goTop();
   };
 
   const continueToAdvice = () => {
     const time = nowIso();
-    window.history.pushState({ adviceTransferLocked: true }, "", window.location.href);
     setTimestamps((current) => ({
       ...current,
-      exposureCompletedAt: time,
-      targetOpenedAt: time,
+      exposureCompletedAt: current.exposureCompletedAt || time,
+      targetOpenedAt: current.targetOpenedAt || time,
     }));
     setScreen("advice");
     goTop();
@@ -1344,6 +1338,7 @@ export default function AdviceTransferTask() {
             </label>
             <div className="source-button-row">
               <SecondaryButton onClick={declineConsent}>I Disagree</SecondaryButton>
+              <SecondaryButton onClick={() => returnToScreen("overview")}>Back</SecondaryButton>
               <PrimaryButton disabled={!agreed} onClick={acceptConsent}>I Agree</PrimaryButton>
             </div>
           </aside>
@@ -1378,14 +1373,16 @@ export default function AdviceTransferTask() {
               post and comments will no longer be visible, and you cannot return
               to them. Write the advice you would genuinely give that Reddit user in
               at least {MIN_ADVICE_WORDS} English words. Afterwards, answer brief questions about
-              your experience and your impressions of the study.
+              your experience and your impressions of the study. Back buttons are
+              available for reviewing earlier responses, except across this
+              discussion-to-advice boundary.
             </p>
             <div className="transfer-community-guidance">
               <h3>r/AmItheAsshole community guidance</h3>
               <p>{AITA_RESPONSE_GUIDANCE}</p>
               <p>
-                <strong>AITA</strong> means “Am I the Asshole?” If you choose to
-                include a judgment label, use no more than one of the following:
+                <strong>AITA</strong> means “Am I the Asshole?” Begin your advice
+                response with exactly one of the following judgment labels:
               </p>
               <ul>
                 <li><strong>YTA — You're the Asshole:</strong> the poster is in the wrong, and the other party is not.</li>
@@ -1414,12 +1411,13 @@ export default function AdviceTransferTask() {
           >
             <option value="">Select one answer</option>
             <option value="classify-comments">Classify each comment by its political viewpoint</option>
-            <option value={CORRECT_COMPREHENSION}>Read a post and comments, then advise a Reddit user in a related but different post</option>
+            <option value={CORRECT_COMPREHENSION}>Read a post and comments, then give a judgment label and advice on a related but different post</option>
             <option value="copy-comments">Copy one of the comments as the advice response</option>
           </select>
           <p className="source-attempt-note">Incorrect answers recorded: {comprehensionAttempts} of 2</p>
           {comprehensionError && <p className="source-inline-error">{comprehensionError}</p>}
           <div className="transfer-action-row">
+            <SecondaryButton onClick={() => returnToScreen("consent")}>Back to consent</SecondaryButton>
             <PrimaryButton disabled={comprehension !== CORRECT_COMPREHENSION} onClick={beginExposure}>
               Begin Part 1
             </PrimaryButton>
@@ -1476,8 +1474,11 @@ export default function AdviceTransferTask() {
           </section>
         </div>
         <div className="source-submit-row transfer-submit-row">
-          <p>After continuing, this discussion will not be shown again.</p>
-          <PrimaryButton onClick={continueToAdvice}>Continue to the second Reddit post</PrimaryButton>
+          <p>You may return to the instructions now. After continuing to the second post, this discussion will no longer be available.</p>
+          <div className="transfer-action-row transfer-inline-actions">
+            <SecondaryButton onClick={() => returnToScreen("instructions")}>Back to instructions</SecondaryButton>
+            <PrimaryButton onClick={continueToAdvice}>Continue to the second Reddit post</PrimaryButton>
+          </div>
         </div>
       </Page>
     );
@@ -1499,7 +1500,8 @@ export default function AdviceTransferTask() {
             <p className="source-eyebrow">Your response</p>
             <h3>What advice would you give this Reddit user?</h3>
             <p>
-              Write what you genuinely think this Reddit user should do and explain
+              First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then
+              write what you genuinely think this Reddit user should do and explain
               your reasoning. Your response must contain at least {MIN_ADVICE_WORDS} English words.
             </p>
             <textarea
@@ -1508,7 +1510,7 @@ export default function AdviceTransferTask() {
               onChange={updateAdvice}
               onPaste={(event) => event.preventDefault()}
               onDrop={(event) => event.preventDefault()}
-              placeholder="Write your advice here…"
+              placeholder="Begin with YTA, NTA, ESH, NAH, or INFO, then write your advice…"
               aria-describedby="advice-word-count"
             />
             <div
@@ -1561,6 +1563,7 @@ export default function AdviceTransferTask() {
             high="Extremely confident"
           />
           <div className="transfer-action-row">
+            <SecondaryButton onClick={() => returnToScreen("advice")}>Back to advice</SecondaryButton>
             <PrimaryButton
               disabled={[difficulty, effort, confidence].some((value) => value === null)}
               onClick={continueToPurpose}
@@ -1587,6 +1590,7 @@ export default function AdviceTransferTask() {
             placeholder="Enter your answer…"
           />
           <div className="transfer-action-row">
+            <SecondaryButton onClick={() => returnToScreen("ratings")}>Back to ratings</SecondaryButton>
             <PrimaryButton disabled={!purposeGuess.trim()} onClick={continueToNotice}>Continue</PrimaryButton>
           </div>
         </section>
@@ -1613,6 +1617,7 @@ export default function AdviceTransferTask() {
             placeholder="Optional explanation…"
           />
           <div className="transfer-action-row">
+            <SecondaryButton onClick={() => returnToScreen("funnel-purpose")}>Back to previous question</SecondaryButton>
             <PrimaryButton disabled={!commentsStoodOut} onClick={continueToAi}>Continue</PrimaryButton>
           </div>
         </section>
@@ -1640,6 +1645,7 @@ export default function AdviceTransferTask() {
           <SaveStatus state={saveState} />
           {submissionError && <p className="source-submission-error">{submissionError}</p>}
           <div className="transfer-action-row">
+            <SecondaryButton onClick={() => returnToScreen("funnel-notice")}>Back to previous question</SecondaryButton>
             <PrimaryButton
               disabled={!aiGeneratedBelief || aiLikelihood === null || submissionState === "submitting"}
               onClick={submitStudy}
