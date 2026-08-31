@@ -1,71 +1,54 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
-import LegacyAdviceTransferTask from "./LegacyAdviceTransferTask.jsx";
-import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS, JUDGMENT_LABELS,
-  DRAFTABLE_SCREENS, countEnglishWords, judgmentsFor, labelsFromJudgments,
-  demographicsComplete, emptyDemographics, normalizeDemographics,
-  phase1Complete, phase2Complete, restoreV4Draft, scaleValue } from "./advice-transfer-protocol.mjs";
-import { useAdviceTransferTiming } from "./useAdviceTransferTiming.js";
-import { ensureSharedReviewParticipant } from "./advice-transfer-review-entry.mjs";
-export { MIN_ADVICE_WORDS, MIN_GIST_WORDS, countEnglishWords } from "./advice-transfer-protocol.mjs";
+import React, { useEffect, useMemo, useState } from "react";
+import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-legacy-consent";
 
+const CORRECT_COMPREHENSION = "read-then-advise";
+const SCHEMA_VERSION = "advice-transfer-v3-admission";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
+export const MIN_ADVICE_WORDS = 77;
 const AITA_RESPONSE_GUIDANCE =
-  "Imagine you are commenting on this post in the online platform. Write the opinion you would give to the user. We have provided the comments you previously read in case this dilemma is similar. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then write your opinion.";
+  "Imagine you are commenting on this post in Reddit’s r/AmItheAsshole community. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then explain your reasoning and give the poster constructive advice. Focus on the behavior described in the post and do not insult or attack anyone.";
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
 const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
-const DEMOGRAPHIC_OPTIONS = Object.freeze({
-  genderIdentity: [
-    ["male", "Male"],
-    ["female", "Female"],
-    ["other", "Other"],
-    ["prefer-not-to-say", "Prefer not to say"],
-  ],
-  englishProficiency: [
-    ["yes", "Yes"],
-    ["no-fluent", "No, but fluent"],
-    ["no-mostly-fluent", "No, mostly fluent"],
-    ["no-minimal-fluency", "No, minimal fluency"],
-  ],
-  educationLevel: [
-    ["no-school", "No school"],
-    ["eighth-grade-or-less", "Eighth grade or less"],
-    ["more-than-eighth-less-than-high-school", "More than eighth grade, but less than high school degree"],
-    ["high-school-degree-or-equivalent", "High school degree or equivalent"],
-    ["some-college", "Some college"],
-    ["four-year-college-degree", "4-year college degree"],
-    ["graduate-or-professional-training", "Graduate or professional training"],
-  ],
-  employmentStatus: [
-    ["employed", "Employed"],
-    ["self-employed", "Self-employed"],
-    ["student", "A student"],
-    ["unemployed", "Unemployed"],
-    ["other", "Other"],
-  ],
-});
 const PROLIFIC_COMPLETION_BASE_URL =
   "https://app.prolific.com/submissions/complete";
+const DRAFTABLE_SCREENS = new Set([
+  "overview",
+  "consent",
+  "instructions",
+  "exposure",
+  "advice",
+  "ratings",
+  "funnel-purpose",
+  "funnel-notice",
+  "funnel-ai",
+]);
+const RESTORABLE_SCREENS = new Set(DRAFTABLE_SCREENS);
+
 const nowIso = () => new Date().toISOString();
 const wait = (milliseconds) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 const storageKeyFor = ({ prolificPid, studyId, sessionId }) =>
   [
-    "advice-transfer-v4-gist",
+    "advice-transfer-v3",
     prolificPid,
     studyId || "study",
     isTestParticipant(prolificPid) ? sessionId || "session" : "formal",
   ].join(":");
 
+const legacyStorageKeysFor = ({ prolificPid, studyId, sessionId }) => [
+  ["advice-transfer-v3", prolificPid, studyId || "study", sessionId || "session"].join(":"),
+  ["advice-transfer-v2", prolificPid, studyId || "study", sessionId || "session"].join(":"),
+];
+
 const readLocalDraft = (participant) => {
-  for (const key of [storageKeyFor(participant)]) {
+  for (const key of [storageKeyFor(participant), ...legacyStorageKeysFor(participant)]) {
     try {
       const raw = window.localStorage.getItem(key);
       if (raw) return JSON.parse(raw);
     } catch {
-      // Server autosave remains available if this device backup cannot be read.
+      // Continue to the next backward-compatible key.
     }
   }
   return null;
@@ -80,7 +63,7 @@ const writeLocalDraft = (participant, payload) => {
 };
 
 const clearLocalDraft = (participant) => {
-  for (const key of [storageKeyFor(participant)]) {
+  for (const key of [storageKeyFor(participant), ...legacyStorageKeysFor(participant)]) {
     try {
       window.localStorage.removeItem(key);
     } catch {
@@ -88,6 +71,9 @@ const clearLocalDraft = (participant) => {
     }
   }
 };
+
+export const countEnglishWords = (value) =>
+  String(value || "").match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)?.length || 0;
 
 const elapsedMs = (start, end) => {
   if (!start || !end) return 0;
@@ -356,8 +342,8 @@ const PrimaryButton = ({ children, disabled = false, onClick }) => (
   </button>
 );
 
-const SecondaryButton = ({ children, onClick, disabled = false }) => (
-  <button type="button" className="source-secondary-button" disabled={disabled} onClick={onClick}>
+const SecondaryButton = ({ children, onClick }) => (
+  <button type="button" className="source-secondary-button" onClick={onClick}>
     {children}
   </button>
 );
@@ -388,8 +374,8 @@ const PostPanel = ({ eyebrow, post, adviceTarget = false }) => (
   </article>
 );
 
-const ScaleQuestion = ({ legend, value, onChange, low, middle, high, disabled = false }) => (
-  <fieldset className="transfer-scale-fieldset" disabled={disabled}>
+const ScaleQuestion = ({ legend, value, onChange, low, middle, high }) => (
+  <fieldset className="transfer-scale-fieldset">
     <legend>{legend}</legend>
     <div className="source-rating-options transfer-rating-options">
       {[1, 2, 3, 4, 5, 6, 7].map((number) => (
@@ -416,7 +402,7 @@ const ScaleQuestion = ({ legend, value, onChange, low, middle, high, disabled = 
   </fieldset>
 );
 
-const ThreeWayChoice = ({ name, value, onChange, disabled = false }) => (
+const ThreeWayChoice = ({ name, value, onChange }) => (
   <div className="transfer-choice-row" role="radiogroup">
     {[
       ["yes", "Yes"],
@@ -432,36 +418,12 @@ const ThreeWayChoice = ({ name, value, onChange, disabled = false }) => (
           name={name}
           value={optionValue}
           checked={value === optionValue}
-          disabled={disabled}
           onChange={() => onChange(optionValue)}
         />
         {label}
       </label>
     ))}
   </div>
-);
-
-const DemographicChoice = ({ legend, name, options, value, onChange, disabled = false }) => (
-  <fieldset className="transfer-demographic-fieldset" disabled={disabled}>
-    <legend>{legend}</legend>
-    <div className="transfer-demographic-options">
-      {options.map(([optionValue, label]) => (
-        <label
-          key={optionValue}
-          className={`transfer-demographic-option ${value === optionValue ? "selected" : ""}`}
-        >
-          <input
-            type="radio"
-            name={name}
-            value={optionValue}
-            checked={value === optionValue}
-            onChange={() => onChange(optionValue)}
-          />
-          <span>{label}</span>
-        </label>
-      ))}
-    </div>
-  </fieldset>
 );
 
 const SaveStatus = ({ state }) => {
@@ -478,36 +440,7 @@ const SaveStatus = ({ state }) => {
   );
 };
 
-const LockedNotice = ({ children }) => (
-  <p className="transfer-locked-notice" role="status">{children}</p>
-);
-
-const CommentFeed = ({ assignment, labels, onLabel, disabled = false }) => (
-  <div className="source-comment-feed">
-    {assignment.comments.map((comment, index) => (
-      <article className="source-comment-card transfer-comment-card" key={`${index}-${assignment.commentHashes[index]}`}>
-        <div className="transfer-comment-number"><span>{index + 1}</span></div>
-        <p className="transfer-comment-text">{comment}</p>
-        {labels && (
-          <fieldset className="transfer-comment-classification" disabled={disabled}>
-            <legend>Which label does Comment {index + 1} express?</legend>
-            <div className="transfer-label-options">
-              {JUDGMENT_LABELS.map((label) => (
-                <label className={`transfer-label-option ${labels[index] === label ? "selected" : ""}`} key={label}>
-                  <input type="radio" name={`comment-label-${index}`} value={label}
-                    checked={labels[index] === label} onChange={() => onLabel(index, label)} />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
-      </article>
-    ))}
-  </div>
-);
-
-export default function AdviceTransferTask() {
+export default function LegacyAdviceTransferTask() {
   useGlobalClipboardBlock();
 
   const [screen, setScreen] = useState("loading");
@@ -517,11 +450,8 @@ export default function AdviceTransferTask() {
   const [comprehension, setComprehension] = useState("");
   const [comprehensionAttempts, setComprehensionAttempts] = useState(0);
   const [comprehensionError, setComprehensionError] = useState("");
-  const [comprehensionSaving, setComprehensionSaving] = useState(false);
-  const [commentLabels, setCommentLabels] = useState(["", "", "", "", ""]);
-  const [gistText, setGistText] = useState("");
-  const [gistDifficulty, setGistDifficulty] = useState(null);
   const [advice, setAdvice] = useState("");
+  const [difficulty, setDifficulty] = useState(null);
   const [effort, setEffort] = useState(null);
   const [confidence, setConfidence] = useState(null);
   const [purposeGuess, setPurposeGuess] = useState("");
@@ -529,7 +459,6 @@ export default function AdviceTransferTask() {
   const [commentsStoodOutDetails, setCommentsStoodOutDetails] = useState("");
   const [aiGeneratedBelief, setAiGeneratedBelief] = useState("");
   const [aiLikelihood, setAiLikelihood] = useState(null);
-  const [demographics, setDemographics] = useState(emptyDemographics);
   const [timestamps, setTimestamps] = useState({});
   const [submissionState, setSubmissionState] = useState("idle");
   const [submissionError, setSubmissionError] = useState("");
@@ -538,31 +467,8 @@ export default function AdviceTransferTask() {
   const [draftReady, setDraftReady] = useState(false);
   const [saveState, setSaveState] = useState("idle");
   const [waitingInfo, setWaitingInfo] = useState(null);
-  const [phase1Snapshot, setPhase1Snapshot] = useState(null);
-  const [phase1LockedAt, setPhase1LockedAt] = useState(null);
-  const [phase2Snapshot, setPhase2Snapshot] = useState(null);
-  const [phase2LockedAt, setPhase2LockedAt] = useState(null);
-  const [pendingStage, setPendingStage] = useState(null);
-  const [pendingSubmission, setPendingSubmission] = useState(null);
-  const [stageSaveState, setStageSaveState] = useState("idle");
-  const [stageSaveError, setStageSaveError] = useState("");
-  const [gistFocused, setGistFocused] = useState(false);
-  const stageInFlight = useRef(false);
-  const finalInFlight = useRef(false);
-  const pendingStageRef = useRef(null);
-  const pendingSubmissionRef = useRef(null);
-  const serverLocksRef = useRef({ phase1: null, phase2: null });
-  const recoverSessionRef = useRef(null);
-  const phase1ReadOnly = Boolean(phase1LockedAt || pendingStage?.stage === "phase1");
-  const phase2ReadOnly = Boolean(phase2LockedAt || pendingStage?.stage === "phase2");
-  const saveInProgress = stageSaveState === "saving" || submissionState === "submitting";
-  const timing = useAdviceTransferTiming({
-    screen, phase1Locked: Boolean(phase1LockedAt), phase2Locked: Boolean(phase2LockedAt),
-    pending: Boolean(pendingStage || pendingSubmission), gistFocused,
-  });
   const completion = useMemo(() => getCompletion(), []);
   const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
-  const gistWordCount = useMemo(() => countEnglishWords(gistText), [gistText]);
   const draftPayload = useMemo(() => {
     if (!assignment || !DRAFTABLE_SCREENS.has(screen)) return null;
     return {
@@ -572,10 +478,8 @@ export default function AdviceTransferTask() {
       screen,
       agreed,
       comprehension,
-      commentJudgments: judgmentsFor(assignment, commentLabels),
-      gistText,
-      gistDifficulty,
       advice,
+      difficulty,
       effort,
       confidence,
       purposeGuess,
@@ -583,25 +487,15 @@ export default function AdviceTransferTask() {
       commentsStoodOutDetails,
       aiGeneratedBelief,
       aiLikelihood,
-      demographics,
       timestamps,
-      timings: { ...timestamps, ...timing.read() },
-      phase1Snapshot,
-      phase1LockedAt,
-      phase2Snapshot,
-      phase2LockedAt,
-      pendingStage,
-      pendingSubmission,
     };
   }, [
     assignment?.assignmentId,
     screen,
     agreed,
     comprehension,
-    commentLabels,
-    gistText,
-    gistDifficulty,
     advice,
+    difficulty,
     effort,
     confidence,
     purposeGuess,
@@ -609,48 +503,10 @@ export default function AdviceTransferTask() {
     commentsStoodOutDetails,
     aiGeneratedBelief,
     aiLikelihood,
-    demographics,
     timestamps,
-    phase1Snapshot, phase1LockedAt, phase2Snapshot, phase2LockedAt,
-    pendingStage, pendingSubmission, timing.pulse,
   ]);
 
-  const freshDraft = (draft = draftPayload) => draft ? {
-    ...draft,
-    savedAt: nowIso(),
-    timings: { ...draft.timings, ...timing.read() },
-    pendingStage: pendingStageRef.current,
-    pendingSubmission: pendingSubmissionRef.current,
-  } : null;
-
-  const applyServerSnapshots = (response, currentAssignment = assignment) => {
-    if (response.phase1Snapshot && response.phase1LockedAt && response.phase1LockedAt !== serverLocksRef.current.phase1) {
-      serverLocksRef.current.phase1 = response.phase1LockedAt;
-      const saved = response.phase1Snapshot;
-      setPhase1Snapshot(saved);
-      setPhase1LockedAt(response.phase1LockedAt);
-      setCommentLabels(labelsFromJudgments(currentAssignment, saved.commentJudgments));
-      setGistText(saved.gistText);
-      setGistDifficulty(saved.gistDifficulty);
-      setTimestamps((current) => ({ ...current, ...saved.timings, phase1LockedAt: response.phase1LockedAt }));
-      timing.restore({ ...timing.read(), phase1ActiveTimeMs: saved.timings.phase1ActiveTimeMs, gistActiveTimeMs: saved.timings.gistActiveTimeMs });
-    }
-    if (response.phase2Snapshot && response.phase2LockedAt && response.phase2LockedAt !== serverLocksRef.current.phase2) {
-      serverLocksRef.current.phase2 = response.phase2LockedAt;
-      const saved = response.phase2Snapshot;
-      setPhase2Snapshot(saved);
-      setPhase2LockedAt(response.phase2LockedAt);
-      setAdvice(saved.adviceText);
-      setEffort(saved.effort);
-      setConfidence(saved.confidence);
-      setTimestamps((current) => ({ ...current, ...saved.timings, phase2LockedAt: response.phase2LockedAt }));
-      timing.restore({ ...timing.read(), adviceResponseTimeMs: saved.timings.adviceResponseTimeMs });
-    }
-  };
-
   const recoverSession = () => {
-    if (assignment && draftPayload) writeLocalDraft(assignment.participant, freshDraft());
-    timing.pause();
     setSaveState("offline");
     setDraftReady(false);
     setAssignment(null);
@@ -658,11 +514,9 @@ export default function AdviceTransferTask() {
     setScreen("loading");
     setLoadNonce((current) => current + 1);
   };
-  recoverSessionRef.current = recoverSession;
 
   useEffect(() => {
     let active = true;
-    ensureSharedReviewParticipant();
     const participant = getParticipant();
     const config = getSupabaseConfig();
     setDraftReady(false);
@@ -719,7 +573,7 @@ export default function AdviceTransferTask() {
         try {
           response = await supabaseRpcWithRetry(
             config,
-            "claim_advice_transfer_assignment_v4",
+            "claim_advice_transfer_assignment",
             claimPayload,
             CLAIM_RETRY_DELAYS_MS,
           );
@@ -771,12 +625,6 @@ export default function AdviceTransferTask() {
       if (!active || !response) return;
       try {
         validateAdviceTransferAssignment(response);
-        if ((response.schemaVersion || response.protocolVersion) !== SCHEMA_VERSION) {
-          // An existing v3 participant finishes the original task and pending
-          // submission; never silently convert an old draft into a v4 response.
-          setScreen("legacy");
-          return;
-        }
         const nextAssignment = { ...response, participant, config };
         const failures = Number(response.comprehensionFailures) || 0;
         setAssignment(nextAssignment);
@@ -791,41 +639,102 @@ export default function AdviceTransferTask() {
           setDraftReady(true);
           setScreen("complete");
         } else {
-          const restored = restoreV4Draft(response, [response.draftPayload, readLocalDraft(participant)]);
-          setAgreed(restored.agreed);
-          setComprehension(restored.comprehension);
-          setCommentLabels(labelsFromJudgments(response, restored.commentJudgments));
-          setGistText(restored.gistText);
-          setGistDifficulty(restored.gistDifficulty);
-          setAdvice(restored.advice);
-          setEffort(restored.effort);
-          setConfidence(restored.confidence);
-          setPurposeGuess(String(restored.purposeGuess || ""));
-          setCommentsStoodOut(["yes", "no", "unsure"].includes(restored.commentsStoodOut) ? restored.commentsStoodOut : "");
-          setCommentsStoodOutDetails(String(restored.commentsStoodOutDetails || ""));
-          setAiGeneratedBelief(["yes", "no", "unsure"].includes(restored.aiGeneratedBelief) ? restored.aiGeneratedBelief : "");
-          setAiLikelihood(scaleValue(restored.aiLikelihood));
-          setDemographics(normalizeDemographics(restored.demographics));
-          setTimestamps(restored.timestamps);
-          timing.restore(restored.timings);
-          setPhase1Snapshot(restored.phase1Snapshot);
-          setPhase1LockedAt(restored.phase1LockedAt);
-          setPhase2Snapshot(restored.phase2Snapshot);
-          setPhase2LockedAt(restored.phase2LockedAt);
-          serverLocksRef.current = { phase1: restored.phase1LockedAt, phase2: restored.phase2LockedAt };
-          pendingStageRef.current = restored.pendingStage;
-          setPendingStage(restored.pendingStage);
-          pendingSubmissionRef.current = restored.pendingSubmission;
-          setPendingSubmission(restored.pendingSubmission);
-          if (restored.pendingStage) {
-            setStageSaveState("error");
-            setStageSaveError("Your answers were recovered. Reconnecting to confirm the saved stage; you can also select Retry save.");
+          const serverDraft = response.draftPayload;
+          const localDraft = readLocalDraft(participant);
+          const candidates = [serverDraft, localDraft]
+            .filter(
+              (draft) =>
+                draft &&
+                draft.assignmentId === response.assignmentId &&
+                RESTORABLE_SCREENS.has(draft.screen),
+            )
+            .sort(
+              (left, right) =>
+                new Date(right.savedAt || 0).getTime() -
+                new Date(left.savedAt || 0).getTime(),
+            );
+          const restored = candidates[0] || null;
+          if (restored) {
+            const scaleValue = (value) => {
+              const number = Number(value);
+              return Number.isInteger(number) && number >= 1 && number <= 7
+                ? number
+                : null;
+            };
+            const restoredAgreed = Boolean(restored.agreed);
+            const restoredComprehension =
+              restored.comprehension === CORRECT_COMPREHENSION
+                ? CORRECT_COMPREHENSION
+                : "";
+            let restoredScreen = restored.screen;
+            if (restoredScreen !== "overview" && !restoredAgreed) {
+              restoredScreen = "consent";
+            } else if (
+              !["overview", "consent", "instructions"].includes(restoredScreen) &&
+              restoredComprehension !== CORRECT_COMPREHENSION
+            ) {
+              restoredScreen = "instructions";
+            }
+            setAgreed(restoredAgreed);
+            setComprehension(restoredComprehension);
+            setAdvice(String(restored.advice || ""));
+            setDifficulty(scaleValue(restored.difficulty));
+            setEffort(scaleValue(restored.effort));
+            setConfidence(scaleValue(restored.confidence));
+            setPurposeGuess(String(restored.purposeGuess || ""));
+            setCommentsStoodOut(
+              ["yes", "no", "unsure"].includes(restored.commentsStoodOut)
+                ? restored.commentsStoodOut
+                : "",
+            );
+            setCommentsStoodOutDetails(
+              String(restored.commentsStoodOutDetails || ""),
+            );
+            setAiGeneratedBelief(
+              ["yes", "no", "unsure"].includes(restored.aiGeneratedBelief)
+                ? restored.aiGeneratedBelief
+                : "",
+            );
+            setAiLikelihood(scaleValue(restored.aiLikelihood));
+            setTimestamps(
+              restored.timestamps && typeof restored.timestamps === "object"
+                ? restored.timestamps
+                : {},
+            );
+            if (restored.pendingSubmission) {
+              setSubmissionState("submitting");
+              try {
+                const result = await supabaseRpcWithRetry(
+                  config,
+                  "submit_advice_transfer_payload",
+                  {
+                    p_assignment_id: response.assignmentId,
+                    p_payload: restored.pendingSubmission,
+                  },
+                  SUBMIT_RETRY_DELAYS_MS,
+                );
+                clearLocalDraft(participant);
+                setAssignment((current) => ({
+                  ...(current || nextAssignment),
+                  status: result.status || "submitted",
+                  submittedAt: result.submittedAt || nowIso(),
+                }));
+                setSubmissionState("submitted");
+                setDraftReady(true);
+                setScreen("debrief");
+                return;
+              } catch {
+                setSubmissionState("error");
+                setSubmissionError(
+                  "Your responses were recovered and remain saved. We are still reconnecting; please select Retry submission if the automatic retry does not finish.",
+                );
+                restoredScreen = "funnel-ai";
+              }
+            }
+            setScreen(restoredScreen);
+          } else {
+            setScreen("overview");
           }
-          if (restored.pendingSubmission) {
-            setSubmissionState("error");
-            setSubmissionError("Your responses were recovered. Reconnecting to confirm submission; you can also select Retry submission.");
-          }
-          setScreen(restored.screen);
           setDraftReady(true);
         }
       } catch (loadError) {
@@ -880,7 +789,7 @@ export default function AdviceTransferTask() {
           return;
         }
         if (result.active === false || result.status !== "claimed") {
-          recoverSessionRef.current();
+          recoverSession();
           return;
         }
         setAssignment((current) =>
@@ -919,15 +828,14 @@ export default function AdviceTransferTask() {
     if (!assignment || assignment.status !== "claimed") return undefined;
     const noteDeparture = (event) => {
       if (event?.persisted) return;
-      const departureDraft = freshDraft();
-      if (departureDraft) writeLocalDraft(assignment.participant, departureDraft);
+      if (draftPayload) writeLocalDraft(assignment.participant, draftPayload);
       supabaseRpcKeepalive(
         assignment.config,
         "mark_advice_transfer_departure",
         {
           p_assignment_id: assignment.assignmentId,
           p_prolific_pid: assignment.participant.prolificPid,
-          p_draft_payload: departureDraft,
+          p_draft_payload: draftPayload,
         },
       );
     };
@@ -955,19 +863,18 @@ export default function AdviceTransferTask() {
       return undefined;
     }
 
-    writeLocalDraft(assignment.participant, freshDraft());
+    writeLocalDraft(assignment.participant, draftPayload);
     let active = true;
     const timeoutId = window.setTimeout(async () => {
       setSaveState("saving");
       try {
-        const currentDraft = freshDraft();
         const result = await supabaseRpcWithRetry(
           assignment.config,
           "save_advice_transfer_draft",
           {
             p_assignment_id: assignment.assignmentId,
             p_prolific_pid: assignment.participant.prolificPid,
-            p_payload: currentDraft,
+            p_payload: draftPayload,
           },
           [0, 750, 1_500],
         );
@@ -992,7 +899,6 @@ export default function AdviceTransferTask() {
               }
             : current,
         );
-        applyServerSnapshots(result);
         setSaveState("saved");
       } catch {
         if (active) setSaveState("offline");
@@ -1008,8 +914,7 @@ export default function AdviceTransferTask() {
   const goTop = () => window.scrollTo({ top: 0, behavior: "auto" });
 
   const returnToScreen = (previousScreen) => {
-    if (saveInProgress || pendingStage || pendingSubmission || comprehensionSaving) return;
-    timing.pause();
+    if (submissionState === "submitting") return;
     setScreen(previousScreen);
     goTop();
   };
@@ -1028,8 +933,8 @@ export default function AdviceTransferTask() {
     const time = nowIso();
     setTimestamps((current) => ({
       ...current,
-      consentedAt: current.consentedAt || time,
-      instructionsOpenedAt: current.instructionsOpenedAt || time,
+      consentedAt: time,
+      instructionsOpenedAt: time,
     }));
     setScreen("instructions");
     goTop();
@@ -1064,15 +969,13 @@ export default function AdviceTransferTask() {
   };
 
   const handleComprehension = async (selectedOption) => {
-    if (!selectedOption || comprehensionSaving || phase1ReadOnly) return;
+    if (!selectedOption) return;
     if (selectedOption === CORRECT_COMPREHENSION) {
       setComprehension(selectedOption);
       setComprehensionError("");
-      setTimestamps((current) => ({ ...current, comprehensionPassedAt: current.comprehensionPassedAt || nowIso() }));
       return;
     }
 
-    setComprehensionSaving(true);
     setComprehension("");
     setComprehensionError("");
     try {
@@ -1108,17 +1011,9 @@ export default function AdviceTransferTask() {
       setComprehensionError(
         saveError instanceof Error
           ? saveError.message
-          : "The comprehension-check result could not be saved.",
+          : "The attention-check result could not be saved.",
       );
-    } finally {
-      setComprehensionSaving(false);
     }
-  };
-
-  const showPhase2Instructions = () => {
-    if (comprehension !== CORRECT_COMPREHENSION || comprehensionSaving) return;
-    setScreen("phase2-instructions");
-    goTop();
   };
 
   const beginExposure = () => {
@@ -1131,80 +1026,18 @@ export default function AdviceTransferTask() {
     goTop();
   };
 
-  const saveStage = async (intent) => {
-    if (!assignment || !intent || stageInFlight.current) return;
-    stageInFlight.current = true;
-    timing.pause();
-    pendingStageRef.current = intent;
-    setPendingStage(intent);
-    setStageSaveState("saving");
-    setStageSaveError("");
-    writeLocalDraft(assignment.participant, { ...freshDraft(), pendingStage: intent });
-    try {
-      const result = await supabaseRpcWithRetry(assignment.config, "save_advice_transfer_stage", {
-        p_assignment_id: assignment.assignmentId,
-        p_prolific_pid: assignment.participant.prolificPid,
-        p_stage: intent.stage,
-        p_payload: intent.payload,
-      });
-      if (!result.ok || !result.snapshot || !result.lockedAt) throw new Error("The saved stage could not yet be confirmed.");
-      applyServerSnapshots(result);
-      pendingStageRef.current = null;
-      setPendingStage(null);
-      setStageSaveState("idle");
-      setSaveState("saved");
-      const nextScreen = intent.stage === "phase1" ? "advice" : "funnel-purpose";
-      const nextTime = nowIso();
-      const nextTimestamps = { ...timestamps, ...result.snapshot.timings,
-        ...(intent.stage === "phase1"
-          ? { exposureCompletedAt: result.lockedAt, phase1LockedAt: result.lockedAt, targetOpenedAt: timestamps.targetOpenedAt || nextTime }
-          : { ratingsCompletedAt: result.lockedAt, phase2LockedAt: result.lockedAt, funnelPurposeOpenedAt: timestamps.funnelPurposeOpenedAt || nextTime }) };
-      setTimestamps(nextTimestamps);
-      // Persist the receipt immediately, before any navigation/refresh can occur.
-      writeLocalDraft(assignment.participant, { ...freshDraft(), ...result,
-        schemaVersion: SCHEMA_VERSION, screen: nextScreen, timestamps: nextTimestamps,
-        pendingStage: null, pendingSubmission: pendingSubmissionRef.current });
-      setScreen(nextScreen);
-      goTop();
-    } catch (saveError) {
-      setStageSaveState("error");
-      setStageSaveError(`Your answers are saved on this device. Please keep this page open and select Retry save to confirm them. ${saveError.message || ""}`.trim());
-    } finally {
-      stageInFlight.current = false;
-    }
-  };
-
   const continueToAdvice = () => {
-    if (pendingStageRef.current) { saveStage(pendingStageRef.current); return; }
-    if (phase1LockedAt) { returnToScreen("advice"); return; }
-    if (!phase1Complete(commentLabels, gistText, gistDifficulty)) return;
-    const activeTimings = timing.pause();
-    saveStage({ stage: "phase1", payload: {
-      schemaVersion: SCHEMA_VERSION,
-      commentJudgments: judgmentsFor(assignment, commentLabels),
-      gistText: gistText.trim(), gistDifficulty,
-      timings: { ...timestamps, exposureCompletedAt: nowIso(),
-        phase1ActiveTimeMs: activeTimings.phase1ActiveTimeMs,
-        gistActiveTimeMs: activeTimings.gistActiveTimeMs },
-    } });
-  };
-
-  const updateCommentLabel = (index, label) => {
-    if (phase1ReadOnly) return;
-    setCommentLabels((current) => current.map((value, position) => position === index ? label : value));
-    setTimestamps((current) => ({ ...current, firstClassificationAt: current.firstClassificationAt || nowIso(), lastClassificationAt: nowIso() }));
-  };
-
-  const updateGist = (event) => {
-    if (phase1ReadOnly) return;
-    const value = event.target.value;
-    setGistText(value);
     const time = nowIso();
-    setTimestamps((current) => ({ ...current, gistFirstInputAt: current.gistFirstInputAt || (value ? time : ""), gistLastEditAt: time }));
+    setTimestamps((current) => ({
+      ...current,
+      exposureCompletedAt: current.exposureCompletedAt || time,
+      targetOpenedAt: current.targetOpenedAt || time,
+    }));
+    setScreen("advice");
+    goTop();
   };
 
   const updateAdvice = (event) => {
-    if (phase2ReadOnly) return;
     const value = event.target.value;
     const time = nowIso();
     setAdvice(value);
@@ -1217,26 +1050,26 @@ export default function AdviceTransferTask() {
 
   const continueToRatings = () => {
     if (wordCount < MIN_ADVICE_WORDS) return;
-    timing.pause();
     const time = nowIso();
     setTimestamps((current) => ({
       ...current,
       adviceCompletedAt: time,
-      ratingsOpenedAt: current.ratingsOpenedAt || time,
+      ratingsOpenedAt: time,
     }));
     setScreen("ratings");
     goTop();
   };
 
   const continueToPurpose = () => {
-    if (pendingStageRef.current) { saveStage(pendingStageRef.current); return; }
-    if (phase2LockedAt) { returnToScreen("funnel-purpose"); return; }
-    if (!phase1LockedAt || !phase2Complete(advice, effort, confidence)) return;
-    const activeTimings = timing.pause();
-    saveStage({ stage: "phase2", payload: {
-      schemaVersion: SCHEMA_VERSION, adviceText: advice.trim(), effort, confidence,
-      timings: { ...timestamps, ratingsCompletedAt: nowIso(), adviceResponseTimeMs: activeTimings.adviceResponseTimeMs },
-    } });
+    if ([difficulty, effort, confidence].some((value) => value === null)) return;
+    const time = nowIso();
+    setTimestamps((current) => ({
+      ...current,
+      ratingsCompletedAt: time,
+      funnelPurposeOpenedAt: time,
+    }));
+    setScreen("funnel-purpose");
+    goTop();
   };
 
   const continueToNotice = () => {
@@ -1263,71 +1096,48 @@ export default function AdviceTransferTask() {
     goTop();
   };
 
-  const continueToDemographics = () => {
-    if (!aiGeneratedBelief || aiLikelihood === null || pendingSubmission) return;
-    const time = nowIso();
-    setTimestamps((current) => ({
-      ...current,
-      funnelAiCompletedAt: time,
-      demographicsOpenedAt: current.demographicsOpenedAt || time,
-    }));
-    setScreen("demographics");
-    goTop();
-  };
-
-  const updateDemographic = (key, value) => {
-    if (pendingSubmission) return;
-    setDemographics((current) => ({ ...current, [key]: value }));
-  };
-
   const submitStudy = async () => {
     if (
       !assignment ||
-      !phase1LockedAt || !phase2LockedAt ||
-      !phase1Complete(commentLabels, gistText, gistDifficulty) ||
-      !phase2Complete(advice, effort, confidence) ||
+      wordCount < MIN_ADVICE_WORDS ||
+      [difficulty, effort, confidence].some((value) => value === null) ||
       !purposeGuess.trim() ||
       !commentsStoodOut ||
       !aiGeneratedBelief ||
       aiLikelihood === null ||
-      !demographicsComplete(demographics) ||
-      finalInFlight.current
+      submissionState === "submitting"
     ) {
       return;
     }
-    finalInFlight.current = true;
-    timing.pause();
     setSubmissionState("submitting");
     setSubmissionError("");
     const submittedAt = nowIso();
-    const finalTimestamps = pendingSubmissionRef.current?.timings || {
+    const finalTimestamps = {
       ...timestamps,
-      ...phase1Snapshot.timings,
-      ...phase2Snapshot.timings,
-      phase1LockedAt,
-      phase2LockedAt,
-      demographicsCompletedAt: submittedAt,
+      funnelAiCompletedAt: submittedAt,
       clientSubmittedAt: submittedAt,
-      exposureTimeMs: phase1Snapshot.timings.phase1ActiveTimeMs,
-      phase1ActiveTimeMs: phase1Snapshot.timings.phase1ActiveTimeMs,
-      gistActiveTimeMs: phase1Snapshot.timings.gistActiveTimeMs,
-      adviceResponseTimeMs: phase2Snapshot.timings.adviceResponseTimeMs,
-      totalStudyTimeMs: elapsedMs(timestamps.studyStartedAt, submittedAt),
     };
+    finalTimestamps.exposureTimeMs = elapsedMs(
+      finalTimestamps.exposureOpenedAt,
+      finalTimestamps.exposureCompletedAt,
+    );
+    finalTimestamps.adviceResponseTimeMs = elapsedMs(
+      finalTimestamps.targetOpenedAt,
+      finalTimestamps.adviceCompletedAt,
+    );
+    finalTimestamps.totalStudyTimeMs = elapsedMs(
+      finalTimestamps.studyStartedAt,
+      submittedAt,
+    );
 
-    const payload = pendingSubmissionRef.current || {
+    const payload = {
       schemaVersion: SCHEMA_VERSION,
       assignmentId: assignment.assignmentId,
       participant: assignment.participant,
       adviceText: advice.trim(),
       adviceWordCount: wordCount,
       adviceCharacterCount: advice.trim().length,
-      difficulty: null,
-      commentJudgments: phase1Snapshot.commentJudgments,
-      gistText: phase1Snapshot.gistText,
-      gistDifficulty: phase1Snapshot.gistDifficulty,
-      phase1LockedAt,
-      phase2LockedAt,
+      difficulty,
       effort,
       confidence,
       purposeGuess: purposeGuess.trim(),
@@ -1335,7 +1145,6 @@ export default function AdviceTransferTask() {
       commentsStoodOutDetails: commentsStoodOutDetails.trim(),
       aiGeneratedBelief,
       aiLikelihood,
-      demographics: normalizeDemographics(demographics),
       timings: finalTimestamps,
       clientAudit: {
         pairNumber: assignment.pairNumber,
@@ -1355,13 +1164,11 @@ export default function AdviceTransferTask() {
       },
     };
 
-    pendingSubmissionRef.current = payload;
-    setPendingSubmission(payload);
     writeLocalDraft(assignment.participant, {
-      ...(freshDraft() || {}),
+      ...(draftPayload || {}),
       assignmentId: assignment.assignmentId,
       savedAt: submittedAt,
-      screen: "demographics",
+      screen: "funnel-ai",
       pendingSubmission: payload,
     });
 
@@ -1375,9 +1182,6 @@ export default function AdviceTransferTask() {
         },
         SUBMIT_RETRY_DELAYS_MS,
       );
-      if (!result.ok || result.status !== "submitted") throw new Error("Submission confirmation is incomplete. Please retry.");
-      pendingSubmissionRef.current = null;
-      setPendingSubmission(null);
       clearLocalDraft(assignment.participant);
       setTimestamps(finalTimestamps);
       setAssignment((current) => ({
@@ -1396,25 +1200,8 @@ export default function AdviceTransferTask() {
           submitError instanceof Error ? submitError.message : ""
         }`.trim(),
       );
-    } finally {
-      finalInFlight.current = false;
     }
   };
-
-  useEffect(() => {
-    if (!draftReady || stageSaveState !== "error" || !pendingStage || !assignment) return undefined;
-    const retry = () => {
-      if (navigator.onLine && document.visibilityState === "visible") saveStage(pendingStageRef.current);
-    };
-    const timeout = window.setTimeout(retry, 8_000);
-    window.addEventListener("online", retry);
-    document.addEventListener("visibilitychange", retry);
-    return () => {
-      window.clearTimeout(timeout);
-      window.removeEventListener("online", retry);
-      document.removeEventListener("visibilitychange", retry);
-    };
-  }, [draftReady, stageSaveState, pendingStage, assignment?.assignmentId]);
 
   useEffect(() => {
     if (submissionState !== "error" || !assignment) return undefined;
@@ -1433,8 +1220,6 @@ export default function AdviceTransferTask() {
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [submissionState, assignment?.assignmentId]);
-
-  if (screen === "legacy") return <LegacyAdviceTransferTask />;
 
   if (screen === "loading") {
     return (
@@ -1505,20 +1290,22 @@ export default function AdviceTransferTask() {
       <Page>
         <section className="source-panel source-intro-panel">
           <p className="source-eyebrow">Study overview</p>
-          <h2>Read an online discussion and give your opinion</h2>
+          <h2>Read an online discussion and give thoughtful advice</h2>
           <p className="source-intro-copy">
-            In this task, you will read a public online post from the social media
-            platform Reddit. These posts come from a Reddit group where people post
-            about a social dilemma they are facing, and ask for people’s opinions.
-            You will read the post and you will also see comments that offer
-            opinions. Then, you will also offer your own opinion to similar dilemmas.
+            You will first read one public online post and five comments. You
+            will then read a related but different post written by another
+            Reddit user and write the advice you would give that user.
           </p>
-          <div className="source-overview-grid transfer-overview-time">
+          <div className="source-overview-grid">
             <div><span>Estimated time</span><strong>About 10–12 minutes</strong></div>
+            <div><span>Writing task</span><strong>At least {MIN_ADVICE_WORDS} English words</strong></div>
+            <div><span>Study material</span><strong>Reddit posts and comments</strong></div>
+            <div><span>Important</span><strong>Complete the study in one sitting</strong></div>
           </div>
           <div className="source-intro-action">
             <div>
               <h3>Ready to review the consent form?</h3>
+              <p>Your assigned material will remain the same if this page is refreshed.</p>
             </div>
             <PrimaryButton onClick={beginConsent}>Review consent</PrimaryButton>
           </div>
@@ -1542,7 +1329,6 @@ export default function AdviceTransferTask() {
               <input
                 type="checkbox"
                 checked={agreed}
-                disabled={phase1ReadOnly}
                 onChange={(event) => setAgreed(event.target.checked)}
               />
               <span>
@@ -1551,7 +1337,7 @@ export default function AdviceTransferTask() {
               </span>
             </label>
             <div className="source-button-row">
-              {!phase1LockedAt && <SecondaryButton onClick={declineConsent}>I Disagree</SecondaryButton>}
+              <SecondaryButton onClick={declineConsent}>I Disagree</SecondaryButton>
               <SecondaryButton onClick={() => returnToScreen("overview")}>Back</SecondaryButton>
               <PrimaryButton disabled={!agreed} onClick={acceptConsent}>I Agree</PrimaryButton>
             </div>
@@ -1577,24 +1363,26 @@ export default function AdviceTransferTask() {
     return (
       <Page>
         <section className="source-panel source-intro-panel">
-          <p className="source-eyebrow">Phase 1 instructions</p>
+          <p className="source-eyebrow">Instructions and attention check</p>
           <h2>Please read these instructions carefully</h2>
           <div className="source-instructions-copy transfer-instructions">
             <p>
-              This survey has two phases. In Phase 1, you will read a Reddit post
-              describing a dilemma, and asking for opinions from others. You will
-              also see five comments responding to the dilemma.
-            </p>
-            <p>
-              We will then ask you to choose the label that each commenter expresses,
-              following the conventions of the Reddit group called “Am I the Asshole”
-              (see blue box below).
+              First, read one online discussion post and all five anonymous
+              comments responding to it. Next, you will see a <strong>related but
+              different</strong> post written by another Reddit user. The earlier
+              post and comments will no longer be visible, and you cannot return
+              to them. Write the advice you would genuinely give that Reddit user in
+              at least {MIN_ADVICE_WORDS} English words. Afterwards, answer brief questions about
+              your experience and your impressions of the study. Back buttons are
+              available for reviewing earlier responses, except across this
+              discussion-to-advice boundary.
             </p>
             <div className="transfer-community-guidance">
               <h3>r/AmItheAsshole community guidance</h3>
+              <p>{AITA_RESPONSE_GUIDANCE}</p>
               <p>
-                <strong>AITA</strong> means “Am I the Asshole?” The judgment labels used
-                in this community are:
+                <strong>AITA</strong> means “Am I the Asshole?” Begin your advice
+                response with exactly one of the following judgment labels:
               </p>
               <ul>
                 <li><strong>YTA — You're the Asshole:</strong> the poster is in the wrong, and the other party is not.</li>
@@ -1605,23 +1393,12 @@ export default function AdviceTransferTask() {
               </ul>
             </div>
             <p>
-              For each of the 5 comments you see, you will read the full comment and
-              then classify the conclusion stated in it, using the categories above in
-              the blue box. The leading judgment label has been removed from each
-              displayed comment. For example, “YTA” will not appear at the beginning,
-              so choose the category that best matches the commenter’s overall
-              conclusion. If a comment is nuanced or discusses more than one possible
-              judgment, classify its final or main conclusion.
-            </p>
-            <p>Please classify each comment carefully based on the conclusion expressed by the commenter.</p>
-            <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>
-            <p>
               Copying, pasting, dragging, and the context menu are disabled. Please
               complete the task on your own without external tools.
             </p>
           </div>
-          <label className="source-check-label transfer-phase1-check-label" htmlFor="transfer-check">
-            Which option describes what you will do in Phase 1?
+          <label className="source-check-label" htmlFor="transfer-check">
+            Which option best describes what you will do?
           </label>
           <p className="source-check-copy">
             An incorrect answer may be retried once. Two incorrect answers end this session.
@@ -1630,46 +1407,20 @@ export default function AdviceTransferTask() {
             id="transfer-check"
             className="source-check-select"
             value={comprehension}
-            disabled={comprehensionSaving || phase1ReadOnly}
             onChange={(event) => handleComprehension(event.target.value)}
           >
             <option value="">Select one answer</option>
-            <option value="youtube-opinions">I will read Youtube comments and rate the opinions of these users and provide a summary</option>
-            <option value={CORRECT_COMPREHENSION}>I will read Reddit comments about dilemmas, label opinions and summarize them</option>
-            <option value="youtube-images">I will read Youtube comments and decide which images are depicted in them most frequently</option>
-            <option value="reddit-memes">I will read Reddit comments about memes that are going viral and decide which ones are offensive.</option>
+            <option value="classify-comments">Classify each comment by its political viewpoint</option>
+            <option value={CORRECT_COMPREHENSION}>Read a post and comments, then give a judgment label and advice on a related but different post</option>
+            <option value="copy-comments">Copy one of the comments as the advice response</option>
           </select>
           <p className="source-attempt-note">Incorrect answers recorded: {comprehensionAttempts} of 2</p>
           {comprehensionError && <p className="source-inline-error">{comprehensionError}</p>}
           <div className="transfer-action-row">
-            <SecondaryButton disabled={comprehensionSaving} onClick={() => returnToScreen("consent")}>Back to consent</SecondaryButton>
-            <PrimaryButton disabled={comprehension !== CORRECT_COMPREHENSION || comprehensionSaving} onClick={showPhase2Instructions}>
-              Next
+            <SecondaryButton onClick={() => returnToScreen("consent")}>Back to consent</SecondaryButton>
+            <PrimaryButton disabled={comprehension !== CORRECT_COMPREHENSION} onClick={beginExposure}>
+              Begin Part 1
             </PrimaryButton>
-          </div>
-        </section>
-      </Page>
-    );
-  }
-
-  if (screen === "phase2-instructions") {
-    return (
-      <Page>
-        <section className="source-panel source-intro-panel">
-          <p className="source-eyebrow">Phase 2 instructions</p>
-          <h2>Provide your opinion</h2>
-          <div className="source-instructions-copy transfer-instructions">
-            <p>
-              For Phase 2, you will see another dilemma posted by a Reddit user.
-              For this one, you will give your opinion as if you were commenting
-              on the social media platform. You will be able to see the comments
-              from the first dilemma in case the dilemma is similar and the
-              opinions are relevant.
-            </p>
-          </div>
-          <div className="transfer-action-row">
-            <SecondaryButton onClick={() => returnToScreen("instructions")}>Back to Phase 1 instructions</SecondaryButton>
-            <PrimaryButton onClick={beginExposure}>Press next to begin Phase 1</PrimaryButton>
           </div>
         </section>
       </Page>
@@ -1696,53 +1447,37 @@ export default function AdviceTransferTask() {
       <Page wide>
         <div className="source-task-heading transfer-task-heading">
           <div>
-            <p className="source-eyebrow">Phase 1</p>
+            <p className="source-eyebrow">Part 1 of 4</p>
             <h2>Read the discussion</h2>
           </div>
           <span>Read the post and all five comments at your own pace.</span>
         </div>
-        {phase1LockedAt && <LockedNotice>Your Phase 1 answers have been saved and are read-only. You may review them here.</LockedNotice>}
         <div className="source-stimulus-grid transfer-exposure-grid">
           <PostPanel eyebrow="Online discussion post" post={assignment.exposurePost} />
           <section className="source-panel source-comments-panel">
             <div className="source-comments-heading">
               <div>
+                <p className="source-eyebrow">Anonymous responses</p>
                 <h3>Comments on this post</h3>
               </div>
               <span>5 comments</span>
             </div>
-            <p className="source-comments-instruction">Please read every comment and choose the label it expresses.</p>
-            <CommentFeed assignment={assignment} labels={commentLabels} onLabel={updateCommentLabel} disabled={phase1ReadOnly} />
+            <p className="source-comments-instruction">Please read every comment before continuing.</p>
+            <div className="source-comment-feed">
+              {assignment.comments.map((comment, index) => (
+                <article className="source-comment-card" key={assignment.commentHashes[index]}>
+                  <div><span>{index + 1}</span></div>
+                  <p>{comment}</p>
+                </article>
+              ))}
+            </div>
           </section>
         </div>
-        <section className="source-panel transfer-gist-panel source-rating-panel"
-          onFocus={() => {
-            if (!phase1ReadOnly) {
-              setGistFocused(true);
-              setTimestamps((current) => ({ ...current, gistOpenedAt: current.gistOpenedAt || nowIso() }));
-            }
-          }}
-          onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setGistFocused(false); }}>
-          <label className="transfer-gist-label" htmlFor="comments-gist">Please provide, in your own words, a summary that captures the ‘gist’ of all the comments you read above.</label>
-          <textarea id="comments-gist" className="transfer-textarea" value={gistText}
-            readOnly={phase1ReadOnly} onChange={updateGist} placeholder="Write your summary here…"
-            aria-describedby="gist-word-count" />
-          <div id="gist-word-count" className={`transfer-word-count ${gistWordCount >= MIN_GIST_WORDS ? "complete" : ""}`}>
-            <strong>{gistWordCount}</strong> / {MIN_GIST_WORDS} words minimum
-          </div>
-          <ScaleQuestion legend="How difficult was it to come up with the gist of all the comments?"
-            value={gistDifficulty} onChange={setGistDifficulty} disabled={phase1ReadOnly}
-            low="not at all difficult" middle="somewhat difficult" high="very difficult" />
-          <SaveStatus state={saveState} />
-        </section>
-        {stageSaveError && <p className="source-submission-error" role="alert">{stageSaveError}</p>}
         <div className="source-submit-row transfer-submit-row">
-          <p>{phase1LockedAt ? "Your saved Phase 1 answers cannot be changed." : "When you continue, your Phase 1 answers will be saved and locked. The comments will remain available in Phase 2."}</p>
+          <p>You may return to the instructions now. After continuing to the second post, this discussion will no longer be available.</p>
           <div className="transfer-action-row transfer-inline-actions">
-            <SecondaryButton disabled={Boolean(pendingStage)} onClick={() => returnToScreen("phase2-instructions")}>Back to instructions</SecondaryButton>
-            <PrimaryButton disabled={stageSaveState === "saving" || !phase1Complete(commentLabels, gistText, gistDifficulty)} onClick={continueToAdvice}>
-              {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue to the second Reddit post"}
-            </PrimaryButton>
+            <SecondaryButton onClick={() => returnToScreen("instructions")}>Back to instructions</SecondaryButton>
+            <PrimaryButton onClick={continueToAdvice}>Continue to the second Reddit post</PrimaryButton>
           </div>
         </div>
       </Page>
@@ -1754,30 +1489,28 @@ export default function AdviceTransferTask() {
       <Page wide>
         <div className="source-task-heading transfer-task-heading">
           <div>
-            <p className="source-eyebrow">Phase 2</p>
-            <h2>Provide your opinion</h2>
+            <p className="source-eyebrow">Part 2 of 4</p>
+            <h2>Advise another Reddit user</h2>
           </div>
+          <span>The earlier discussion is no longer available.</span>
         </div>
-        {phase2LockedAt && <LockedNotice>Your opinion and post-task ratings have been saved and are read-only.</LockedNotice>}
         <div className="transfer-advice-grid">
-          <div className="transfer-reference-column">
-            <PostPanel eyebrow="The second Reddit post" post={assignment.targetPost} adviceTarget />
-            <section className="source-panel source-comments-panel transfer-previous-comments">
-              <h3>Here are the comments for the previous post in case they are useful for this post</h3>
-              <CommentFeed assignment={assignment} />
-            </section>
-          </div>
+          <PostPanel eyebrow="The second Reddit post" post={assignment.targetPost} adviceTarget />
           <section className="source-panel transfer-response-panel">
-            <label className="transfer-response-label" htmlFor="opinion-response">Your response</label>
+            <p className="source-eyebrow">Your response</p>
+            <h3>What advice would you give this Reddit user?</h3>
+            <p>
+              First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then
+              write what you genuinely think this Reddit user should do and explain
+              your reasoning. Your response must contain at least {MIN_ADVICE_WORDS} English words.
+            </p>
             <textarea
-              id="opinion-response"
               className="transfer-textarea transfer-advice-textarea"
               value={advice}
-              readOnly={phase2ReadOnly}
               onChange={updateAdvice}
               onPaste={(event) => event.preventDefault()}
               onDrop={(event) => event.preventDefault()}
-              placeholder="Begin with YTA, NTA, ESH, NAH, or INFO, then write your opinion…"
+              placeholder="Begin with YTA, NTA, ESH, NAH, or INFO, then write your advice…"
               aria-describedby="advice-word-count"
             />
             <div
@@ -1788,7 +1521,6 @@ export default function AdviceTransferTask() {
             </div>
             <SaveStatus state={saveState} />
             <div className="transfer-action-row">
-              <SecondaryButton onClick={() => returnToScreen("exposure")}>Back to Phase 1</SecondaryButton>
               <PrimaryButton disabled={wordCount < MIN_ADVICE_WORDS} onClick={continueToRatings}>
                 Continue
               </PrimaryButton>
@@ -1803,37 +1535,40 @@ export default function AdviceTransferTask() {
     return (
       <Page>
         <section className="source-panel source-rating-panel transfer-ratings-panel">
-          <p className="source-eyebrow">After Phase 2</p>
-          <h2>Post-task survey</h2>
-          <p className="transfer-section-copy">Please answer both questions.</p>
-          {phase2LockedAt && <LockedNotice>Your opinion and ratings have been saved and are read-only.</LockedNotice>}
+          <p className="source-eyebrow">Part 3 of 4</p>
+          <h2>How did the advice task feel?</h2>
+          <p className="transfer-section-copy">Please answer all three questions.</p>
+          <ScaleQuestion
+            legend="How difficult was it to decide what advice to give?"
+            value={difficulty}
+            onChange={setDifficulty}
+            low="Not at all difficult"
+            middle="Moderately difficult"
+            high="Extremely difficult"
+          />
           <ScaleQuestion
             legend="How effortful was it to decide what to say?"
             value={effort}
             onChange={setEffort}
-            disabled={phase2ReadOnly}
             low="Not at all effortful"
             middle="Moderately effortful"
             high="Extremely effortful"
           />
           <ScaleQuestion
-            legend="How confident are you that the opinion you gave was right?"
+            legend="How confident are you that the advice you gave was right?"
             value={confidence}
             onChange={setConfidence}
-            disabled={phase2ReadOnly}
             low="Not at all confident"
             middle="Moderately confident"
             high="Extremely confident"
           />
-          <SaveStatus state={saveState} />
-          {stageSaveError && <p className="source-submission-error" role="alert">{stageSaveError}</p>}
           <div className="transfer-action-row">
-            <SecondaryButton disabled={Boolean(pendingStage)} onClick={() => returnToScreen("advice")}>Back to your opinion</SecondaryButton>
+            <SecondaryButton onClick={() => returnToScreen("advice")}>Back to advice</SecondaryButton>
             <PrimaryButton
-              disabled={stageSaveState === "saving" || !phase2Complete(advice, effort, confidence)}
+              disabled={[difficulty, effort, confidence].some((value) => value === null)}
               onClick={continueToPurpose}
             >
-              {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue"}
+              Continue
             </PrimaryButton>
           </div>
         </section>
@@ -1845,12 +1580,11 @@ export default function AdviceTransferTask() {
     return (
       <Page>
         <section className="source-panel transfer-question-panel">
-          <p className="source-eyebrow">Part 4 of 5 · Question 1 of 3</p>
+          <p className="source-eyebrow">Part 4 of 4 · Question 1 of 3</p>
           <h2>In your own words, what do you think this study was about?</h2>
           <textarea
             className="transfer-textarea"
             value={purposeGuess}
-            readOnly={Boolean(pendingSubmission)}
             onChange={(event) => setPurposeGuess(event.target.value)}
             onPaste={(event) => event.preventDefault()}
             placeholder="Enter your answer…"
@@ -1868,9 +1602,9 @@ export default function AdviceTransferTask() {
     return (
       <Page>
         <section className="source-panel transfer-question-panel">
-          <p className="source-eyebrow">Part 4 of 5 · Question 2 of 3</p>
+          <p className="source-eyebrow">Part 4 of 4 · Question 2 of 3</p>
           <h2>Did you notice anything unusual or noteworthy about the comments or where they may have come from?</h2>
-          <ThreeWayChoice name="comments-stood-out" value={commentsStoodOut} onChange={setCommentsStoodOut} disabled={Boolean(pendingSubmission)} />
+          <ThreeWayChoice name="comments-stood-out" value={commentsStoodOut} onChange={setCommentsStoodOut} />
           <label className="transfer-optional-label" htmlFor="stood-out-details">
             If you would like, please explain. <span>Optional</span>
           </label>
@@ -1878,7 +1612,6 @@ export default function AdviceTransferTask() {
             id="stood-out-details"
             className="transfer-textarea transfer-small-textarea"
             value={commentsStoodOutDetails}
-            readOnly={Boolean(pendingSubmission)}
             onChange={(event) => setCommentsStoodOutDetails(event.target.value)}
             onPaste={(event) => event.preventDefault()}
             placeholder="Optional explanation…"
@@ -1896,106 +1629,25 @@ export default function AdviceTransferTask() {
     return (
       <Page>
         <section className="source-panel transfer-question-panel">
-          <p className="source-eyebrow">Part 4 of 5 · Question 3 of 3</p>
+          <p className="source-eyebrow">Part 4 of 4 · Question 3 of 3</p>
           <h2>Do you think the comments you read may have been generated by artificial intelligence?</h2>
-          <ThreeWayChoice name="ai-generated-belief" value={aiGeneratedBelief} onChange={setAiGeneratedBelief} disabled={Boolean(pendingSubmission)} />
+          <ThreeWayChoice name="ai-generated-belief" value={aiGeneratedBelief} onChange={setAiGeneratedBelief} />
           <div className="transfer-likelihood-block">
             <ScaleQuestion
               legend="How likely is it that the comments were generated by artificial intelligence (e.g. ChatGPT)?"
               value={aiLikelihood}
               onChange={setAiLikelihood}
-              disabled={Boolean(pendingSubmission)}
               low="Not at all likely"
               middle="Somewhat likely"
               high="Very likely"
             />
           </div>
           <SaveStatus state={saveState} />
+          {submissionError && <p className="source-submission-error">{submissionError}</p>}
           <div className="transfer-action-row">
             <SecondaryButton onClick={() => returnToScreen("funnel-notice")}>Back to previous question</SecondaryButton>
             <PrimaryButton
-              disabled={!aiGeneratedBelief || aiLikelihood === null}
-              onClick={continueToDemographics}
-            >
-              Continue
-            </PrimaryButton>
-          </div>
-        </section>
-      </Page>
-    );
-  }
-
-  if (screen === "demographics") {
-    const demographicsLocked = Boolean(pendingSubmission);
-    return (
-      <Page>
-        <section className="source-panel transfer-question-panel transfer-demographics-panel">
-          <p className="source-eyebrow">Part 5 of 5</p>
-          <h2>About you</h2>
-          <p className="transfer-section-copy">
-            To complete the task, please answer a few questions about yourself.
-          </p>
-
-          <DemographicChoice
-            legend="With which gender identity do you mostly identify?"
-            name="gender-identity"
-            options={DEMOGRAPHIC_OPTIONS.genderIdentity}
-            value={demographics.genderIdentity}
-            onChange={(value) => updateDemographic("genderIdentity", value)}
-            disabled={demographicsLocked}
-          />
-
-          <div className="transfer-demographic-fieldset transfer-age-field">
-            <label htmlFor="participant-age">What is your age?</label>
-            <input
-              id="participant-age"
-              type="number"
-              min="18"
-              max="120"
-              step="1"
-              inputMode="numeric"
-              value={demographics.ageYears ?? ""}
-              readOnly={demographicsLocked}
-              onChange={(event) => updateDemographic(
-                "ageYears",
-                event.target.value === "" ? null : Number(event.target.value),
-              )}
-            />
-          </div>
-
-          <DemographicChoice
-            legend="Is English your first language?"
-            name="english-proficiency"
-            options={DEMOGRAPHIC_OPTIONS.englishProficiency}
-            value={demographics.englishProficiency}
-            onChange={(value) => updateDemographic("englishProficiency", value)}
-            disabled={demographicsLocked}
-          />
-
-          <DemographicChoice
-            legend="Please indicate your education level"
-            name="education-level"
-            options={DEMOGRAPHIC_OPTIONS.educationLevel}
-            value={demographics.educationLevel}
-            onChange={(value) => updateDemographic("educationLevel", value)}
-            disabled={demographicsLocked}
-          />
-
-          <DemographicChoice
-            legend="Are you currently...?"
-            name="employment-status"
-            options={DEMOGRAPHIC_OPTIONS.employmentStatus}
-            value={demographics.employmentStatus}
-            onChange={(value) => updateDemographic("employmentStatus", value)}
-            disabled={demographicsLocked}
-          />
-
-          <SaveStatus state={saveState} />
-          {submissionError && <p className="source-submission-error">{submissionError}</p>}
-          <div className="transfer-action-row">
-            <SecondaryButton disabled={demographicsLocked} onClick={() => returnToScreen("funnel-ai")}>Back to previous question</SecondaryButton>
-            <PrimaryButton
-              disabled={!demographicsComplete(demographics) || submissionState === "submitting"}
+              disabled={!aiGeneratedBelief || aiLikelihood === null || submissionState === "submitting"}
               onClick={submitStudy}
             >
               {submissionState === "submitting"
@@ -2060,7 +1712,6 @@ export default function AdviceTransferTask() {
             ? "This participant ID already submitted a response. No duplicate response was created."
             : "Your saved response has been confirmed."}
         </p>
-        <SecondaryButton onClick={() => { setScreen("debrief"); goTop(); }}>Review debrief</SecondaryButton>
         {assignment?.isTest ? (
           <p className="source-completion-meta">
             This was a test session and does not occupy a formal study slot.

@@ -15,7 +15,7 @@ separate pages.
 - `/judgment/`: single-post response task
 - `/ratings/`: multi-post rating task
 - `/comment-source/`: two-post, same-source comment-likelihood task
-- `/advice-transfer/`: Study 2 A-to-B moral-advice transfer task
+- `/advice-transfer/`: Study 2 online-opinion task
 
 Use separate crowdsourcing studies or separate study links for these pages.
 
@@ -69,9 +69,73 @@ https://baron-sun.github.io/online-research-study/comment-source/?PROLIFIC_PID=t
 
 The formal Study 2 task crosses 10 active A/B dilemma pairs with two masked
 comment-source conditions. A participant reads dilemma A and five Human or five
-AI comments, then writes advice to the Reddit user who posted the related but
-different dilemma B. The
-three reserve pairs remain inactive.
+AI comments, classifies each comment's expressed judgment, summarizes their
+gist, and rates the difficulty of producing that summary. The participant then
+reads related-but-different dilemma B and writes an opinion, with the same five
+earlier comments visible for reference. The three reserve pairs remain inactive.
+
+### V4 gist protocol (test release, 28 August 2026)
+
+The participant-facing and future Prolific public title is **Study About Online
+Opinions**. This release implements the approved feedback in
+[New test web app](https://docs.google.com/document/d/1APA6y4UeF6fuxf6puTN89CuRT14kzaNXft3jfGQrciQ/edit).
+It preserves the selected stimuli, source conditions, random comment order,
+and quota/standby assignment policy. Because earlier comments remain visible
+while responding to B, this protocol must not be described as fully excluding
+direct reference or imitation. No stimulus reselection is part of this update.
+
+Flow: overview → consent → Phase 1 instructions and two-attempt comprehension
+question → Phase 2 instructions → A/comment classifications/gist/gist difficulty
+→ B opinion with prior comments → effort and confidence → the existing
+three-step funnel → five core demographic questions → saved confirmation and
+debrief.
+
+Five YTA/NTA/ESH/NAH/INFO classifications are required. They are stored as
+participant responses, **not scored as right/wrong**, and do not affect the
+comprehension failure count, screening, or payment decisions. Gist requires at
+least 25 English words. `gistDifficulty` is a new measure;
+the old advice-decision `difficulty` is NULL for v4, never reused for gist.
+
+`claim_advice_transfer_assignment_v4` uses the same allocator/advisory lock as
+the original six-argument claim RPC. New assignments are stamped
+`advice-transfer-v4-gist`; existing assignments retain their original protocol
+and use the preserved legacy frontend, including unfinished drafts and final
+submission retries. Local v4 backups use a separate storage namespace.
+
+`save_advice_transfer_stage` atomically records immutable `phase1` and `phase2`
+snapshots. Phase 1 locks before B is shown; Phase 2 (opinion plus effort and
+confidence) locks before purpose/source guesses. Back remains available for
+read-only review. Retry returns the original stored snapshot and lock time,
+even if its first acknowledgement was lost. Drafts, departure saves, and final
+submissions cannot overwrite committed answers. Pending stage/final requests
+remain in the local backup while autosave continues.
+
+Timing definitions: `phase1ActiveTimeMs` accumulates while the editable A page
+is visible. `gistActiveTimeMs` is the subset during which focus is inside the
+gist text/rating panel; it is **not** a measure of unobserved thinking before
+focus. `adviceResponseTimeMs` accumulates only on the editable B page. Hidden
+tabs, other pages, and read-only visits after a lock do not add to these
+durations. First-entry/edit timestamps and server lock times are also retained.
+The total session duration includes time outside the task pages.
+
+For an existing database, apply `supabase_advice_transfer_v4_gist_migration.sql`
+before publishing the frontend. It does not seed/reset data or change
+recruitment/targets. Heartbeat and departure now acquire the existing shared
+advisory lock before row locks, consistent with claim/submit, avoiding a
+previous lock-order inversion without changing allocation policy.
+
+`tests/advice-transfer-v4-integration.sql` tests validation, immutable stages,
+stale drafts, legacy compatibility and idempotency using QA IDs inside a
+rollback-only transaction. The legacy lifecycle test remains separate.
+
+This is a **test release, not authorization to open recruitment**. Keep formal
+recruitment closed and retain the provisional 10–12 minute estimate. The five
+core demographic questions were copied from the first page of Felix's
+Qualtrics `Demos` block and appear after the funnel: gender identity, age,
+English-language status, education, and employment. The later political and
+social-media batteries in that block are intentionally not treated as
+demographics. Confirm duration, consent, compensation and the Prolific
+completion code before formal launch.
 
 The open-ended response requires at least 77 English words. This threshold is
 the rounded mean of the 3,846 words across the 50 Human exposure comments in

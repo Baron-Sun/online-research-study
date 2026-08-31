@@ -12,6 +12,7 @@
 !supabase_setup.sql
 !supabase_advice_setup.sql
 !supabase_advice_transfer_setup.sql
+!supabase_advice_transfer_v4_gist_migration.sql
 !supabase_advice_transfer_seed.sql
 !supabase_source_detection_formal.sql
 !scripts/
@@ -33,6 +34,11 @@
 !src/source-detection.css
 !src/source-consent.js
 !src/AdviceTransferTask.jsx
+!src/LegacyAdviceTransferTask.jsx
+!src/advice-transfer-legacy-consent.js
+!src/advice-transfer-protocol.mjs
+!src/advice-transfer-review-entry.mjs
+!src/useAdviceTransferTiming.js
 !src/advice-transfer.jsx
 !src/advice-transfer.css
 !src/advice-transfer-consent.js
@@ -50,6 +56,10 @@
 !tests/comment-source.test.mjs
 !tests/advice-transfer.test.mjs
 !tests/advice-transfer-integration.sql
+!tests/advice-transfer-v4.test.mjs
+!tests/advice-transfer-v4-integration.sql
+!tests/advice-transfer-demographics-backend.test.mjs
+!tests/advice-transfer-review-entry.test.mjs
 
 node_modules/
 dist/

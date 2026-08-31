@@ -96,7 +96,7 @@ begin
       'studyId', 'integration-v3',
       'sessionId', 's00'
     ),
-    'adviceText', repeat('thoughtful advice word ', 25),
+    'adviceText', repeat('thoughtful advice word ', 26),
     'difficulty', 4,
     'effort', 4,
     'confidence', 4,

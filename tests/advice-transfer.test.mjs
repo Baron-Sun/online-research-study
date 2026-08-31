@@ -1,9 +1,24 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { ADVICE_TRANSFER_CONSENT_TEXT } from "../src/advice-transfer-consent.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
+
+test("consent preserves the original full form with only two duration substitutions", () => {
+  assert.match(ADVICE_TRANSFER_CONSENT_TEXT, /around 10–12 minutes/);
+  assert.match(ADVICE_TRANSFER_CONSENT_TEXT, /this 10–12-minute study/);
+  const original = ADVICE_TRANSFER_CONSENT_TEXT
+    .replace("around 10–12 minutes", "around 8 minutes")
+    .replace("this 10–12-minute study", "this 8-minute study");
+  // Exact UTF-8 text from f91dd45:src/App.jsx, not a rewritten/normalized copy.
+  assert.equal(
+    createHash("sha256").update(original).digest("hex"),
+    "f17e3fb9d3ec032d4966bb8532d66ffa76a4438073e24e21ceed6e8df8c207b3",
+  );
+});
 
 test("registers an isolated advice-transfer route without replacing existing studies", async () => {
   const [vite, page, entry] = await Promise.all([
@@ -21,7 +36,7 @@ test("registers an isolated advice-transfer route without replacing existing stu
   ]) {
     assert.match(vite, new RegExp(route.replace(".", "\\.")));
   }
-  assert.match(page, /<title>Online Research Study<\/title>/);
+  assert.match(page, /<title>Study About Online Opinions<\/title>/);
   assert.match(page, /\/src\/advice-transfer\.jsx/);
   assert.match(entry, /AdviceTransferTask/);
 });
@@ -35,11 +50,10 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   assert.match(client, /value\.comments\.length !== 5/);
   assert.match(client, /value\.exposurePost\.postId === value\.targetPost\.postId/);
   assert.match(client, /Object\.prototype\.hasOwnProperty\.call\(value, "condition"\)/);
-  assert.match(client, /related but\s*\n?\s*different/);
-  assert.match(client, /Imagine you are commenting on this post in Reddit’s r\/AmItheAsshole community/);
+  assert.match(client, /Imagine you are commenting on this post in the online platform/);
   assert.doesNotMatch(client, /respond as you normally would/i);
   assert.match(client, /First, give one judgment label: YTA, NTA, ESH, NAH, or INFO/);
-  assert.match(client, /Begin your advice\s*\n?\s*response with exactly one/);
+  assert.match(client, /Then write your opinion/);
   for (const label of ["YTA", "NTA", "ESH", "NAH", "INFO"]) {
     assert.match(client, new RegExp(`${label} —`));
   }
@@ -49,7 +63,7 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
     ">Back<",
     "Back to consent",
     "Back to instructions",
-    "Back to advice",
+    "Back to your opinion",
     "Back to ratings",
     "Back to previous question",
   ]) {
@@ -57,20 +71,25 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   }
   assert.match(client, /studyStartedAt: current\.studyStartedAt \|\| time/);
   assert.match(client, /The second Reddit post/);
-  assert.match(client, /The earlier discussion is no longer available/);
+  assert.match(client, /Here are the comments for the previous post in case they are useful for this post/);
+  assert.match(client, />Press next to begin Phase 1<\/PrimaryButton>/);
+  assert.doesNotMatch(client, />Press next to begin Phase 1\.<\/PrimaryButton>/);
+  assert.doesNotMatch(client, /The earlier discussion is no longer available|constructive advice/);
+  assert.match(client, /LegacyAdviceTransferTask/);
   assert.doesNotMatch(client, /modelLabel|deepseek_v3|gpt_oss_120b|glm_4_6_direct/);
 });
 
-test("the client enforces two-strike screening, clipboard blocking and the 77-word minimum", async () => {
-  const [client, css, baseCss, consent] = await Promise.all([
+test("the client enforces two-strike screening, clipboard blocking, and both word minima", async () => {
+  const [client, css, baseCss, consent, protocol] = await Promise.all([
     read("src/AdviceTransferTask.jsx"),
     read("src/advice-transfer.css"),
     read("src/source-detection.css"),
     read("src/advice-transfer-consent.js"),
+    read("src/advice-transfer-protocol.mjs"),
   ]);
 
-  assert.match(consent, /about 10–12 minutes/);
-  assert.match(consent, /does not promise a fixed payment/);
+  assert.match(consent, /around 10–12 minutes/);
+  assert.match(consent, /participation in this 10–12-minute study/);
   assert.match(client, /failures >= 2/);
   assert.match(client, /same participant ID cannot restart/i);
   for (const eventName of ["copy", "cut", "paste", "drop", "dragstart", "contextmenu"]) {
@@ -78,9 +97,12 @@ test("the client enforces two-strike screening, clipboard blocking and the 77-wo
   }
   assert.match(baseCss, /user-select: none/);
   assert.match(css, /user-select: text/);
-  assert.match(client, /MIN_ADVICE_WORDS = 77/);
+  assert.match(protocol, /MIN_ADVICE_WORDS = 77/);
+  assert.match(protocol, /MIN_GIST_WORDS = 25/);
+  assert.match(client, /<strong>\{gistWordCount\}<\/strong> \/ \{MIN_GIST_WORDS\} words minimum/);
   assert.match(client, /wordCount < MIN_ADVICE_WORDS/);
-  assert.match(client, /\[A-Za-z0-9\]\+\(\?:\['-\]\[A-Za-z0-9\]\+\)\*/);
+  assert.match(client, /gistWordCount >= MIN_GIST_WORDS/);
+  assert.match(protocol, /\[A-Za-z0-9\]\+\(\?:\['-\]\[A-Za-z0-9\]\+\)\*/);
 
   const count = (value) =>
     value.match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)?.length || 0;
@@ -88,11 +110,29 @@ test("the client enforces two-strike screening, clipboard blocking and the 77-wo
   assert.equal(count(Array(77).fill("word").join(" ")), 77);
 });
 
+test("v4 hides leading verdict labels without rewriting the raw stimulus library", async () => {
+  const [client, schema, migration, seed] = await Promise.all([
+    read("src/AdviceTransferTask.jsx"),
+    read("supabase_advice_transfer_setup.sql"),
+    read("supabase_advice_transfer_v4_gist_migration.sql"),
+    read("supabase_advice_transfer_seed.sql"),
+  ]);
+  assert.match(client, /leading\s+judgment label has been removed/i);
+  for (const sql of [schema, migration]) {
+    assert.match(sql, /advice_transfer_remove_judgment_labels/);
+    assert.match(sql, /v_existing_id is null/);
+    assert.match(sql, /presented_comment_sha256 = v_clean_hashes/);
+    assert.match(sql, /gist summary of at least 25 English words/i);
+    assert.match(sql, /'gistWordCount', v_gist_word_count/);
+  }
+  assert.match(seed, /NTA|YTA|ESH|NAH|INFO/);
+});
+
 test("all ratings and the three-stage funnel are required and saved", async () => {
   const client = await read("src/AdviceTransferTask.jsx");
 
   for (const field of [
-    "difficulty",
+    "gistDifficulty",
     "effort",
     "confidence",
     "purposeGuess",
@@ -103,8 +143,9 @@ test("all ratings and the three-stage funnel are required and saved", async () =
   ]) {
     assert.match(client, new RegExp(field));
   }
-  assert.match(client, /Not at all difficult/);
-  assert.match(client, /Extremely difficult/);
+  assert.match(client, /not at all difficult/);
+  assert.match(client, /very difficult/);
+  assert.doesNotMatch(client, /How difficult was it to decide what advice to give/);
   assert.match(client, /Not at all effortful/);
   assert.match(client, /Extremely effortful/);
   assert.match(client, /Not at all confident/);
@@ -116,6 +157,33 @@ test("all ratings and the three-stage funnel are required and saved", async () =
   assert.match(client, /adviceResponseTimeMs/);
   assert.match(client, /firstInputAt/);
   assert.match(client, /lastEditAt/);
+});
+
+test("the v4 flow appends the five core Qualtrics demographics before final submission", async () => {
+  const [client, protocol] = await Promise.all([
+    read("src/AdviceTransferTask.jsx"),
+    read("src/advice-transfer-protocol.mjs"),
+  ]);
+
+  for (const text of [
+    "To complete the task, please answer a few questions about yourself.",
+    "With which gender identity do you mostly identify?",
+    "What is your age?",
+    "Is English your first language?",
+    "Please indicate your education level",
+    "Are you currently...?",
+    "Prefer not to say",
+    "No, but fluent",
+    "More than eighth grade, but less than high school degree",
+    "Graduate or professional training",
+  ]) {
+    assert.match(client, new RegExp(text.replace(/[?.]/g, "\\$&")));
+  }
+  assert.match(client, /setScreen\("demographics"\)/);
+  assert.match(client, /demographics: normalizeDemographics\(demographics\)/);
+  assert.match(protocol, /DRAFTABLE_SCREENS[\s\S]*"demographics"/);
+  assert.match(protocol, /age >= 18 && age <= 120/);
+  assert.match(protocol, /demographicsComplete/);
 });
 
 test("the Study 2 client survives traffic bursts and interrupted final saves", async () => {
@@ -136,13 +204,18 @@ test("the Study 2 client survives traffic bursts and interrupted final saves", a
   assert.match(client, /data === null/);
   assert.match(client, /result\.saved === false/);
   assert.match(client, /result\.active === false/);
-  assert.match(client, /p_draft_payload: draftPayload/);
+  assert.match(client, /p_draft_payload: departureDraft/);
   assert.match(client, /event\?\.persisted/);
   assert.match(client, /Complete study on Prolific/);
   assert.match(client, /sessionId \|\| "session" : "formal"/);
   assert.match(client, /CLAIM_RETRY_DELAYS_MS/);
   assert.match(client, /SUBMIT_RETRY_DELAYS_MS/);
   assert.match(client, /pendingSubmission/);
+  assert.match(client, /recoverSessionRef\.current = recoverSession/);
+  assert.match(client, /recoverSessionRef\.current\(\)/);
+  assert.match(client, /pendingStageRef\.current\) \{ saveStage\(pendingStageRef\.current\); return; \}\s*if \(phase1LockedAt\)/);
+  assert.match(client, /pendingStageRef\.current\) \{ saveStage\(pendingStageRef\.current\); return; \}\s*if \(phase2LockedAt\)/);
+  assert.match(client, /Review debrief/);
   assert.match(client, /Retry submission/);
   assert.match(client, /window\.localStorage/);
   assert.match(css, /transfer-save-status/);
