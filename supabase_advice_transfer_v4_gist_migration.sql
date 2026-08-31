@@ -864,7 +864,7 @@ begin
   if v_assignment.protocol_version = 'advice-transfer-v4-gist' then
     select jsonb_agg(to_jsonb(cleaned.comment_text) order by cleaned.position),
            jsonb_agg(
-             to_jsonb(encode(digest(cleaned.comment_text, 'sha256'), 'hex'))
+             to_jsonb(encode(extensions.digest(cleaned.comment_text, 'sha256'), 'hex'))
              order by cleaned.position
            )
       into v_clean_comments, v_clean_hashes

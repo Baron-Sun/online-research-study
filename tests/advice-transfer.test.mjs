@@ -120,6 +120,7 @@ test("v4 hides leading verdict labels without rewriting the raw stimulus library
   assert.match(client, /leading\s+judgment label has been removed/i);
   for (const sql of [schema, migration]) {
     assert.match(sql, /advice_transfer_remove_judgment_labels/);
+    assert.match(sql, /extensions\.digest\(cleaned\.comment_text, 'sha256'\)/);
     assert.match(sql, /v_existing_id is null/);
     assert.match(sql, /presented_comment_sha256 = v_clean_hashes/);
     assert.match(sql, /gist summary of at least 25 English words/i);
