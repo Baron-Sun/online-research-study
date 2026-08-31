@@ -7,12 +7,15 @@ import { ADVICE_TRANSFER_CONSENT_TEXT } from "../src/advice-transfer-consent.js"
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("consent preserves the original full form with only two duration substitutions", () => {
+test("consent preserves the original full form with only the approved duration and sample-size substitutions", () => {
   assert.match(ADVICE_TRANSFER_CONSENT_TEXT, /around 10–12 minutes/);
   assert.match(ADVICE_TRANSFER_CONSENT_TEXT, /this 10–12-minute study/);
+  assert.match(ADVICE_TRANSFER_CONSENT_TEXT, /about 100 people/);
+  assert.doesNotMatch(ADVICE_TRANSFER_CONSENT_TEXT, /about 600 people/);
   const original = ADVICE_TRANSFER_CONSENT_TEXT
     .replace("around 10–12 minutes", "around 8 minutes")
-    .replace("this 10–12-minute study", "this 8-minute study");
+    .replace("this 10–12-minute study", "this 8-minute study")
+    .replace("about 100 people", "about 600 people");
   // Exact UTF-8 text from f91dd45:src/App.jsx, not a rewritten/normalized copy.
   assert.equal(
     createHash("sha256").update(original).digest("hex"),

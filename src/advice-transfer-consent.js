@@ -1,5 +1,6 @@
 // Restored from f91dd45 (2026-05-20), src/App.jsx: INFORMED_CONSENT_TEXT.
-// User-approved change: only the two numeric duration mentions (8 -> 10–12 minutes).
+// User-approved changes: the two numeric duration mentions (8 -> 10–12 minutes)
+// and the expected sample size (600 -> 100 people).
 export const ADVICE_TRANSFER_CONSENT_TEXT = `Principal Investigator: William J. Brady
 
 Supported By: This research is supported by Northwestern University’s Kellogg School of Management, approved by NU IRB on 11/9/22, IRB #: STU00218134
@@ -18,7 +19,7 @@ Why am I being asked to take part in this research study?
 We are asking you to take part in this research study because you at least 18 years of age and are living in the U.S. and because we are interested in your opinions and experiences.
 
 How many people will be in this study?
-We expect about 600 people will be in this research study.
+We expect about 100 people will be in this research study.
 
 What should I know about participating in a research study?
 	•	Whether or not you take part is up to you.
