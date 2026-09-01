@@ -1018,6 +1018,12 @@ export default function AdviceTransferTask() {
     };
   }, [assignment?.assignmentId, assignment?.status, draftPayload, draftReady, submissionState]);
 
+  useEffect(() => {
+    if (saveState !== "saved") return undefined;
+    const timeoutId = window.setTimeout(() => setSaveState("idle"), 2_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [saveState]);
+
   const goTop = () => window.scrollTo({ top: 0, behavior: "auto" });
 
   const returnToScreen = (previousScreen) => {
@@ -1165,7 +1171,7 @@ export default function AdviceTransferTask() {
       pendingStageRef.current = null;
       setPendingStage(null);
       setStageSaveState("idle");
-      setSaveState("saved");
+      setSaveState("idle");
       const nextScreen = intent.stage === "phase1" ? "advice" : "funnel-purpose";
       const nextTime = nowIso();
       const nextTimestamps = { ...timestamps, ...result.snapshot.timings,
@@ -1220,6 +1226,7 @@ export default function AdviceTransferTask() {
     if (phase2ReadOnly) return;
     const value = event.target.value;
     const time = nowIso();
+    setSaveState("idle");
     setAdvice(value);
     setTimestamps((current) => ({
       ...current,
@@ -1800,7 +1807,7 @@ export default function AdviceTransferTask() {
             >
               <strong>{wordCount}</strong> / {MIN_ADVICE_WORDS} words minimum
             </div>
-            <SaveStatus state={saveState} />
+            <SaveStatus state={saveState === "offline" || advice.trim() ? saveState : "idle"} />
             <div className="transfer-action-row">
               <SecondaryButton onClick={() => returnToScreen("exposure")}>Back to Phase 1</SecondaryButton>
               <PrimaryButton disabled={wordCount < MIN_ADVICE_WORDS} onClick={continueToRatings}>

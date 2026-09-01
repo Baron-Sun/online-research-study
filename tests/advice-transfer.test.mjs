@@ -231,6 +231,10 @@ test("the Study 2 client survives traffic bursts and interrupted final saves", a
   assert.doesNotMatch(client, /timing\.pulse/);
   assert.doesNotMatch(timing, /setPulse|\bpulse\b|setInterval/);
   assert.match(css, /transfer-save-status/);
+  assert.match(client, /const updateAdvice = \(event\) => \{[\s\S]*?setSaveState\("idle"\);[\s\S]*?setAdvice\(value\);/);
+  assert.match(client, /<SaveStatus state=\{saveState === "offline" \|\| advice\.trim\(\) \? saveState : "idle"\} \/>/);
+  assert.match(client, /if \(saveState !== "saved"\) return undefined;[\s\S]*?setTimeout\(\(\) => setSaveState\("idle"\), 2_000\)/);
+  assert.match(client, /setStageSaveState\("idle"\);\s*setSaveState\("idle"\);/);
 });
 
 test("the formal database enforces hard per-cell quota tokens and standby promotion", async () => {
