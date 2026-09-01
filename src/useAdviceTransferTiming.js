@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { activeRegion, addActiveTime, emptyActiveTimings, normalizeActiveTimings } from "./advice-transfer-protocol.mjs";
 
 export const useAdviceTransferTiming = (context) => {
   const totals = useRef(emptyActiveTimings());
   const contextRef = useRef(context);
   const segment = useRef({ at: performance.now(), region: null });
-  const [pulse, setPulse] = useState(0);
 
   const read = () => {
     const time = performance.now();
@@ -36,21 +35,16 @@ export const useAdviceTransferTiming = (context) => {
     const onVisibility = () => setRegion();
     const onPageHide = () => pause();
     const onPageShow = () => setRegion();
-    const interval = window.setInterval(() => {
-      read();
-      setPulse((value) => value + 1);
-    }, 5_000);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
     return () => {
       pause();
-      window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
 
-  return { read, restore, pause, pulse };
+  return { read, restore, pause };
 };

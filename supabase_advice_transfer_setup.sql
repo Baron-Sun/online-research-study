@@ -1364,10 +1364,9 @@ begin
 end;
 $$;
 
--- The classification task must be based on the comment's reasoning rather
--- than an explicit AITA verdict token. Preserve the raw stored stimulus and
--- remove only the leading verdict label in the v4 participant presentation.
-create or replace function public.advice_transfer_remove_judgment_labels(p_comment text)
+-- Preserve the historical v4 presentation rule so sessions that already
+-- stored hashes for leading-label-only cleanup can resume byte-for-byte.
+create or replace function public.advice_transfer_remove_leading_judgment_label(p_comment text)
 returns text
 language sql
 immutable
@@ -1380,6 +1379,37 @@ as $$
     '',
     'i'
   );
+$$;
+
+-- The classification task must be based on the comment's reasoning rather
+-- than an explicit AITA verdict token. Preserve the raw stored stimulus and
+-- remove standalone judgment abbreviations wherever they occur in the v4
+-- participant presentation.
+create or replace function public.advice_transfer_remove_judgment_labels(p_comment text)
+returns text
+language sql
+immutable
+strict
+set search_path = public
+as $$
+  with legacy as (
+    select public.advice_transfer_remove_leading_judgment_label(p_comment) as body
+  ), trailing_removed as (
+    select regexp_replace(
+      body,
+      '[[:blank:]]+(Y[[:blank:]._-]*T[[:blank:]._-]*A|N[[:blank:]._-]*T[[:blank:]._-]*A|E[[:blank:]._-]*S[[:blank:]._-]*H|N[[:blank:]._-]*A[[:blank:]._-]*H|I[[:blank:]._-]*N[[:blank:]._-]*F[[:blank:]._-]*O)(?=$|[^[:alnum:]])[[:blank:]*_]*[:.,;!?—–-]*[[:blank:]]*$',
+      '',
+      'i'
+    ) as body
+    from legacy
+  )
+  select regexp_replace(
+    body,
+    '(?<![[:alnum:]])(Y[[:blank:]._-]*T[[:blank:]._-]*A|N[[:blank:]._-]*T[[:blank:]._-]*A|E[[:blank:]._-]*S[[:blank:]._-]*H|N[[:blank:]._-]*A[[:blank:]._-]*H|I[[:blank:]._-]*N[[:blank:]._-]*F[[:blank:]._-]*O)(?![[:alnum:]])[[:blank:]*_]*[:.,;!?—–-]*[[:blank:]]*',
+    '',
+    'gi'
+  )
+  from trailing_removed;
 $$;
 
 -- Separate RPC name avoids PostgREST overload/default ambiguity. Keep the
@@ -1405,6 +1435,8 @@ declare
   v_response jsonb;
   v_clean_comments jsonb;
   v_clean_hashes jsonb;
+  v_legacy_comments jsonb;
+  v_legacy_hashes jsonb;
   v_pid text := nullif(trim(p_prolific_pid), '');
   v_study text := nullif(trim(p_study_id), '');
   v_session text := nullif(trim(p_session_id), '');
@@ -1446,11 +1478,17 @@ begin
            jsonb_agg(
              to_jsonb(encode(extensions.digest(cleaned.comment_text, 'sha256'), 'hex'))
              order by cleaned.position
+           ),
+           jsonb_agg(to_jsonb(cleaned.legacy_text) order by cleaned.position),
+           jsonb_agg(
+             to_jsonb(encode(extensions.digest(cleaned.legacy_text, 'sha256'), 'hex'))
+             order by cleaned.position
            )
-      into v_clean_comments, v_clean_hashes
+      into v_clean_comments, v_clean_hashes, v_legacy_comments, v_legacy_hashes
       from (
         select ordinality as position,
-               public.advice_transfer_remove_judgment_labels(value) as comment_text
+               public.advice_transfer_remove_judgment_labels(value) as comment_text,
+               public.advice_transfer_remove_leading_judgment_label(value) as legacy_text
           from jsonb_array_elements_text(v_response -> 'comments')
                with ordinality
       ) cleaned;
@@ -1469,6 +1507,11 @@ begin
       v_response := v_response || jsonb_build_object(
         'comments', v_clean_comments,
         'commentHashes', v_clean_hashes
+      );
+    elsif v_assignment.presented_comment_sha256 = v_legacy_hashes then
+      v_response := v_response || jsonb_build_object(
+        'comments', v_legacy_comments,
+        'commentHashes', v_legacy_hashes
       );
     end if;
   end if;
@@ -2971,6 +3014,8 @@ revoke all on function public.review_advice_transfer_assignment(text, text, text
   from public;
 revoke all on function public.advice_transfer_word_count(text)
   from public;
+revoke all on function public.advice_transfer_remove_leading_judgment_label(text)
+  from public;
 revoke all on function public.advice_transfer_remove_judgment_labels(text)
   from public;
 revoke all on function public.guard_advice_transfer_target_reduction()
@@ -3006,6 +3051,7 @@ grant select, insert, update, delete on public.advice_transfer_quota_tokens to s
 grant select on public.advice_transfer_test_cell_progress to service_role;
 grant select on public.advice_transfer_formal_cell_progress to service_role;
 grant execute on function public.advice_transfer_word_count(text) to service_role;
+grant execute on function public.advice_transfer_remove_leading_judgment_label(text) to service_role;
 grant execute on function public.advice_transfer_remove_judgment_labels(text) to service_role;
 grant execute on function public.guard_advice_transfer_target_reduction() to service_role;
 grant execute on function public.reclaim_expired_advice_transfer_assignments() to service_role;

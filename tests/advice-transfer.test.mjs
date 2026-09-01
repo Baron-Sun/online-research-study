@@ -113,19 +113,23 @@ test("the client enforces two-strike screening, clipboard blocking, and both wor
   assert.equal(count(Array(77).fill("word").join(" ")), 77);
 });
 
-test("v4 hides leading verdict labels without rewriting the raw stimulus library", async () => {
+test("v4 hides standalone verdict labels everywhere without rewriting the raw stimulus library", async () => {
   const [client, schema, migration, seed] = await Promise.all([
     read("src/AdviceTransferTask.jsx"),
     read("supabase_advice_transfer_setup.sql"),
     read("supabase_advice_transfer_v4_gist_migration.sql"),
     read("supabase_advice_transfer_seed.sql"),
   ]);
-  assert.match(client, /leading\s+judgment label has been removed/i);
+  assert.match(client, /Explicit judgment abbreviations[\s\S]*removed wherever they appeared/i);
+  assert.match(client, /aria-label="Judgment label key"/);
   for (const sql of [schema, migration]) {
+    assert.match(sql, /advice_transfer_remove_leading_judgment_label/);
     assert.match(sql, /advice_transfer_remove_judgment_labels/);
     assert.match(sql, /extensions\.digest\(cleaned\.comment_text, 'sha256'\)/);
+    assert.match(sql, /extensions\.digest\(cleaned\.legacy_text, 'sha256'\)/);
     assert.match(sql, /v_existing_id is null/);
     assert.match(sql, /presented_comment_sha256 = v_clean_hashes/);
+    assert.match(sql, /presented_comment_sha256 = v_legacy_hashes/);
     assert.match(sql, /gist summary of at least 25 English words/i);
     assert.match(sql, /'gistWordCount', v_gist_word_count/);
   }
@@ -191,9 +195,10 @@ test("the v4 flow appends the five core Qualtrics demographics before final subm
 });
 
 test("the Study 2 client survives traffic bursts and interrupted final saves", async () => {
-  const [client, css] = await Promise.all([
+  const [client, css, timing] = await Promise.all([
     read("src/AdviceTransferTask.jsx"),
     read("src/advice-transfer.css"),
+    read("src/useAdviceTransferTiming.js"),
   ]);
 
   assert.match(client, /heartbeat_advice_transfer_assignment/);
@@ -222,6 +227,9 @@ test("the Study 2 client survives traffic bursts and interrupted final saves", a
   assert.match(client, /Review debrief/);
   assert.match(client, /Retry submission/);
   assert.match(client, /window\.localStorage/);
+  assert.match(client, /freshDraft[\s\S]*timing\.read\(\)/);
+  assert.doesNotMatch(client, /timing\.pulse/);
+  assert.doesNotMatch(timing, /setPulse|\bpulse\b|setInterval/);
   assert.match(css, /transfer-save-status/);
 });
 

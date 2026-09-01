@@ -507,6 +507,19 @@ const CommentFeed = ({ assignment, labels, onLabel, disabled = false }) => (
   </div>
 );
 
+const JudgmentLabelKey = () => (
+  <aside className="transfer-label-key" aria-label="Judgment label key">
+    <h4>Label key</h4>
+    <dl>
+      <div><dt>YTA</dt><dd><strong>You’re the Asshole:</strong> the commenter believes the poster is in the wrong.</dd></div>
+      <div><dt>NTA</dt><dd><strong>Not the Asshole:</strong> the commenter believes the poster is not in the wrong.</dd></div>
+      <div><dt>ESH</dt><dd><strong>Everyone Sucks Here:</strong> the commenter believes both the poster and the other party are in the wrong.</dd></div>
+      <div><dt>NAH</dt><dd><strong>No Assholes Here:</strong> the commenter believes no one is in the wrong.</dd></div>
+      <div><dt>INFO</dt><dd><strong>More Information Needed:</strong> the commenter believes there is not enough information to make a judgment.</dd></div>
+    </dl>
+  </aside>
+);
+
 export default function AdviceTransferTask() {
   useGlobalClipboardBlock();
 
@@ -585,7 +598,7 @@ export default function AdviceTransferTask() {
       aiLikelihood,
       demographics,
       timestamps,
-      timings: { ...timestamps, ...timing.read() },
+      timings: { ...timestamps },
       phase1Snapshot,
       phase1LockedAt,
       phase2Snapshot,
@@ -612,7 +625,7 @@ export default function AdviceTransferTask() {
     demographics,
     timestamps,
     phase1Snapshot, phase1LockedAt, phase2Snapshot, phase2LockedAt,
-    pendingStage, pendingSubmission, timing.pulse,
+    pendingStage, pendingSubmission,
   ]);
 
   const freshDraft = (draft = draftPayload) => draft ? {
@@ -1582,7 +1595,7 @@ export default function AdviceTransferTask() {
           <div className="source-instructions-copy transfer-instructions">
             <p>
               This survey has two phases. In Phase 1, you will read a Reddit post
-              describing a dilemma, and asking for opinions from others. You will
+              describing a dilemma and asking for opinions from others. You will
               also see five comments responding to the dilemma.
             </p>
             <p>
@@ -1607,11 +1620,11 @@ export default function AdviceTransferTask() {
             <p>
               For each of the 5 comments you see, you will read the full comment and
               then classify the conclusion stated in it, using the categories above in
-              the blue box. The leading judgment label has been removed from each
-              displayed comment. For example, “YTA” will not appear at the beginning,
-              so choose the category that best matches the commenter’s overall
-              conclusion. If a comment is nuanced or discusses more than one possible
-              judgment, classify its final or main conclusion.
+              the blue box. Explicit judgment abbreviations such as “YTA” have been
+              removed wherever they appeared in each displayed comment, so choose the
+              category that best matches the commenter’s overall conclusion. If a
+              comment is nuanced or discusses more than one possible judgment,
+              classify its final or main conclusion.
             </p>
             <p>Please classify each comment carefully based on the conclusion expressed by the commenter.</p>
             <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>
@@ -1712,6 +1725,7 @@ export default function AdviceTransferTask() {
               <span>5 comments</span>
             </div>
             <p className="source-comments-instruction">Please read every comment and choose the label it expresses.</p>
+            <JudgmentLabelKey />
             <CommentFeed assignment={assignment} labels={commentLabels} onLabel={updateCommentLabel} disabled={phase1ReadOnly} />
           </section>
         </div>

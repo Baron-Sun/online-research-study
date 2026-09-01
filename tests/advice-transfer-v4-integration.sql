@@ -56,8 +56,10 @@ do $test$
 declare
   v_prefix text := 'qa-v4-sql-' || replace(gen_random_uuid()::text, '-', '');
   v_pid text;
+  v_hash_compat_pid text;
   v_legacy_pid text;
   v_id text;
+  v_hash_compat_id text;
   v_legacy_id text;
   v_claim jsonb;
   v_again jsonb;
@@ -71,6 +73,8 @@ declare
   v_demographics jsonb;
   v_draft jsonb;
   v_judgments jsonb;
+  v_legacy_comments jsonb;
+  v_legacy_hashes jsonb;
   v_case record;
   v_submission public.advice_transfer_submissions%rowtype;
   v_legacy_submission public.advice_transfer_submissions%rowtype;
@@ -84,6 +88,7 @@ begin
     raise exception 'Run the v4 acceptance test only while formal recruitment is closed';
   end if;
   v_pid := v_prefix || '-current';
+  v_hash_compat_pid := v_prefix || '-hash-compat';
   v_legacy_pid := v_prefix || '-legacy';
   v_claim := public.claim_advice_transfer_assignment_v4(v_pid, 'integration-v4', 'current', true, 1, 'human');
   v_id := v_claim ->> 'assignmentId';
@@ -102,9 +107,9 @@ begin
   if exists (
     select 1
       from jsonb_array_elements_text(v_claim -> 'comments') displayed(comment_text)
-     where displayed.comment_text ~* '^[[:space:]]*(YTA|NTA|ESH|NAH|INFO)([^[:alnum:]]|$)'
+     where displayed.comment_text ~* '(?<![[:alnum:]])(Y[[:blank:]._-]*T[[:blank:]._-]*A|N[[:blank:]._-]*T[[:blank:]._-]*A|E[[:blank:]._-]*S[[:blank:]._-]*H|N[[:blank:]._-]*A[[:blank:]._-]*H|I[[:blank:]._-]*N[[:blank:]._-]*F[[:blank:]._-]*O)(?![[:alnum:]])'
   ) then
-    raise exception 'A presented v4 comment still begins with an explicit judgment label: %',
+    raise exception 'A presented v4 comment still contains an explicit judgment label: %',
       v_claim -> 'comments';
   end if;
   if exists (
@@ -121,17 +126,9 @@ begin
        where assignment_id = v_id) is distinct from v_claim -> 'commentHashes' then
     raise exception 'The assignment did not persist the hashes of its displayed comments';
   end if;
-  if not exists (
-    select 1
-      from jsonb_array_elements_text(v_claim -> 'comments') displayed(comment_text)
-     where position('NTA for being mad about the check' in displayed.comment_text) > 0
-  ) then
-    raise exception 'The leading-label cleanup removed an embedded comparative judgment';
-  end if;
-
-  -- Every current raw stimulus starts with a verdict, but presentation removes
-  -- only that prefix. This exercises all 130 human/AI comments, including the
-  -- three reserve pairs, without mutating the stored source arrays.
+  -- Every current raw stimulus starts with a verdict. Presentation removes all
+  -- standalone verdict tokens while leaving the stored source arrays untouched.
+  -- This exercises all 130 human/AI comments, including the reserve pairs.
   if (select count(*)
         from public.advice_transfer_stimuli stimulus
         cross join lateral jsonb_array_elements_text(
@@ -147,13 +144,51 @@ begin
         stimulus.human_comments || stimulus.ai_comments
       ) raw(comment_text)
      where public.advice_transfer_remove_judgment_labels(raw.comment_text)
-           ~* '^[[:space:]]*(YTA|NTA|ESH|NAH|INFO)([^[:alnum:]]|$)'
+           ~* '(?<![[:alnum:]])(Y[[:blank:]._-]*T[[:blank:]._-]*A|N[[:blank:]._-]*T[[:blank:]._-]*A|E[[:blank:]._-]*S[[:blank:]._-]*H|N[[:blank:]._-]*A[[:blank:]._-]*H|I[[:blank:]._-]*N[[:blank:]._-]*F[[:blank:]._-]*O)(?![[:alnum:]])'
   ) then
-    raise exception 'At least one seeded comment retains its leading verdict after presentation cleanup';
+    raise exception 'At least one seeded comment retains a standalone verdict after presentation cleanup';
   end if;
   if public.advice_transfer_remove_judgment_labels(E'YTA first conclusion.\n\nNTA second conclusion.')
-       is distinct from E'first conclusion.\n\nNTA second conclusion.' then
-    raise exception 'The presentation cleanup did not preserve an embedded judgment label';
+       is distinct from E'first conclusion.\n\nsecond conclusion.'
+     or public.advice_transfer_remove_judgment_labels('This is valid. NTA.')
+       is distinct from 'This is valid.'
+     or public.advice_transfer_remove_judgment_labels('no your definitely NTA')
+       is distinct from 'no your definitely'
+     or public.advice_transfer_remove_judgment_labels('I lean N-T-A, but if X then E-S-H.')
+       is distinct from 'I lean but if X then'
+     or public.advice_transfer_remove_judgment_labels('Contact Jonah for fresh information.')
+       is distinct from 'Contact Jonah for fresh information.'
+     or public.advice_transfer_remove_judgment_labels(
+          public.advice_transfer_remove_judgment_labels('This is valid. NTA.')
+        ) is distinct from public.advice_transfer_remove_judgment_labels('This is valid. NTA.') then
+    raise exception 'The presentation cleanup failed its standalone-token or idempotence contract';
+  end if;
+
+  -- A v4 session that already stored hashes under the former leading-only
+  -- display rule must resume with that exact historical presentation, never
+  -- fall back to the raw labeled source.
+  v_result := public.claim_advice_transfer_assignment(
+    v_hash_compat_pid, 'integration-v4', 'hash-compat', true, 1, 'human'
+  );
+  v_hash_compat_id := v_result ->> 'assignmentId';
+  select jsonb_agg(to_jsonb(cleaned.comment_text) order by cleaned.position),
+         jsonb_agg(to_jsonb(encode(digest(cleaned.comment_text, 'sha256'), 'hex')) order by cleaned.position)
+    into v_legacy_comments, v_legacy_hashes
+    from (
+      select ordinality as position,
+             public.advice_transfer_remove_leading_judgment_label(value) as comment_text
+        from jsonb_array_elements_text(v_result -> 'comments') with ordinality
+    ) cleaned;
+  update public.advice_transfer_assignments
+     set protocol_version = 'advice-transfer-v4-gist',
+         presented_comment_sha256 = v_legacy_hashes
+   where assignment_id = v_hash_compat_id;
+  v_again := public.claim_advice_transfer_assignment_v4(
+    v_hash_compat_pid, 'integration-v4', 'hash-compat', true, 1, 'human'
+  );
+  if v_again -> 'comments' is distinct from v_legacy_comments
+     or v_again -> 'commentHashes' is distinct from v_legacy_hashes then
+    raise exception 'An existing leading-only v4 session did not preserve its historical display and hashes';
   end if;
 
   v_again := public.claim_advice_transfer_assignment_v4(v_pid, 'integration-v4', 'current', true, 1, 'human');
@@ -429,7 +464,8 @@ begin
   end if;
 
   if exists (select 1 from public.advice_transfer_assignments
-    where assignment_id in (v_id, v_legacy_id) and (not is_test or quota_token_id is not null)) then
+    where assignment_id in (v_id, v_hash_compat_id, v_legacy_id)
+      and (not is_test or quota_token_id is not null)) then
     raise exception 'QA assignments consumed formal quota';
   end if;
   if (select count(*) from public.advice_transfer_assignments where not is_test)
