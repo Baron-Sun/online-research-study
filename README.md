@@ -102,6 +102,12 @@ and set `post_task_measure = 'opinion_difficulty'`; historical v4 assignments
 retain the original effort item and are marked `post_task_measure = 'effort'`.
 The two measures are never silently pooled.
 
+For displayed comments, only an explicit AITA judgment abbreviation at the
+very beginning is removed. Any YTA/NTA/ESH/NAH/INFO appearing later in the
+comment remains exactly where it was, so the comment's substantive wording is
+not rewritten. Raw stimulus text is never modified. Existing sessions resume
+with the exact displayed text and hashes they originally received.
+
 `claim_advice_transfer_assignment_v4` uses the same allocator/advisory lock as
 the original six-argument claim RPC. New assignments are stamped
 `advice-transfer-v4-gist`; existing assignments retain their original protocol
@@ -136,6 +142,11 @@ It preserves existing A-to-B assignments and submissions. Only newly created
 assignments use `design_variant = 'same_post'`. The original pair metadata is
 retained, while `response_post_id` and `response_post_body_sha256` identify the
 post that was actually shown for the participant's Phase 2 response.
+
+Then apply `supabase_advice_transfer_opinion_difficulty_migration.sql`, followed
+by `supabase_advice_transfer_leading_label_only_patch.sql`. The final patch
+changes only newly claimed comment presentations; assignments already in
+progress continue with their originally stored comment hashes and text.
 
 `tests/advice-transfer-v4-integration.sql` tests validation, immutable stages,
 stale drafts, legacy compatibility and idempotency using QA IDs inside a

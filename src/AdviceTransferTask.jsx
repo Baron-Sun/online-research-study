@@ -1698,11 +1698,12 @@ export default function AdviceTransferTask() {
             <p>
               For each of the 5 comments you see, you will read the full comment and
               then classify the conclusion stated in it, using the categories above in
-              the blue box. Explicit judgment abbreviations such as “YTA” have been
-              removed wherever they appeared in each displayed comment, so choose the
-              category that best matches the commenter’s overall conclusion. If a
-              comment is nuanced or discusses more than one possible judgment,
-              classify its final or main conclusion.
+              the blue box. An explicit judgment abbreviation at the beginning of
+              each displayed comment has been removed. Any judgment abbreviation that
+              appears later in the comment remains unchanged. Choose the category that
+              best matches the commenter’s overall conclusion. If a comment is nuanced
+              or discusses more than one possible judgment, classify its final or main
+              conclusion.
             </p>
             <p>Please classify each comment carefully based on the conclusion expressed by the commenter.</p>
             <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>

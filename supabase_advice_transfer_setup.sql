@@ -1523,8 +1523,8 @@ begin
 end;
 $$;
 
--- Preserve the historical v4 presentation rule so sessions that already
--- stored hashes for leading-label-only cleanup can resume byte-for-byte.
+-- Remove only the explicit verdict token at the beginning of a comment.
+-- Verdict abbreviations appearing later in the prose remain untouched.
 create or replace function public.advice_transfer_remove_leading_judgment_label(p_comment text)
 returns text
 language sql
@@ -1540,10 +1540,8 @@ as $$
   );
 $$;
 
--- The classification task must be based on the comment's reasoning rather
--- than an explicit AITA verdict token. Preserve the raw stored stimulus and
--- remove standalone judgment abbreviations wherever they occur in the v4
--- participant presentation.
+-- Preserve the former all-position cleanup only for sessions that already
+-- stored hashes under that display rule. New sessions do not use this helper.
 create or replace function public.advice_transfer_remove_judgment_labels(p_comment text)
 returns text
 language sql
@@ -1646,15 +1644,15 @@ begin
       into v_clean_comments, v_clean_hashes, v_legacy_comments, v_legacy_hashes
       from (
         select ordinality as position,
-               public.advice_transfer_remove_judgment_labels(value) as comment_text,
-               public.advice_transfer_remove_leading_judgment_label(value) as legacy_text
+               public.advice_transfer_remove_leading_judgment_label(value) as comment_text,
+               public.advice_transfer_remove_judgment_labels(value) as legacy_text
           from jsonb_array_elements_text(v_response -> 'comments')
                with ordinality
       ) cleaned;
 
-    -- New/unlocked v4 sessions adopt hashes of exactly what participants see.
-    -- A historical locked session is never silently changed; if it predates
-    -- this display rule, it continues to receive its original comments/hashes.
+    -- New v4 sessions remove only the leading verdict token and persist hashes
+    -- of exactly what participants see. Historical sessions that used the
+    -- former all-position rule continue to receive their original display.
     if v_existing_id is null then
       update public.advice_transfer_assignments
          set presented_comment_sha256 = v_clean_hashes

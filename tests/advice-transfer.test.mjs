@@ -185,18 +185,23 @@ test("the client enforces two-strike screening, clipboard blocking, and both wor
   assert.equal(count(Array(77).fill("word").join(" ")), 77);
 });
 
-test("v4 hides standalone verdict labels everywhere without rewriting the raw stimulus library", async () => {
-  const [client, schema, migration, seed] = await Promise.all([
+test("v4 removes only the leading verdict label without rewriting the raw stimulus library", async () => {
+  const [client, schema, migration, displayPatch, labelIntegration, seed] = await Promise.all([
     read("src/AdviceTransferTask.jsx"),
     read("supabase_advice_transfer_setup.sql"),
     read("supabase_advice_transfer_v4_gist_migration.sql"),
+    read("supabase_advice_transfer_leading_label_only_patch.sql"),
+    read("tests/advice-transfer-leading-label-integration.sql"),
     read("supabase_advice_transfer_seed.sql"),
   ]);
-  assert.match(client, /Explicit judgment abbreviations[\s\S]*removed wherever they appeared/i);
+  assert.match(client, /judgment abbreviation at the beginning[\s\S]*has been removed/i);
+  assert.match(client, /appears later in the comment remains unchanged/i);
   assert.match(client, /aria-label="Judgment label key"/);
   for (const sql of [schema, migration]) {
     assert.match(sql, /advice_transfer_remove_leading_judgment_label/);
     assert.match(sql, /advice_transfer_remove_judgment_labels/);
+    assert.match(sql, /advice_transfer_remove_leading_judgment_label\(value\) as comment_text/);
+    assert.match(sql, /advice_transfer_remove_judgment_labels\(value\) as legacy_text/);
     assert.match(sql, /extensions\.digest\(cleaned\.comment_text, 'sha256'\)/);
     assert.match(sql, /extensions\.digest\(cleaned\.legacy_text, 'sha256'\)/);
     assert.match(sql, /v_existing_id is null/);
@@ -205,6 +210,14 @@ test("v4 hides standalone verdict labels everywhere without rewriting the raw st
     assert.match(sql, /gist summary of at least 25 English words/i);
     assert.match(sql, /'gistWordCount', v_gist_word_count/);
   }
+  assert.match(displayPatch, /advice_transfer_remove_leading_judgment_label\(value\) as comment_text/);
+  assert.match(displayPatch, /advice_transfer_remove_judgment_labels\(value\) as legacy_text/);
+  assert.match(displayPatch, /v_existing_id is null/);
+  assert.match(displayPatch, /presented_comment_sha256 = v_clean_hashes/);
+  assert.match(displayPatch, /presented_comment_sha256 = v_legacy_hashes/);
+  assert.match(labelIntegration, /claim_advice_transfer_assignment_same_post/);
+  assert.match(labelIntegration, /leading_label_only_integration_passed_and_rolled_back/);
+  assert.match(labelIntegration, /rollback;/);
   assert.match(seed, /NTA|YTA|ESH|NAH|INFO/);
 });
 

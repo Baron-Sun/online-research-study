@@ -107,9 +107,9 @@ begin
   if exists (
     select 1
       from jsonb_array_elements_text(v_claim -> 'comments') displayed(comment_text)
-     where displayed.comment_text ~* '(?<![[:alnum:]])(Y[[:blank:]._-]*T[[:blank:]._-]*A|N[[:blank:]._-]*T[[:blank:]._-]*A|E[[:blank:]._-]*S[[:blank:]._-]*H|N[[:blank:]._-]*A[[:blank:]._-]*H|I[[:blank:]._-]*N[[:blank:]._-]*F[[:blank:]._-]*O)(?![[:alnum:]])'
+     where displayed.comment_text ~* '^[[:space:]*_]*(Y[[:space:]._-]*T[[:space:]._-]*A|N[[:space:]._-]*T[[:space:]._-]*A|E[[:space:]._-]*S[[:space:]._-]*H|N[[:space:]._-]*A[[:space:]._-]*H|I[[:space:]._-]*N[[:space:]._-]*F[[:space:]._-]*O)([^[:alnum:]]|$)'
   ) then
-    raise exception 'A presented v4 comment still contains an explicit judgment label: %',
+    raise exception 'A presented v4 comment still begins with an explicit judgment label: %',
       v_claim -> 'comments';
   end if;
   if exists (
@@ -126,8 +126,8 @@ begin
        where assignment_id = v_id) is distinct from v_claim -> 'commentHashes' then
     raise exception 'The assignment did not persist the hashes of its displayed comments';
   end if;
-  -- Every current raw stimulus starts with a verdict. Presentation removes all
-  -- standalone verdict tokens while leaving the stored source arrays untouched.
+  -- Every current raw stimulus starts with a verdict. Presentation removes only
+  -- that leading token while leaving the stored source arrays and later tokens untouched.
   -- This exercises all 130 human/AI comments, including the reserve pairs.
   if (select count(*)
         from public.advice_transfer_stimuli stimulus
@@ -143,28 +143,28 @@ begin
       cross join lateral jsonb_array_elements_text(
         stimulus.human_comments || stimulus.ai_comments
       ) raw(comment_text)
-     where public.advice_transfer_remove_judgment_labels(raw.comment_text)
-           ~* '(?<![[:alnum:]])(Y[[:blank:]._-]*T[[:blank:]._-]*A|N[[:blank:]._-]*T[[:blank:]._-]*A|E[[:blank:]._-]*S[[:blank:]._-]*H|N[[:blank:]._-]*A[[:blank:]._-]*H|I[[:blank:]._-]*N[[:blank:]._-]*F[[:blank:]._-]*O)(?![[:alnum:]])'
+     where public.advice_transfer_remove_leading_judgment_label(raw.comment_text)
+           ~* '^[[:space:]*_]*(Y[[:space:]._-]*T[[:space:]._-]*A|N[[:space:]._-]*T[[:space:]._-]*A|E[[:space:]._-]*S[[:space:]._-]*H|N[[:space:]._-]*A[[:space:]._-]*H|I[[:space:]._-]*N[[:space:]._-]*F[[:space:]._-]*O)([^[:alnum:]]|$)'
   ) then
-    raise exception 'At least one seeded comment retains a standalone verdict after presentation cleanup';
+    raise exception 'At least one seeded comment retains its leading verdict after presentation cleanup';
   end if;
-  if public.advice_transfer_remove_judgment_labels(E'YTA first conclusion.\n\nNTA second conclusion.')
-       is distinct from E'first conclusion.\n\nsecond conclusion.'
-     or public.advice_transfer_remove_judgment_labels('This is valid. NTA.')
-       is distinct from 'This is valid.'
-     or public.advice_transfer_remove_judgment_labels('no your definitely NTA')
-       is distinct from 'no your definitely'
-     or public.advice_transfer_remove_judgment_labels('I lean N-T-A, but if X then E-S-H.')
-       is distinct from 'I lean but if X then'
-     or public.advice_transfer_remove_judgment_labels('Contact Jonah for fresh information.')
+  if public.advice_transfer_remove_leading_judgment_label(E'YTA first conclusion.\n\nNTA second conclusion.')
+       is distinct from E'first conclusion.\n\nNTA second conclusion.'
+     or public.advice_transfer_remove_leading_judgment_label('This is valid. NTA.')
+       is distinct from 'This is valid. NTA.'
+     or public.advice_transfer_remove_leading_judgment_label('no your definitely NTA')
+       is distinct from 'no your definitely NTA'
+     or public.advice_transfer_remove_leading_judgment_label('I lean N-T-A, but if X then E-S-H.')
+       is distinct from 'I lean N-T-A, but if X then E-S-H.'
+     or public.advice_transfer_remove_leading_judgment_label('Contact Jonah for fresh information.')
        is distinct from 'Contact Jonah for fresh information.'
-     or public.advice_transfer_remove_judgment_labels(
-          public.advice_transfer_remove_judgment_labels('This is valid. NTA.')
-        ) is distinct from public.advice_transfer_remove_judgment_labels('This is valid. NTA.') then
-    raise exception 'The presentation cleanup failed its standalone-token or idempotence contract';
+     or public.advice_transfer_remove_leading_judgment_label(
+          public.advice_transfer_remove_leading_judgment_label('NTA. This is valid. NTA.')
+        ) is distinct from public.advice_transfer_remove_leading_judgment_label('NTA. This is valid. NTA.') then
+    raise exception 'The presentation cleanup failed its leading-only or idempotence contract';
   end if;
 
-  -- A v4 session that already stored hashes under the former leading-only
+  -- A v4 session that already stored hashes under the former all-position
   -- display rule must resume with that exact historical presentation, never
   -- fall back to the raw labeled source.
   v_result := public.claim_advice_transfer_assignment(
@@ -176,7 +176,7 @@ begin
     into v_legacy_comments, v_legacy_hashes
     from (
       select ordinality as position,
-             public.advice_transfer_remove_leading_judgment_label(value) as comment_text
+             public.advice_transfer_remove_judgment_labels(value) as comment_text
         from jsonb_array_elements_text(v_result -> 'comments') with ordinality
     ) cleaned;
   update public.advice_transfer_assignments
@@ -188,7 +188,7 @@ begin
   );
   if v_again -> 'comments' is distinct from v_legacy_comments
      or v_again -> 'commentHashes' is distinct from v_legacy_hashes then
-    raise exception 'An existing leading-only v4 session did not preserve its historical display and hashes';
+    raise exception 'An existing all-position-cleaned v4 session did not preserve its historical display and hashes';
   end if;
 
   v_again := public.claim_advice_transfer_assignment_v4(v_pid, 'integration-v4', 'current', true, 1, 'human');
