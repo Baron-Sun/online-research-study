@@ -107,6 +107,25 @@
   line-height: 1.45;
 }
 
+.transfer-previous-gist {
+  padding: clamp(20px, 3vw, 26px);
+}
+
+.transfer-previous-gist h3 {
+  margin: 0 0 12px;
+  color: var(--source-slate-950);
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.transfer-previous-gist p {
+  margin: 0;
+  color: var(--source-slate-700);
+  font-size: 15px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .transfer-textarea[readonly] { background: #f8fafc; }
 
 .transfer-instructions {

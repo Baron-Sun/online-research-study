@@ -44,14 +44,15 @@ test("registers an isolated advice-transfer route without replacing existing stu
   assert.match(entry, /AdviceTransferTask/);
 });
 
-test("the client implements masked five-comment exposure and A-to-B advice", async () => {
+test("the client implements masked five-comment exposure and audited same-post responses", async () => {
   const client = await read("src/AdviceTransferTask.jsx");
 
-  assert.match(client, /claim_advice_transfer_assignment/);
+  assert.match(client, /claim_advice_transfer_assignment_same_post/);
   assert.match(client, /record_advice_transfer_comprehension_failure/);
   assert.match(client, /submit_advice_transfer_payload/);
   assert.match(client, /value\.comments\.length !== 5/);
   assert.match(client, /value\.exposurePost\.postId === value\.targetPost\.postId/);
+  assert.match(client, /value\.responsePost\.postId !== expectedResponsePost\.postId/);
   assert.match(client, /Object\.prototype\.hasOwnProperty\.call\(value, "condition"\)/);
   assert.match(client, /Imagine you are commenting on this post in the online platform/);
   assert.doesNotMatch(client, /respond as you normally would/i);
@@ -75,11 +76,45 @@ test("the client implements masked five-comment exposure and A-to-B advice", asy
   assert.match(client, /studyStartedAt: current\.studyStartedAt \|\| time/);
   assert.match(client, /The second Reddit post/);
   assert.match(client, /Here are the comments for the previous post in case they are useful for this post/);
+  assert.match(client, /Now, imagine you are commenting on the same Reddit post/);
+  assert.match(client, /Your summary from Phase 1/);
+  assert.match(client, /Here are the comments you read in Phase 1 in case they are useful\./);
+  assert.match(client, /post=\{assignment\.responsePost\}/);
+  assert.match(client, /responsePostId: assignment\.responsePost\.postId/);
+  assert.match(client, /responsePostSha256: assignment\.responsePost\.sha256/);
+  assert.ok(
+    client.indexOf("Your summary from Phase 1")
+      < client.indexOf("Here are the comments you read in Phase 1 in case they are useful."),
+    "the locked Phase 1 gist must appear before the five comments",
+  );
   assert.match(client, />Press next to begin Phase 1<\/PrimaryButton>/);
   assert.doesNotMatch(client, />Press next to begin Phase 1\.<\/PrimaryButton>/);
   assert.doesNotMatch(client, /The earlier discussion is no longer available|constructive advice/);
   assert.match(client, /LegacyAdviceTransferTask/);
   assert.doesNotMatch(client, /modelLabel|deepseek_v3|gpt_oss_120b|glm_4_6_direct/);
+});
+
+test("the same-post database migration preserves old pairs and records the actual response post", async () => {
+  const [migration, integration] = await Promise.all([
+    read("supabase_advice_transfer_same_post_migration.sql"),
+    read("tests/advice-transfer-same-post-integration.sql"),
+  ]);
+
+  assert.match(migration, /add column if not exists design_variant text not null default 'a_to_b'/);
+  assert.match(migration, /add column if not exists response_post_id text/);
+  assert.match(migration, /claim_advice_transfer_assignment_same_post/);
+  assert.match(migration, /if v_existing_id is null[\s\S]*design_variant = 'same_post'/);
+  assert.match(migration, /when v_assignment\.design_variant = 'same_post'[\s\S]*v_response -> 'exposurePost'/);
+  assert.match(migration, /new\.response_post_id := new\.exposure_post_id/);
+  assert.match(migration, /new\.response_post_id := new\.target_post_id/);
+  assert.match(migration, /'responsePostId', new\.response_post_id/);
+  assert.match(migration, /before insert or update[\s\S]*on public\.advice_transfer_submissions/);
+  assert.doesNotMatch(migration, /delete from public\.advice_transfer_(assignments|submissions|stimuli)/i);
+  assert.doesNotMatch(migration, /formal_recruitment_open[\s\S]*true/i);
+  assert.match(integration, /designVariant' is distinct from 'same_post'/);
+  assert.match(integration, /designVariant' is distinct from 'a_to_b'/);
+  assert.match(integration, /response_post_id is distinct from v_stimulus\.exposure_post_id/);
+  assert.match(integration, /^rollback;/m);
 });
 
 test("the client enforces two-strike screening, clipboard blocking, and both word minima", async () => {

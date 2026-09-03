@@ -67,12 +67,14 @@ https://baron-sun.github.io/online-research-study/comment-source/?PROLIFIC_PID=t
 
 ## Study 2 advice-transfer task
 
-The formal Study 2 task crosses 10 active A/B dilemma pairs with two masked
-comment-source conditions. A participant reads dilemma A and five Human or five
+The formal Study 2 task crosses 10 active Reddit posts with two masked
+comment-source conditions. A participant reads one post and five Human or five
 AI comments, classifies each comment's expressed judgment, summarizes their
 gist, and rates the difficulty of producing that summary. The participant then
-reads related-but-different dilemma B and writes an opinion, with the same five
-earlier comments visible for reference. The three reserve pairs remain inactive.
+returns to the same post and writes a final opinion, with their locked summary
+and the same five comments visible for reference. The three reserve stimuli
+remain inactive. The original B posts are retained only as historical stimulus
+metadata and are not displayed in the same-post design.
 
 ### V4 gist protocol (test release, 28 August 2026)
 
@@ -80,13 +82,14 @@ The participant-facing and future Prolific public title is **Study About Online
 Opinions**. This release implements the approved feedback in
 [New test web app](https://docs.google.com/document/d/1APA6y4UeF6fuxf6puTN89CuRT14kzaNXft3jfGQrciQ/edit).
 It preserves the selected stimuli, source conditions, random comment order,
-and quota/standby assignment policy. Because earlier comments remain visible
-while responding to B, this protocol must not be described as fully excluding
+and quota/standby assignment policy. Because the comments remain visible while
+participants respond to the same post, this protocol measures direct comment
+influence and must not be described as cross-dilemma transfer or as excluding
 direct reference or imitation. No stimulus reselection is part of this update.
 
 Flow: overview → consent → Phase 1 instructions and two-attempt comprehension
-question → Phase 2 instructions → A/comment classifications/gist/gist difficulty
-→ B opinion with prior comments → effort and confidence → the existing
+question → Phase 2 instructions → post/comment classifications/gist/gist difficulty
+→ same-post opinion with the locked gist and comments → effort and confidence → the existing
 three-step funnel → five core demographic questions → saved confirmation and
 debrief.
 
@@ -103,17 +106,17 @@ and use the preserved legacy frontend, including unfinished drafts and final
 submission retries. Local v4 backups use a separate storage namespace.
 
 `save_advice_transfer_stage` atomically records immutable `phase1` and `phase2`
-snapshots. Phase 1 locks before B is shown; Phase 2 (opinion plus effort and
+snapshots. Phase 1 locks before the response page is shown; Phase 2 (opinion plus effort and
 confidence) locks before purpose/source guesses. Back remains available for
 read-only review. Retry returns the original stored snapshot and lock time,
 even if its first acknowledgement was lost. Drafts, departure saves, and final
 submissions cannot overwrite committed answers. Pending stage/final requests
 remain in the local backup while autosave continues.
 
-Timing definitions: `phase1ActiveTimeMs` accumulates while the editable A page
+Timing definitions: `phase1ActiveTimeMs` accumulates while the editable post page
 is visible. `gistActiveTimeMs` is the subset during which focus is inside the
 gist text/rating panel; it is **not** a measure of unobserved thinking before
-focus. `adviceResponseTimeMs` accumulates only on the editable B page. Hidden
+focus. `adviceResponseTimeMs` accumulates only on the editable same-post response page. Hidden
 tabs, other pages, and read-only visits after a lock do not add to these
 durations. First-entry/edit timestamps and server lock times are also retained.
 The total session duration includes time outside the task pages.
@@ -123,6 +126,12 @@ before publishing the frontend. It does not seed/reset data or change
 recruitment/targets. Heartbeat and departure now acquire the existing shared
 advisory lock before row locks, consistent with claim/submit, avoiding a
 previous lock-order inversion without changing allocation policy.
+
+After the v4 migration, apply `supabase_advice_transfer_same_post_migration.sql`.
+It preserves existing A-to-B assignments and submissions. Only newly created
+assignments use `design_variant = 'same_post'`. The original pair metadata is
+retained, while `response_post_id` and `response_post_body_sha256` identify the
+post that was actually shown for the participant's Phase 2 response.
 
 `tests/advice-transfer-v4-integration.sql` tests validation, immutable stages,
 stale drafts, legacy compatibility and idempotency using QA IDs inside a

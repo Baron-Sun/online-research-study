@@ -11,7 +11,10 @@ export { MIN_ADVICE_WORDS, MIN_GIST_WORDS, countEnglishWords } from "./advice-tr
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
-const AITA_RESPONSE_GUIDANCE =
+const SAME_POST_DESIGN = "same_post";
+const SAME_POST_RESPONSE_GUIDANCE =
+  "Now, imagine you are commenting on the same Reddit post. Write the opinion you would give to the user. The summary you wrote and the five comments you read in Phase 1 are shown below in case they are useful. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then write your opinion.";
+const A_TO_B_RESPONSE_GUIDANCE =
   "Imagine you are commenting on this post in the online platform. Write the opinion you would give to the user. We have provided the comments you previously read in case this dilemma is similar. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then write your opinion.";
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
 const SUBMIT_RETRY_DELAYS_MS = [0, 750, 1_500, 3_000, 5_000];
@@ -255,25 +258,41 @@ export const supabaseRpcWithRetry = async (
 };
 
 export const validateAdviceTransferAssignment = (value) => {
-  if (!value?.assignmentId || !value?.exposurePost || !value?.targetPost) {
+  if (!value?.assignmentId || !value?.exposurePost || !value?.targetPost || !value?.responsePost) {
     throw new Error("The assigned study material was incomplete.");
   }
   if (Object.prototype.hasOwnProperty.call(value, "condition")) {
     throw new Error("The assignment disclosed information that should remain masked.");
+  }
+  if (!["a_to_b", SAME_POST_DESIGN].includes(value.designVariant)) {
+    throw new Error("The assigned study design was incomplete.");
   }
   if (
     value.exposurePost.postId === value.targetPost.postId ||
     !value.exposurePost.title ||
     !value.exposurePost.body ||
     !value.targetPost.title ||
-    !value.targetPost.body
+    !value.targetPost.body ||
+    !value.responsePost.title ||
+    !value.responsePost.body
   ) {
     throw new Error("The assigned post pair failed its completeness check.");
   }
-  for (const post of [value.exposurePost, value.targetPost]) {
+  for (const post of [value.exposurePost, value.targetPost, value.responsePost]) {
     if (!/^[a-f0-9]{64}$/i.test(String(post.sha256 || ""))) {
       throw new Error("An assigned post failed its audit-hash check.");
     }
+  }
+  const expectedResponsePost = value.designVariant === SAME_POST_DESIGN
+    ? value.exposurePost
+    : value.targetPost;
+  if (
+    value.responsePost.postId !== expectedResponsePost.postId ||
+    value.responsePost.title !== expectedResponsePost.title ||
+    value.responsePost.body !== expectedResponsePost.body ||
+    value.responsePost.sha256 !== expectedResponsePost.sha256
+  ) {
+    throw new Error("The assigned response post did not match the study design.");
   }
   if (
     !Array.isArray(value.comments) ||
@@ -373,13 +392,13 @@ const Page = ({ children, wide = false, ready = true }) => (
   </main>
 );
 
-const PostPanel = ({ eyebrow, post, adviceTarget = false }) => (
+const PostPanel = ({ eyebrow, post, adviceTarget = false, guidance = A_TO_B_RESPONSE_GUIDANCE }) => (
   <article className="source-panel source-post-panel transfer-post-panel">
     <div className="source-panel-heading">
       <p className="source-eyebrow">{eyebrow}</p>
       {adviceTarget && (
         <p className="transfer-advice-prompt">
-          {AITA_RESPONSE_GUIDANCE}
+          {guidance}
         </p>
       )}
       <h2>{post.title}</h2>
@@ -576,6 +595,7 @@ export default function AdviceTransferTask() {
   const completion = useMemo(() => getCompletion(), []);
   const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
   const gistWordCount = useMemo(() => countEnglishWords(gistText), [gistText]);
+  const isSamePostDesign = assignment?.designVariant === SAME_POST_DESIGN;
   const draftPayload = useMemo(() => {
     if (!assignment || !DRAFTABLE_SCREENS.has(screen)) return null;
     return {
@@ -732,7 +752,7 @@ export default function AdviceTransferTask() {
         try {
           response = await supabaseRpcWithRetry(
             config,
-            "claim_advice_transfer_assignment_v4",
+            "claim_advice_transfer_assignment_same_post",
             claimPayload,
             CLAIM_RETRY_DELAYS_MS,
           );
@@ -1364,6 +1384,9 @@ export default function AdviceTransferTask() {
         exposurePostSha256: assignment.exposurePost.sha256,
         targetPostId: assignment.targetPost.postId,
         targetPostSha256: assignment.targetPost.sha256,
+        designVariant: assignment.designVariant,
+        responsePostId: assignment.responsePost.postId,
+        responsePostSha256: assignment.responsePost.sha256,
         commentOrder: assignment.commentOrder,
         commentHashes: assignment.commentHashes,
       },
@@ -1531,7 +1554,7 @@ export default function AdviceTransferTask() {
             platform Reddit. These posts come from a Reddit group where people post
             about a social dilemma they are facing, and ask for people’s opinions.
             You will read the post and you will also see comments that offer
-            opinions. Then, you will also offer your own opinion to similar dilemmas.
+            opinions. Then, you will also offer your own opinion about {isSamePostDesign ? "the same dilemma" : "a similar dilemma"}.
           </p>
           <div className="source-overview-grid transfer-overview-time">
             <div><span>Estimated time</span><strong>About 10–12 minutes</strong></div>
@@ -1679,13 +1702,22 @@ export default function AdviceTransferTask() {
           <p className="source-eyebrow">Phase 2 instructions</p>
           <h2>Provide your opinion</h2>
           <div className="source-instructions-copy transfer-instructions">
-            <p>
-              For Phase 2, you will see another dilemma posted by a Reddit user.
-              For this one, you will give your opinion as if you were commenting
-              on the social media platform. You will be able to see the comments
-              from the first dilemma in case the dilemma is similar and the
-              opinions are relevant.
-            </p>
+            {isSamePostDesign ? (
+              <p>
+                In Phase 2, you will return to the same Reddit post and give your
+                own opinion as if you were commenting on the social media platform.
+                Your Phase 1 summary and the five comments will remain available
+                for reference.
+              </p>
+            ) : (
+              <p>
+                For Phase 2, you will see another dilemma posted by a Reddit user.
+                For this one, you will give your opinion as if you were commenting
+                on the social media platform. You will be able to see the comments
+                from the first dilemma in case the dilemma is similar and the
+                opinions are relevant.
+              </p>
+            )}
           </div>
           <div className="transfer-action-row">
             <SecondaryButton onClick={() => returnToScreen("instructions")}>Back to Phase 1 instructions</SecondaryButton>
@@ -1762,7 +1794,7 @@ export default function AdviceTransferTask() {
           <div className="transfer-action-row transfer-inline-actions">
             <SecondaryButton disabled={Boolean(pendingStage)} onClick={() => returnToScreen("phase2-instructions")}>Back to instructions</SecondaryButton>
             <PrimaryButton disabled={stageSaveState === "saving" || !phase1Complete(commentLabels, gistText, gistDifficulty)} onClick={continueToAdvice}>
-              {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue to the second Reddit post"}
+              {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue to Phase 2"}
             </PrimaryButton>
           </div>
         </div>
@@ -1782,9 +1814,22 @@ export default function AdviceTransferTask() {
         {phase2LockedAt && <LockedNotice>Your opinion and post-task ratings have been saved and are read-only.</LockedNotice>}
         <div className="transfer-advice-grid">
           <div className="transfer-reference-column">
-            <PostPanel eyebrow="The second Reddit post" post={assignment.targetPost} adviceTarget />
+            <PostPanel
+              eyebrow={isSamePostDesign ? "The Reddit post" : "The second Reddit post"}
+              post={assignment.responsePost}
+              adviceTarget
+              guidance={isSamePostDesign ? SAME_POST_RESPONSE_GUIDANCE : A_TO_B_RESPONSE_GUIDANCE}
+            />
+            {isSamePostDesign && (
+              <section className="source-panel transfer-previous-gist" aria-label="Your Phase 1 summary">
+                <h3>Your summary from Phase 1</h3>
+                <p>{phase1Snapshot?.gistText || gistText}</p>
+              </section>
+            )}
             <section className="source-panel source-comments-panel transfer-previous-comments">
-              <h3>Here are the comments for the previous post in case they are useful for this post</h3>
+              <h3>{isSamePostDesign
+                ? "Here are the comments you read in Phase 1 in case they are useful."
+                : "Here are the comments for the previous post in case they are useful for this post"}</h3>
               <CommentFeed assignment={assignment} />
             </section>
           </div>
@@ -2041,9 +2086,9 @@ export default function AdviceTransferTask() {
           <div className="transfer-debrief-copy">
             <h3>Debrief</h3>
             <p>
-              This study examines whether reading an earlier set of opinions can
-              influence the advice people later give in response to a different
-              but related Reddit post. Some participants read comments written by people, while
+              This study examines whether reading a set of opinions can influence
+              the opinion people then give about {isSamePostDesign ? "the same Reddit post" : "a different but related Reddit post"}.
+              Some participants read comments written by people, while
               others read comments generated by artificial-intelligence systems.
               The study also examines how consistent the advice is across people,
               which considerations appear in their reasoning, and how difficult or
