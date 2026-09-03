@@ -53,6 +53,8 @@ test("the client implements masked five-comment exposure and audited same-post r
   assert.match(client, /value\.comments\.length !== 5/);
   assert.match(client, /value\.exposurePost\.postId === value\.targetPost\.postId/);
   assert.match(client, /value\.responsePost\.postId !== expectedResponsePost\.postId/);
+  assert.match(client, /POST_TASK_OPINION_DIFFICULTY/);
+  assert.match(client, /value\.postTaskMeasure/);
   assert.match(client, /Object\.prototype\.hasOwnProperty\.call\(value, "condition"\)/);
   assert.match(client, /Imagine you are commenting on this post in the online platform/);
   assert.doesNotMatch(client, /respond as you normally would/i);
@@ -82,6 +84,7 @@ test("the client implements masked five-comment exposure and audited same-post r
   assert.match(client, /post=\{assignment\.responsePost\}/);
   assert.match(client, /responsePostId: assignment\.responsePost\.postId/);
   assert.match(client, /responsePostSha256: assignment\.responsePost\.sha256/);
+  assert.match(client, /postTaskMeasure: assignment\.postTaskMeasure/);
   assert.ok(
     client.indexOf("Your summary from Phase 1")
       < client.indexOf("Here are the comments you read in Phase 1 in case they are useful."),
@@ -92,6 +95,37 @@ test("the client implements masked five-comment exposure and audited same-post r
   assert.doesNotMatch(client, /The earlier discussion is no longer available|constructive advice/);
   assert.match(client, /LegacyAdviceTransferTask/);
   assert.doesNotMatch(client, /modelLabel|deepseek_v3|gpt_oss_120b|glm_4_6_direct/);
+});
+
+test("the same-post post-task measure uses final-opinion difficulty without rewriting legacy effort", async () => {
+  const [client, protocol, migration, setup, integration] = await Promise.all([
+    read("src/AdviceTransferTask.jsx"),
+    read("src/advice-transfer-protocol.mjs"),
+    read("supabase_advice_transfer_opinion_difficulty_migration.sql"),
+    read("supabase_advice_transfer_setup.sql"),
+    read("tests/advice-transfer-same-post-integration.sql"),
+  ]);
+
+  assert.match(client, /How difficult was it to form your final opinion about the dilemma\?/);
+  assert.match(client, /Not at all difficult/);
+  assert.match(client, /Moderately difficult/);
+  assert.match(client, /Extremely difficult/);
+  assert.match(client, /difficulty: isOpinionDifficultyMeasure \? opinionDifficulty : null/);
+  assert.match(client, /effort: isOpinionDifficultyMeasure \? null : effort/);
+  assert.ok(
+    client.indexOf("How confident are you that the opinion you gave was right?")
+      < client.indexOf("How difficult was it to form your final opinion about the dilemma?"),
+    "confidence must be shown before final-opinion difficulty",
+  );
+  for (const sql of [migration, setup]) {
+    assert.match(sql, /post_task_measure/);
+    assert.match(sql, /opinion_difficulty/);
+    assert.match(sql, /difficulty/);
+    assert.match(sql, /effort/);
+  }
+  assert.match(protocol, /POST_TASK_OPINION_DIFFICULTY/);
+  assert.match(integration, /postTaskMeasure/);
+  assert.match(integration, /opinion_difficulty/);
 });
 
 test("the same-post database migration preserves old pairs and records the actual response post", async () => {
@@ -113,7 +147,10 @@ test("the same-post database migration preserves old pairs and records the actua
   assert.doesNotMatch(migration, /formal_recruitment_open[\s\S]*true/i);
   assert.match(integration, /designVariant' is distinct from 'same_post'/);
   assert.match(integration, /designVariant' is distinct from 'a_to_b'/);
-  assert.match(integration, /response_post_id is distinct from v_stimulus\.exposure_post_id/);
+  assert.match(
+    integration,
+    /response_post_id is distinct from\s+v_new_submission\.exposure_post_id/,
+  );
   assert.match(integration, /^rollback;/m);
 });
 
@@ -176,6 +213,7 @@ test("all ratings and the three-stage funnel are required and saved", async () =
 
   for (const field of [
     "gistDifficulty",
+    "opinionDifficulty",
     "effort",
     "confidence",
     "purposeGuess",

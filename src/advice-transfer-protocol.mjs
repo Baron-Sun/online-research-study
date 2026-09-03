@@ -1,6 +1,8 @@
 export const SCHEMA_VERSION = "advice-transfer-v4-gist";
 export const MIN_ADVICE_WORDS = 77;
 export const MIN_GIST_WORDS = 25;
+export const POST_TASK_EFFORT = "effort";
+export const POST_TASK_OPINION_DIFFICULTY = "opinion_difficulty";
 export const JUDGMENT_LABELS = ["YTA", "NTA", "ESH", "NAH", "INFO"];
 export const CORRECT_COMPREHENSION = "read-label-summarize";
 export const DEMOGRAPHIC_CODES = Object.freeze({
@@ -77,9 +79,22 @@ export const phase1Complete = (labels, gistText, gistDifficulty) =>
   countEnglishWords(gistText) >= MIN_GIST_WORDS &&
   scaleValue(gistDifficulty) !== null;
 
-export const phase2Complete = (advice, effort, confidence) =>
-  countEnglishWords(advice) >= MIN_ADVICE_WORDS &&
-  scaleValue(effort) !== null && scaleValue(confidence) !== null;
+export const phase2Complete = (
+  advice,
+  effort,
+  confidence,
+  opinionDifficulty = null,
+  postTaskMeasure = POST_TASK_EFFORT,
+) => {
+  if (![POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY].includes(postTaskMeasure)) {
+    return false;
+  }
+  const selectedRating = postTaskMeasure === POST_TASK_OPINION_DIFFICULTY
+    ? opinionDifficulty
+    : effort;
+  return countEnglishWords(advice) >= MIN_ADVICE_WORDS &&
+    scaleValue(selectedRating) !== null && scaleValue(confidence) !== null;
+};
 
 export const emptyActiveTimings = () => ({
   phase1ActiveTimeMs: 0,
@@ -171,8 +186,14 @@ export const restoreV4Draft = (assignment, drafts) => {
     gistText: String(phase1?.gistText ?? draft.gistText ?? ""),
     gistDifficulty: scaleValue(phase1?.gistDifficulty ?? draft.gistDifficulty),
     advice: String(phase2?.adviceText ?? draft.advice ?? ""),
-    effort: scaleValue(phase2?.effort ?? draft.effort),
-    confidence: scaleValue(phase2?.confidence ?? draft.confidence),
+    // Once Phase 2 is locked, explicit NULLs in its server snapshot are
+    // authoritative too. Falling back through `??` would resurrect the other
+    // measure from an older local draft and silently mix effort with difficulty.
+    effort: phase2 ? scaleValue(phase2.effort) : scaleValue(draft.effort),
+    opinionDifficulty: phase2
+      ? scaleValue(phase2.difficulty)
+      : scaleValue(draft.opinionDifficulty ?? draft.difficulty),
+    confidence: phase2 ? scaleValue(phase2.confidence) : scaleValue(draft.confidence),
     demographics: normalizeDemographics(draft.demographics),
     phase1Snapshot: phase1, phase1LockedAt,
     phase2Snapshot: phase2, phase2LockedAt,

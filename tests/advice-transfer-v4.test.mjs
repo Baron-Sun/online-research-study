@@ -6,6 +6,8 @@ import {
   MIN_GIST_WORDS,
   CORRECT_COMPREHENSION,
   JUDGMENT_LABELS,
+  POST_TASK_EFFORT,
+  POST_TASK_OPINION_DIFFICULTY,
   DEMOGRAPHIC_CODES,
   countEnglishWords,
   demographicsComplete,
@@ -103,15 +105,24 @@ test("v4 requires five valid classifications, at least 25 gist words, and a vali
   }
 });
 
-test("B keeps the exact 77-word boundary and requires both post-task ratings", () => {
+test("the response keeps the exact 77-word boundary and supports both post-task measures", () => {
   assert.equal(MIN_ADVICE_WORDS, 77);
   assert.equal(countEnglishWords(advice), 77);
   assert.equal(countEnglishWords("don't re-open a post's thread"), 5);
-  assert.equal(phase2Complete(advice, 1, 7), true);
+  assert.equal(phase2Complete(advice, 1, 7, null, POST_TASK_EFFORT), true);
+  assert.equal(
+    phase2Complete(advice, null, 7, 1, POST_TASK_OPINION_DIFFICULTY),
+    true,
+  );
+  assert.equal(phase2Complete(advice, 1, 7, 1, "unknown-measure"), false);
   assert.equal(phase2Complete(Array(76).fill("word").join(" "), 4, 4), false);
   for (const invalid of [null, undefined, 0, 8, 1.1, "3", false]) {
     assert.equal(phase2Complete(advice, invalid, 4), false);
     assert.equal(phase2Complete(advice, 4, invalid), false);
+    assert.equal(
+      phase2Complete(advice, null, 4, invalid, POST_TASK_OPINION_DIFFICULTY),
+      false,
+    );
   }
 });
 
@@ -214,6 +225,7 @@ test("server snapshots override newer stale local responses, timestamps, and for
   assert.deepEqual(restored.commentJudgments, phase1Snapshot.commentJudgments);
   assert.equal(restored.advice, advice);
   assert.equal(restored.effort, phase2Snapshot.effort);
+  assert.equal(restored.opinionDifficulty, null);
   assert.equal(restored.confidence, phase2Snapshot.confidence);
   assert.equal(restored.phase1LockedAt, fullyLocked.phase1LockedAt);
   assert.equal(restored.phase2LockedAt, fullyLocked.phase2LockedAt);
@@ -223,6 +235,28 @@ test("server snapshots override newer stale local responses, timestamps, and for
   assert.equal(forged.phase2Snapshot, null);
   assert.equal(forged.phase1LockedAt, null);
   assert.equal(forged.screen, "exposure");
+});
+
+test("server snapshots preserve the same-post final-opinion difficulty separately from effort", () => {
+  const difficultySnapshot = {
+    ...phase2Snapshot,
+    postTaskMeasure: POST_TASK_OPINION_DIFFICULTY,
+    difficulty: 5,
+    effort: null,
+  };
+  const samePostLocked = {
+    ...fullyLocked,
+    postTaskMeasure: POST_TASK_OPINION_DIFFICULTY,
+    phase2Snapshot: difficultySnapshot,
+  };
+  const restored = restoreV4Draft(samePostLocked, [makeDraft({
+    effort: 2,
+    opinionDifficulty: 1,
+    difficulty: 1,
+  })]);
+  assert.equal(restored.opinionDifficulty, 5);
+  assert.equal(restored.effort, null);
+  assert.equal(restored.confidence, difficultySnapshot.confidence);
 });
 
 test("optional timing context in one phase cannot override the other phase's validated duration", () => {

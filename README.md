@@ -89,15 +89,18 @@ direct reference or imitation. No stimulus reselection is part of this update.
 
 Flow: overview → consent → Phase 1 instructions and two-attempt comprehension
 question → Phase 2 instructions → post/comment classifications/gist/gist difficulty
-→ same-post opinion with the locked gist and comments → effort and confidence → the existing
+→ same-post opinion with the locked gist and comments → confidence and final-opinion difficulty → the existing
 three-step funnel → five core demographic questions → saved confirmation and
 debrief.
 
 Five YTA/NTA/ESH/NAH/INFO classifications are required. They are stored as
 participant responses, **not scored as right/wrong**, and do not affect the
 comprehension failure count, screening, or payment decisions. Gist requires at
-least 25 English words. `gistDifficulty` is a new measure;
-the old advice-decision `difficulty` is NULL for v4, never reused for gist.
+least 25 English words. `gistDifficulty` is a separate measure. New same-post
+assignments use the existing `difficulty` field for final-opinion difficulty
+and set `post_task_measure = 'opinion_difficulty'`; historical v4 assignments
+retain the original effort item and are marked `post_task_measure = 'effort'`.
+The two measures are never silently pooled.
 
 `claim_advice_transfer_assignment_v4` uses the same allocator/advisory lock as
 the original six-argument claim RPC. New assignments are stamped
@@ -106,8 +109,9 @@ and use the preserved legacy frontend, including unfinished drafts and final
 submission retries. Local v4 backups use a separate storage namespace.
 
 `save_advice_transfer_stage` atomically records immutable `phase1` and `phase2`
-snapshots. Phase 1 locks before the response page is shown; Phase 2 (opinion plus effort and
-confidence) locks before purpose/source guesses. Back remains available for
+snapshots. Phase 1 locks before the response page is shown; Phase 2 (opinion plus
+confidence and the assignment-specific post-task measure) locks before
+purpose/source guesses. Back remains available for
 read-only review. Retry returns the original stored snapshot and lock time,
 even if its first acknowledgement was lost. Drafts, departure saves, and final
 submissions cannot overwrite committed answers. Pending stage/final requests

@@ -62,6 +62,10 @@ create table if not exists public.advice_transfer_assignments (
   stimulus_id text not null references public.advice_transfer_stimuli(stimulus_id),
   pair_number integer not null check (pair_number between 1 and 13),
   condition text not null check (condition in ('human', 'ai')),
+  design_variant text not null default 'a_to_b'
+    check (design_variant in ('a_to_b', 'same_post')),
+  post_task_measure text not null default 'effort'
+    check (post_task_measure in ('effort', 'opinion_difficulty')),
   comment_order jsonb not null
     check (jsonb_typeof(comment_order) = 'array' and jsonb_array_length(comment_order) = 5),
   presented_comment_sha256 jsonb not null
@@ -88,7 +92,8 @@ create table if not exists public.advice_transfer_assignments (
   abandonment_reason text,
   submitted_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check (post_task_measure = 'effort' or design_variant = 'same_post')
 );
 
 -- Formal entrants wait here only while all exact cell reservations are in use.
@@ -167,6 +172,10 @@ create table if not exists public.advice_transfer_submissions (
   pair_number integer not null,
   pair_role text not null,
   condition text not null check (condition in ('human', 'ai')),
+  design_variant text not null default 'a_to_b'
+    check (design_variant in ('a_to_b', 'same_post')),
+  post_task_measure text not null default 'effort'
+    check (post_task_measure in ('effort', 'opinion_difficulty')),
   is_test boolean not null,
   comment_order jsonb not null,
   comment_sha256 jsonb not null,
@@ -174,11 +183,13 @@ create table if not exists public.advice_transfer_submissions (
   exposure_post_body_sha256 text not null,
   target_post_id text not null,
   target_post_body_sha256 text not null,
+  response_post_id text,
+  response_post_body_sha256 text,
   advice_text text not null,
   advice_word_count integer not null check (advice_word_count >= 77),
   advice_character_count integer not null check (advice_character_count >= 1),
-  difficulty integer not null check (difficulty between 1 and 7),
-  effort integer not null check (effort between 1 and 7),
+  difficulty integer check (difficulty between 1 and 7),
+  effort integer check (effort between 1 and 7),
   confidence integer not null check (confidence between 1 and 7),
   exposure_time_ms integer not null check (exposure_time_ms >= 0),
   advice_response_time_ms integer not null check (advice_response_time_ms >= 0),
@@ -215,13 +226,36 @@ alter table public.advice_transfer_assignments
   add column if not exists draft_payload jsonb not null default '{}'::jsonb,
   add column if not exists draft_updated_at timestamptz,
   add column if not exists abandoned_at timestamptz,
-  add column if not exists abandonment_reason text;
+  add column if not exists abandonment_reason text,
+  -- Existing rows are historical A-to-B sessions. The same-post claim wrapper
+  -- changes both fields only when it creates a new assignment.
+  add column if not exists design_variant text not null default 'a_to_b',
+  add column if not exists post_task_measure text not null default 'effort';
 
 alter table public.advice_transfer_submissions
   add column if not exists quota_disposition text not null default 'quota',
   add column if not exists validity_status text not null default 'pending',
   add column if not exists reviewed_at timestamptz,
-  add column if not exists exclusion_reason text;
+  add column if not exists exclusion_reason text,
+  add column if not exists design_variant text not null default 'a_to_b',
+  add column if not exists post_task_measure text not null default 'effort',
+  add column if not exists response_post_id text,
+  add column if not exists response_post_body_sha256 text;
+
+-- Historical submissions answered the paired B post. Preserve that fact while
+-- adding an explicit audit field for the post that actually received advice.
+update public.advice_transfer_submissions
+   set response_post_id = coalesce(response_post_id, target_post_id),
+       response_post_body_sha256 = coalesce(
+         response_post_body_sha256,
+         target_post_body_sha256
+       )
+ where response_post_id is null
+    or response_post_body_sha256 is null;
+
+alter table public.advice_transfer_submissions
+  alter column response_post_id set not null,
+  alter column response_post_body_sha256 set not null;
 
 -- V4 is additive. Existing assignments retain their legacy protocol and can
 -- finish in the legacy client; only the new claim wrapper creates v4 sessions.
@@ -251,11 +285,71 @@ alter table public.advice_transfer_submissions
   add column if not exists education_level text,
   add column if not exists employment_status text;
 
--- The old decision-difficulty measure is deliberately NOT reused for gist.
-alter table public.advice_transfer_submissions alter column difficulty drop not null;
+-- The old decision-difficulty column is reused only for the same-post final-
+-- opinion difficulty item, never for gist difficulty. Old A-to-B v4 sessions
+-- continue to use effort, and legacy sessions continue to require both fields.
+alter table public.advice_transfer_submissions
+  alter column difficulty drop not null,
+  alter column effort drop not null;
 
 do $$
 begin
+  if not exists (select 1 from pg_constraint
+    where conrelid = 'public.advice_transfer_assignments'::regclass
+      and conname = 'advice_transfer_assignment_design_variant') then
+    alter table public.advice_transfer_assignments
+      add constraint advice_transfer_assignment_design_variant
+      check (design_variant in ('a_to_b', 'same_post'));
+  end if;
+  if not exists (select 1 from pg_constraint
+    where conrelid = 'public.advice_transfer_assignments'::regclass
+      and conname = 'advice_transfer_assignment_post_task_measure') then
+    alter table public.advice_transfer_assignments
+      add constraint advice_transfer_assignment_post_task_measure
+      check (
+        post_task_measure in ('effort', 'opinion_difficulty')
+        and (post_task_measure = 'effort' or design_variant = 'same_post')
+      );
+  end if;
+  if not exists (select 1 from pg_constraint
+    where conrelid = 'public.advice_transfer_submissions'::regclass
+      and conname = 'advice_transfer_submission_design_variant') then
+    alter table public.advice_transfer_submissions
+      add constraint advice_transfer_submission_design_variant
+      check (design_variant in ('a_to_b', 'same_post'));
+  end if;
+  if not exists (select 1 from pg_constraint
+    where conrelid = 'public.advice_transfer_submissions'::regclass
+      and conname = 'advice_transfer_submission_post_task_measure') then
+    alter table public.advice_transfer_submissions
+      add constraint advice_transfer_submission_post_task_measure
+      check (
+        post_task_measure in ('effort', 'opinion_difficulty')
+        and (post_task_measure = 'effort' or design_variant = 'same_post')
+      );
+  end if;
+  if not exists (select 1 from pg_constraint
+    where conrelid = 'public.advice_transfer_submissions'::regclass
+      and conname = 'advice_transfer_response_post_hash_length') then
+    alter table public.advice_transfer_submissions
+      add constraint advice_transfer_response_post_hash_length
+      check (length(response_post_body_sha256) = 64);
+  end if;
+  if not exists (select 1 from pg_constraint
+    where conrelid = 'public.advice_transfer_submissions'::regclass
+      and conname = 'advice_transfer_response_post_matches_design') then
+    alter table public.advice_transfer_submissions
+      add constraint advice_transfer_response_post_matches_design
+      check (
+        (design_variant = 'same_post'
+          and response_post_id = exposure_post_id
+          and response_post_body_sha256 = exposure_post_body_sha256)
+        or
+        (design_variant = 'a_to_b'
+          and response_post_id = target_post_id
+          and response_post_body_sha256 = target_post_body_sha256)
+      );
+  end if;
   if not exists (select 1 from pg_constraint
     where conrelid = 'public.advice_transfer_assignments'::regclass
       and conname = 'advice_transfer_phase_snapshot_consistency') then
@@ -269,28 +363,40 @@ begin
         and (phase1_snapshot is null or protocol_version = 'advice-transfer-v4-gist')
       );
   end if;
-  if not exists (select 1 from pg_constraint
-    where conrelid = 'public.advice_transfer_submissions'::regclass
-      and conname = 'advice_transfer_submission_protocol_measures') then
-    alter table public.advice_transfer_submissions
-      add constraint advice_transfer_submission_protocol_measures check (
-        (protocol_version <> 'advice-transfer-v4-gist' and difficulty is not null)
-        or (
-          protocol_version = 'advice-transfer-v4-gist'
-          and difficulty is null
-          and comment_judgments is not null
-          and jsonb_typeof(comment_judgments) = 'array'
-          and jsonb_array_length(comment_judgments) = 5
-          and gist_text is not null and length(btrim(gist_text)) > 0
-          and gist_difficulty is not null and gist_difficulty between 1 and 7
-          and phase1_active_time_ms is not null and phase1_active_time_ms >= 0
-          and gist_active_time_ms is not null and gist_active_time_ms >= 0
-          and gist_active_time_ms <= phase1_active_time_ms
-          and phase1_locked_at is not null and phase2_locked_at is not null
-          and phase2_locked_at >= phase1_locked_at
+  -- This constraint predates post_task_measure, so replace it on every setup
+  -- run rather than leaving an installed effort-only definition in place.
+  alter table public.advice_transfer_submissions
+    drop constraint if exists advice_transfer_submission_protocol_measures;
+  alter table public.advice_transfer_submissions
+    add constraint advice_transfer_submission_protocol_measures check (
+      (
+        protocol_version <> 'advice-transfer-v4-gist'
+        and difficulty is not null
+        and effort is not null
+      )
+      or (
+        protocol_version = 'advice-transfer-v4-gist'
+        and (
+          (post_task_measure = 'effort'
+            and difficulty is null
+            and effort is not null)
+          or
+          (post_task_measure = 'opinion_difficulty'
+            and difficulty is not null
+            and effort is null)
         )
-      );
-  end if;
+        and comment_judgments is not null
+        and jsonb_typeof(comment_judgments) = 'array'
+        and jsonb_array_length(comment_judgments) = 5
+        and gist_text is not null and length(btrim(gist_text)) > 0
+        and gist_difficulty is not null and gist_difficulty between 1 and 7
+        and phase1_active_time_ms is not null and phase1_active_time_ms >= 0
+        and gist_active_time_ms is not null and gist_active_time_ms >= 0
+        and gist_active_time_ms <= phase1_active_time_ms
+        and phase1_locked_at is not null and phase2_locked_at is not null
+        and phase2_locked_at >= phase1_locked_at
+      )
+    );
   if not exists (select 1 from pg_constraint
     where conrelid = 'public.advice_transfer_submissions'::regclass
       and conname = 'advice_transfer_submission_demographic_values') then
@@ -461,6 +567,19 @@ begin
      and new.protocol_version is distinct from old.protocol_version then
     raise exception 'A v4 assignment cannot change protocol';
   end if;
+  if (
+       new.design_variant is distinct from old.design_variant
+       or new.post_task_measure is distinct from old.post_task_measure
+     ) and not (
+       old.protocol_version = 'advice-transfer-v4-gist'
+       and old.phase1_locked_at is null
+       and old.design_variant = 'a_to_b'
+       and old.post_task_measure = 'effort'
+       and new.design_variant = 'same_post'
+       and new.post_task_measure = 'opinion_difficulty'
+     ) then
+    raise exception 'Assignment design and post-task measure are immutable';
+  end if;
   if old.phase1_locked_at is not null and (
        new.phase1_snapshot is distinct from old.phase1_snapshot
        or new.phase1_locked_at is distinct from old.phase1_locked_at
@@ -524,7 +643,9 @@ immutable
 set search_path = public
 as $$
 declare
-  v_result jsonb := coalesce(p_payload, '{}'::jsonb);
+  -- opinionDifficulty is a browser-only state alias. Never persist or return it;
+  -- difficulty is the single canonical key for the same-post rating.
+  v_result jsonb := coalesce(p_payload, '{}'::jsonb) - 'opinionDifficulty';
   v_timings jsonb;
 begin
   if p_assignment.protocol_version <> 'advice-transfer-v4-gist' then
@@ -535,17 +656,29 @@ begin
   v_result := v_result || jsonb_build_object(
     'schemaVersion', p_assignment.protocol_version,
     'protocolVersion', p_assignment.protocol_version,
+    'designVariant', p_assignment.design_variant,
+    'postTaskMeasure', p_assignment.post_task_measure,
     'phase1Snapshot', p_assignment.phase1_snapshot,
     'phase1LockedAt', p_assignment.phase1_locked_at,
     'phase2Snapshot', p_assignment.phase2_snapshot,
-    'phase2LockedAt', p_assignment.phase2_locked_at,
-    'difficulty', null
+    'phase2LockedAt', p_assignment.phase2_locked_at
   );
+  if p_assignment.post_task_measure = 'effort' then
+    -- A-to-B v4 drafts retain their unlocked effort answer, but can never
+    -- populate the same-post opinion-difficulty field.
+    v_result := v_result || jsonb_build_object('difficulty', null);
+  else
+    -- Same-post drafts retain their unlocked difficulty answer, but can never
+    -- populate the retired effort field.
+    v_result := v_result || jsonb_build_object('effort', null);
+  end if;
   if p_assignment.phase1_snapshot is not null then
     v_result := v_result || jsonb_build_object(
       'commentJudgments', p_assignment.phase1_snapshot -> 'commentJudgments',
       'gistText', p_assignment.phase1_snapshot -> 'gistText',
-      'gistDifficulty', p_assignment.phase1_snapshot -> 'gistDifficulty'
+      'gistDifficulty', p_assignment.phase1_snapshot -> 'gistDifficulty',
+      'responsePostId', p_assignment.phase1_snapshot -> 'responsePostId',
+      'responsePostSha256', p_assignment.phase1_snapshot -> 'responsePostSha256'
     );
     v_timings := v_timings || (p_assignment.phase1_snapshot -> 'timings')
       || jsonb_build_object('exposureTimeMs',
@@ -557,9 +690,19 @@ begin
       'adviceText', p_assignment.phase2_snapshot -> 'adviceText',
       'adviceWordCount', p_assignment.phase2_snapshot -> 'adviceWordCount',
       'adviceCharacterCount', p_assignment.phase2_snapshot -> 'adviceCharacterCount',
-      'effort', p_assignment.phase2_snapshot -> 'effort',
       'confidence', p_assignment.phase2_snapshot -> 'confidence'
     );
+    if p_assignment.post_task_measure = 'effort' then
+      v_result := v_result || jsonb_build_object(
+        'difficulty', null,
+        'effort', p_assignment.phase2_snapshot -> 'effort'
+      );
+    else
+      v_result := v_result || jsonb_build_object(
+        'difficulty', p_assignment.phase2_snapshot -> 'difficulty',
+        'effort', null
+      );
+    end if;
     v_timings := v_timings || (p_assignment.phase2_snapshot -> 'timings');
   end if;
   -- Optional client timing context in either snapshot must not override the
@@ -1333,6 +1476,8 @@ begin
     'isTest', v_assignment.is_test,
     'pairNumber', v_stimulus.pair_number,
     'pairRole', v_stimulus.pair_role,
+    'designVariant', v_assignment.design_variant,
+    'postTaskMeasure', v_assignment.post_task_measure,
     'exposurePost', jsonb_build_object(
       'postId', v_stimulus.exposure_post_id,
       'title', v_stimulus.exposure_post_title,
@@ -1345,6 +1490,20 @@ begin
       'body', v_stimulus.target_post_body,
       'sha256', v_stimulus.target_post_body_sha256
     ),
+    'responsePost', case
+      when v_assignment.design_variant = 'same_post' then jsonb_build_object(
+        'postId', v_stimulus.exposure_post_id,
+        'title', v_stimulus.exposure_post_title,
+        'body', v_stimulus.exposure_post_body,
+        'sha256', v_stimulus.exposure_post_body_sha256
+      )
+      else jsonb_build_object(
+        'postId', v_stimulus.target_post_id,
+        'title', v_stimulus.target_post_title,
+        'body', v_stimulus.target_post_body,
+        'sha256', v_stimulus.target_post_body_sha256
+      )
+    end,
     'comments', v_ordered_comments,
     'commentHashes', v_ordered_hashes,
     'commentOrder', v_assignment.comment_order,
@@ -1519,6 +1678,13 @@ begin
   return v_response || jsonb_build_object(
     'schemaVersion', v_assignment.protocol_version,
     'protocolVersion', v_assignment.protocol_version,
+    'designVariant', v_assignment.design_variant,
+    'postTaskMeasure', v_assignment.post_task_measure,
+    'responsePost', case
+      when v_assignment.design_variant = 'same_post'
+        then v_response -> 'exposurePost'
+      else v_response -> 'targetPost'
+    end,
     'draftPayload', public.advice_transfer_locked_payload(v_assignment, v_assignment.draft_payload),
     'phase1Snapshot', v_assignment.phase1_snapshot,
     'phase1LockedAt', v_assignment.phase1_locked_at,
@@ -1527,6 +1693,144 @@ begin
   );
 end;
 $$;
+
+-- New Study 2 sessions use the same Reddit post in both phases and replace
+-- the old effort item with final-opinion difficulty. Existing identities keep
+-- their stored design and measure, so refreshes never change the task.
+create or replace function public.claim_advice_transfer_assignment_same_post(
+  p_prolific_pid text,
+  p_study_id text default null,
+  p_session_id text default null,
+  p_is_test boolean default false,
+  p_pair_number integer default null,
+  p_condition text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_existing_id uuid;
+  v_response jsonb;
+  v_assignment public.advice_transfer_assignments%rowtype;
+  v_pid text := nullif(trim(p_prolific_pid), '');
+  v_study text := nullif(trim(p_study_id), '');
+  v_session text := nullif(trim(p_session_id), '');
+  v_is_test boolean := coalesce(v_pid ~* '^(test|preview|qa)[-_]', false);
+begin
+  perform pg_advisory_xact_lock(hashtext('advice_transfer_admission_v3'));
+
+  select id into v_existing_id
+    from public.advice_transfer_assignments
+   where prolific_pid = v_pid
+     and coalesce(study_id, '') = coalesce(v_study, '')
+     and (
+       (v_is_test and coalesce(session_id, '') = coalesce(v_session, ''))
+       or (not v_is_test and not is_test)
+     )
+   order by created_at desc
+   limit 1;
+
+  v_response := public.claim_advice_transfer_assignment_v4(
+    p_prolific_pid, p_study_id, p_session_id,
+    p_is_test, p_pair_number, p_condition
+  );
+  if v_response ->> 'admissionStatus' <> 'assigned' then
+    return v_response;
+  end if;
+
+  select * into v_assignment
+    from public.advice_transfer_assignments
+   where assignment_id = v_response ->> 'assignmentId'
+   for update;
+
+  if v_existing_id is null
+     and v_assignment.protocol_version = 'advice-transfer-v4-gist' then
+    update public.advice_transfer_assignments
+       set design_variant = 'same_post',
+           post_task_measure = 'opinion_difficulty',
+           updated_at = now()
+     where id = v_assignment.id
+     returning * into v_assignment;
+  end if;
+
+  return v_response || jsonb_build_object(
+    'designVariant', v_assignment.design_variant,
+    'postTaskMeasure', v_assignment.post_task_measure,
+    'responsePost', case
+      when v_assignment.design_variant = 'same_post'
+        then v_response -> 'exposurePost'
+      else v_response -> 'targetPost'
+    end,
+    'draftPayload', public.advice_transfer_locked_payload(
+      v_assignment,
+      v_assignment.draft_payload
+    )
+  );
+end;
+$$;
+
+-- Derive design, measure, and actual response-post audit fields from the
+-- assignment on every submission write. This keeps them server-authoritative
+-- even if a client sends forged audit metadata.
+create or replace function public.set_advice_transfer_response_post_audit()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_assignment public.advice_transfer_assignments%rowtype;
+  v_server_audit jsonb;
+begin
+  select * into v_assignment
+    from public.advice_transfer_assignments
+   where assignment_id = new.assignment_id;
+
+  if v_assignment.id is null then
+    raise exception 'Assignment design audit is missing';
+  end if;
+
+  new.design_variant := v_assignment.design_variant;
+  new.post_task_measure := v_assignment.post_task_measure;
+  if v_assignment.design_variant = 'same_post' then
+    new.response_post_id := new.exposure_post_id;
+    new.response_post_body_sha256 := new.exposure_post_body_sha256;
+  else
+    new.response_post_id := new.target_post_id;
+    new.response_post_body_sha256 := new.target_post_body_sha256;
+  end if;
+
+  v_server_audit := case
+    when jsonb_typeof(new.full_payload #> '{serverAudit}') = 'object'
+      then new.full_payload -> 'serverAudit'
+    else '{}'::jsonb
+  end;
+  new.full_payload := new.full_payload || jsonb_build_object(
+    'designVariant', new.design_variant,
+    'postTaskMeasure', new.post_task_measure,
+    'responsePostId', new.response_post_id,
+    'responsePostSha256', new.response_post_body_sha256,
+    'serverAudit', v_server_audit || jsonb_build_object(
+      'designVariant', new.design_variant,
+      'postTaskMeasure', new.post_task_measure,
+      'responsePostId', new.response_post_id,
+      'responsePostSha256', new.response_post_body_sha256
+    )
+  );
+
+  return new;
+end;
+$$;
+
+drop trigger if exists advice_transfer_response_post_audit
+  on public.advice_transfer_submissions;
+create trigger advice_transfer_response_post_audit
+before insert or update of assignment_id, design_variant, post_task_measure,
+  exposure_post_id, exposure_post_body_sha256, target_post_id,
+  target_post_body_sha256, full_payload
+on public.advice_transfer_submissions
+for each row execute function public.set_advice_transfer_response_post_audit();
 
 create or replace function public.heartbeat_advice_transfer_assignment(
   p_assignment_id text,
@@ -1666,6 +1970,7 @@ set search_path = public
 as $$
 declare
   v_assignment public.advice_transfer_assignments%rowtype;
+  v_stimulus public.advice_transfer_stimuli%rowtype;
   v_heartbeat jsonb;
   v_snapshot jsonb;
   v_locked_at timestamptz;
@@ -1682,6 +1987,7 @@ declare
   v_gist_ms integer;
   v_advice text;
   v_word_count integer;
+  v_difficulty integer;
   v_effort integer;
   v_confidence integer;
   v_advice_ms integer;
@@ -1714,6 +2020,13 @@ begin
   end if;
   if v_assignment.protocol_version <> 'advice-transfer-v4-gist' then
     raise exception 'This assignment belongs to the legacy Study 2 protocol';
+  end if;
+
+  select * into v_stimulus
+    from public.advice_transfer_stimuli
+   where stimulus_id = v_assignment.stimulus_id;
+  if v_stimulus.stimulus_id is null then
+    raise exception 'Assigned Study 2 stimulus was not found';
   end if;
 
   v_snapshot := case when p_stage = 'phase1'
@@ -1800,6 +2113,18 @@ begin
       v_snapshot := jsonb_build_object(
         'schemaVersion', v_assignment.protocol_version,
         'stage', 'phase1',
+        'designVariant', v_assignment.design_variant,
+        'postTaskMeasure', v_assignment.post_task_measure,
+        'responsePostId', case
+          when v_assignment.design_variant = 'same_post'
+            then v_stimulus.exposure_post_id
+          else v_stimulus.target_post_id
+        end,
+        'responsePostSha256', case
+          when v_assignment.design_variant = 'same_post'
+            then v_stimulus.exposure_post_body_sha256
+          else v_stimulus.target_post_body_sha256
+        end,
         'commentJudgments', v_judgments,
         'gistText', v_gist,
         'gistWordCount', v_gist_word_count,
@@ -1822,7 +2147,29 @@ begin
       if v_word_count < 77 then
         raise exception 'An opinion of at least 77 English words is required';
       end if;
-      v_effort := public.advice_transfer_required_integer(p_payload -> 'effort', 'effort', 1, 7);
+      if coalesce(p_payload ->> 'postTaskMeasure', 'effort')
+           is distinct from v_assignment.post_task_measure then
+        raise exception 'Post-task measure does not match assignment';
+      end if;
+      if v_assignment.post_task_measure = 'opinion_difficulty' then
+        v_difficulty := public.advice_transfer_required_integer(
+          p_payload -> 'difficulty', 'difficulty', 1, 7
+        );
+        if p_payload -> 'effort' is not null
+           and jsonb_typeof(p_payload -> 'effort') is distinct from 'null' then
+          raise exception 'Effort is not collected for this assignment';
+        end if;
+        v_effort := null;
+      else
+        v_effort := public.advice_transfer_required_integer(
+          p_payload -> 'effort', 'effort', 1, 7
+        );
+        if p_payload -> 'difficulty' is not null
+           and jsonb_typeof(p_payload -> 'difficulty') is distinct from 'null' then
+          raise exception 'Opinion difficulty is not collected for this assignment';
+        end if;
+        v_difficulty := null;
+      end if;
       v_confidence := public.advice_transfer_required_integer(p_payload -> 'confidence', 'confidence', 1, 7);
       v_advice_ms := public.advice_transfer_required_integer(
         v_timings -> 'adviceResponseTimeMs', 'adviceResponseTimeMs', 0, 2147483647
@@ -1831,9 +2178,22 @@ begin
       v_snapshot := jsonb_build_object(
         'schemaVersion', v_assignment.protocol_version,
         'stage', 'phase2',
+        'designVariant', v_assignment.design_variant,
+        'postTaskMeasure', v_assignment.post_task_measure,
+        'responsePostId', case
+          when v_assignment.design_variant = 'same_post'
+            then v_stimulus.exposure_post_id
+          else v_stimulus.target_post_id
+        end,
+        'responsePostSha256', case
+          when v_assignment.design_variant = 'same_post'
+            then v_stimulus.exposure_post_body_sha256
+          else v_stimulus.target_post_body_sha256
+        end,
         'adviceText', v_advice,
         'adviceWordCount', v_word_count,
         'adviceCharacterCount', char_length(v_advice),
+        'difficulty', v_difficulty,
         'effort', v_effort,
         'confidence', v_confidence,
         'timings', v_timings || jsonb_build_object('adviceResponseTimeMs', v_advice_ms),
@@ -2479,9 +2839,41 @@ begin
   v_advice := trim(coalesce(p_payload ->> 'adviceText', ''));
   v_word_count := public.advice_transfer_word_count(v_advice);
   v_character_count := char_length(v_advice);
-  v_difficulty := nullif(p_payload ->> 'difficulty', '')::integer;
-  v_effort := nullif(p_payload ->> 'effort', '')::integer;
-  v_confidence := nullif(p_payload ->> 'confidence', '')::integer;
+  if v_assignment.protocol_version = 'advice-transfer-v4-gist' then
+    if v_assignment.post_task_measure = 'opinion_difficulty' then
+      if v_assignment.phase2_snapshot ->> 'postTaskMeasure'
+           is distinct from 'opinion_difficulty'
+         or v_assignment.phase2_snapshot ->> 'designVariant'
+           is distinct from v_assignment.design_variant
+         or v_assignment.phase2_snapshot ->> 'responsePostId'
+           is distinct from v_stimulus.exposure_post_id
+         or v_assignment.phase2_snapshot ->> 'responsePostSha256'
+           is distinct from v_stimulus.exposure_post_body_sha256 then
+        raise exception 'Locked Phase 2 design audit does not match assignment';
+      end if;
+      v_difficulty := public.advice_transfer_required_integer(
+        v_assignment.phase2_snapshot -> 'difficulty', 'difficulty', 1, 7
+      );
+      v_effort := null;
+    else
+      if v_assignment.phase2_snapshot ? 'postTaskMeasure'
+         and v_assignment.phase2_snapshot ->> 'postTaskMeasure'
+           is distinct from 'effort' then
+        raise exception 'Locked Phase 2 measure does not match assignment';
+      end if;
+      v_difficulty := null;
+      v_effort := public.advice_transfer_required_integer(
+        v_assignment.phase2_snapshot -> 'effort', 'effort', 1, 7
+      );
+    end if;
+    v_confidence := public.advice_transfer_required_integer(
+      v_assignment.phase2_snapshot -> 'confidence', 'confidence', 1, 7
+    );
+  else
+    v_difficulty := nullif(p_payload ->> 'difficulty', '')::integer;
+    v_effort := nullif(p_payload ->> 'effort', '')::integer;
+    v_confidence := nullif(p_payload ->> 'confidence', '')::integer;
+  end if;
   v_exposure_time := coalesce(nullif(p_payload #>> '{timings,exposureTimeMs}', '')::integer, 0);
   v_advice_time := coalesce(nullif(p_payload #>> '{timings,adviceResponseTimeMs}', '')::integer, 0);
   v_purpose := trim(coalesce(p_payload ->> 'purposeGuess', ''));
@@ -2495,9 +2887,29 @@ begin
   if v_word_count < 77 then
     raise exception 'Advice must contain at least 77 English words';
   end if;
-  if (v_assignment.protocol_version <> 'advice-transfer-v4-gist'
-       and (v_difficulty is null or v_difficulty not between 1 and 7))
-     or v_effort is null or v_effort not between 1 and 7
+  if (
+       v_assignment.protocol_version <> 'advice-transfer-v4-gist'
+       and (
+         v_difficulty is null or v_difficulty not between 1 and 7
+         or v_effort is null or v_effort not between 1 and 7
+       )
+     )
+     or (
+       v_assignment.protocol_version = 'advice-transfer-v4-gist'
+       and v_assignment.post_task_measure = 'effort'
+       and (
+         v_difficulty is not null
+         or v_effort is null or v_effort not between 1 and 7
+       )
+     )
+     or (
+       v_assignment.protocol_version = 'advice-transfer-v4-gist'
+       and v_assignment.post_task_measure = 'opinion_difficulty'
+       and (
+         v_difficulty is null or v_difficulty not between 1 and 7
+         or v_effort is not null
+       )
+     )
      or v_confidence is null or v_confidence not between 1 and 7 then
     raise exception 'Required post-task ratings must each be between 1 and 7';
   end if;
@@ -2548,6 +2960,8 @@ begin
     pair_number,
     pair_role,
     condition,
+    design_variant,
+    post_task_measure,
     is_test,
     comment_order,
     comment_sha256,
@@ -2555,6 +2969,8 @@ begin
     exposure_post_body_sha256,
     target_post_id,
     target_post_body_sha256,
+    response_post_id,
+    response_post_body_sha256,
     advice_text,
     advice_word_count,
     advice_character_count,
@@ -2593,6 +3009,8 @@ begin
     v_assignment.pair_number,
     v_stimulus.pair_role,
     v_assignment.condition,
+    v_assignment.design_variant,
+    v_assignment.post_task_measure,
     v_assignment.is_test,
     v_assignment.comment_order,
     v_assignment.presented_comment_sha256,
@@ -2600,6 +3018,10 @@ begin
     v_stimulus.exposure_post_body_sha256,
     v_stimulus.target_post_id,
     v_stimulus.target_post_body_sha256,
+    case when v_assignment.design_variant = 'same_post'
+      then v_stimulus.exposure_post_id else v_stimulus.target_post_id end,
+    case when v_assignment.design_variant = 'same_post'
+      then v_stimulus.exposure_post_body_sha256 else v_stimulus.target_post_body_sha256 end,
     v_advice,
     v_word_count,
     v_character_count,
@@ -2634,12 +3056,18 @@ begin
         'pairRole', v_stimulus.pair_role,
         'condition', v_assignment.condition,
         'isTest', v_assignment.is_test,
+        'designVariant', v_assignment.design_variant,
+        'postTaskMeasure', v_assignment.post_task_measure,
         'commentOrder', v_assignment.comment_order,
         'commentHashes', v_assignment.presented_comment_sha256,
         'exposurePostId', v_stimulus.exposure_post_id,
         'exposurePostSha256', v_stimulus.exposure_post_body_sha256,
         'targetPostId', v_stimulus.target_post_id,
         'targetPostSha256', v_stimulus.target_post_body_sha256,
+        'responsePostId', case when v_assignment.design_variant = 'same_post'
+          then v_stimulus.exposure_post_id else v_stimulus.target_post_id end,
+        'responsePostSha256', case when v_assignment.design_variant = 'same_post'
+          then v_stimulus.exposure_post_body_sha256 else v_stimulus.target_post_body_sha256 end,
         'serverReceivedAt', v_now
       )
     ),
@@ -2982,6 +3410,8 @@ revoke all on function public.claim_advice_transfer_assignment(text, text, text,
   from public;
 revoke all on function public.claim_advice_transfer_assignment_v4(text, text, text, boolean, integer, text)
   from public;
+revoke all on function public.claim_advice_transfer_assignment_same_post(text, text, text, boolean, integer, text)
+  from public;
 revoke all on function public.save_advice_transfer_stage(text, text, text, jsonb)
   from public;
 revoke all on function public.advice_transfer_required_integer(jsonb, text, integer, integer)
@@ -2989,6 +3419,8 @@ revoke all on function public.advice_transfer_required_integer(jsonb, text, inte
 revoke all on function public.advice_transfer_locked_payload(public.advice_transfer_assignments, jsonb)
   from public;
 revoke all on function public.guard_advice_transfer_phase_snapshots()
+  from public;
+revoke all on function public.set_advice_transfer_response_post_audit()
   from public;
 revoke all on function public.heartbeat_advice_transfer_assignment(text, text)
   from public;
@@ -3025,6 +3457,8 @@ grant execute on function public.claim_advice_transfer_assignment(text, text, te
   to anon, authenticated;
 grant execute on function public.claim_advice_transfer_assignment_v4(text, text, text, boolean, integer, text)
   to anon, authenticated;
+grant execute on function public.claim_advice_transfer_assignment_same_post(text, text, text, boolean, integer, text)
+  to anon, authenticated;
 grant execute on function public.save_advice_transfer_stage(text, text, text, jsonb)
   to anon, authenticated;
 grant execute on function public.heartbeat_advice_transfer_assignment(text, text)
@@ -3054,6 +3488,7 @@ grant execute on function public.advice_transfer_word_count(text) to service_rol
 grant execute on function public.advice_transfer_remove_leading_judgment_label(text) to service_role;
 grant execute on function public.advice_transfer_remove_judgment_labels(text) to service_role;
 grant execute on function public.guard_advice_transfer_target_reduction() to service_role;
+grant execute on function public.set_advice_transfer_response_post_audit() to service_role;
 grant execute on function public.reclaim_expired_advice_transfer_assignments() to service_role;
 grant execute on function public.ensure_advice_transfer_quota_tokens() to service_role;
 grant execute on function public.promote_advice_transfer_standby(text, text) to service_role;

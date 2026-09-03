@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
 import LegacyAdviceTransferTask from "./LegacyAdviceTransferTask.jsx";
 import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS, JUDGMENT_LABELS,
+  POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY,
   DRAFTABLE_SCREENS, countEnglishWords, judgmentsFor, labelsFromJudgments,
   demographicsComplete, emptyDemographics, normalizeDemographics,
   phase1Complete, phase2Complete, restoreV4Draft, scaleValue } from "./advice-transfer-protocol.mjs";
@@ -266,6 +267,9 @@ export const validateAdviceTransferAssignment = (value) => {
   }
   if (!["a_to_b", SAME_POST_DESIGN].includes(value.designVariant)) {
     throw new Error("The assigned study design was incomplete.");
+  }
+  if (![POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY].includes(value.postTaskMeasure)) {
+    throw new Error("The assigned post-task measure was incomplete.");
   }
   if (
     value.exposurePost.postId === value.targetPost.postId ||
@@ -555,6 +559,7 @@ export default function AdviceTransferTask() {
   const [gistDifficulty, setGistDifficulty] = useState(null);
   const [advice, setAdvice] = useState("");
   const [effort, setEffort] = useState(null);
+  const [opinionDifficulty, setOpinionDifficulty] = useState(null);
   const [confidence, setConfidence] = useState(null);
   const [purposeGuess, setPurposeGuess] = useState("");
   const [commentsStoodOut, setCommentsStoodOut] = useState("");
@@ -596,6 +601,8 @@ export default function AdviceTransferTask() {
   const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
   const gistWordCount = useMemo(() => countEnglishWords(gistText), [gistText]);
   const isSamePostDesign = assignment?.designVariant === SAME_POST_DESIGN;
+  const isOpinionDifficultyMeasure =
+    assignment?.postTaskMeasure === POST_TASK_OPINION_DIFFICULTY;
   const draftPayload = useMemo(() => {
     if (!assignment || !DRAFTABLE_SCREENS.has(screen)) return null;
     return {
@@ -609,7 +616,10 @@ export default function AdviceTransferTask() {
       gistText,
       gistDifficulty,
       advice,
-      effort,
+      postTaskMeasure: assignment.postTaskMeasure,
+      difficulty: isOpinionDifficultyMeasure ? opinionDifficulty : null,
+      effort: isOpinionDifficultyMeasure ? null : effort,
+      opinionDifficulty,
       confidence,
       purposeGuess,
       commentsStoodOut,
@@ -636,6 +646,8 @@ export default function AdviceTransferTask() {
     gistDifficulty,
     advice,
     effort,
+    opinionDifficulty,
+    isOpinionDifficultyMeasure,
     confidence,
     purposeGuess,
     commentsStoodOut,
@@ -675,6 +687,7 @@ export default function AdviceTransferTask() {
       setPhase2LockedAt(response.phase2LockedAt);
       setAdvice(saved.adviceText);
       setEffort(saved.effort);
+      setOpinionDifficulty(saved.difficulty);
       setConfidence(saved.confidence);
       setTimestamps((current) => ({ ...current, ...saved.timings, phase2LockedAt: response.phase2LockedAt }));
       timing.restore({ ...timing.read(), adviceResponseTimeMs: saved.timings.adviceResponseTimeMs });
@@ -832,6 +845,7 @@ export default function AdviceTransferTask() {
           setGistDifficulty(restored.gistDifficulty);
           setAdvice(restored.advice);
           setEffort(restored.effort);
+          setOpinionDifficulty(restored.opinionDifficulty);
           setConfidence(restored.confidence);
           setPurposeGuess(String(restored.purposeGuess || ""));
           setCommentsStoodOut(["yes", "no", "unsure"].includes(restored.commentsStoodOut) ? restored.commentsStoodOut : "");
@@ -1255,6 +1269,21 @@ export default function AdviceTransferTask() {
     }));
   };
 
+  const updateConfidence = (value) => {
+    setSaveState("idle");
+    setConfidence(value);
+  };
+
+  const updateOpinionDifficulty = (value) => {
+    setSaveState("idle");
+    setOpinionDifficulty(value);
+  };
+
+  const updateEffort = (value) => {
+    setSaveState("idle");
+    setEffort(value);
+  };
+
   const continueToRatings = () => {
     if (wordCount < MIN_ADVICE_WORDS) return;
     timing.pause();
@@ -1271,10 +1300,21 @@ export default function AdviceTransferTask() {
   const continueToPurpose = () => {
     if (pendingStageRef.current) { saveStage(pendingStageRef.current); return; }
     if (phase2LockedAt) { returnToScreen("funnel-purpose"); return; }
-    if (!phase1LockedAt || !phase2Complete(advice, effort, confidence)) return;
+    if (!phase1LockedAt || !phase2Complete(
+      advice,
+      effort,
+      confidence,
+      opinionDifficulty,
+      assignment.postTaskMeasure,
+    )) return;
     const activeTimings = timing.pause();
     saveStage({ stage: "phase2", payload: {
-      schemaVersion: SCHEMA_VERSION, adviceText: advice.trim(), effort, confidence,
+      schemaVersion: SCHEMA_VERSION,
+      postTaskMeasure: assignment.postTaskMeasure,
+      adviceText: advice.trim(),
+      difficulty: isOpinionDifficultyMeasure ? opinionDifficulty : null,
+      effort: isOpinionDifficultyMeasure ? null : effort,
+      confidence,
       timings: { ...timestamps, ratingsCompletedAt: nowIso(), adviceResponseTimeMs: activeTimings.adviceResponseTimeMs },
     } });
   };
@@ -1325,7 +1365,13 @@ export default function AdviceTransferTask() {
       !assignment ||
       !phase1LockedAt || !phase2LockedAt ||
       !phase1Complete(commentLabels, gistText, gistDifficulty) ||
-      !phase2Complete(advice, effort, confidence) ||
+      !phase2Complete(
+        advice,
+        effort,
+        confidence,
+        opinionDifficulty,
+        assignment.postTaskMeasure,
+      ) ||
       !purposeGuess.trim() ||
       !commentsStoodOut ||
       !aiGeneratedBelief ||
@@ -1362,13 +1408,14 @@ export default function AdviceTransferTask() {
       adviceText: advice.trim(),
       adviceWordCount: wordCount,
       adviceCharacterCount: advice.trim().length,
-      difficulty: null,
+      postTaskMeasure: assignment.postTaskMeasure,
+      difficulty: isOpinionDifficultyMeasure ? opinionDifficulty : null,
       commentJudgments: phase1Snapshot.commentJudgments,
       gistText: phase1Snapshot.gistText,
       gistDifficulty: phase1Snapshot.gistDifficulty,
       phase1LockedAt,
       phase2LockedAt,
-      effort,
+      effort: isOpinionDifficultyMeasure ? null : effort,
       confidence,
       purposeGuess: purposeGuess.trim(),
       commentsStoodOut,
@@ -1385,6 +1432,7 @@ export default function AdviceTransferTask() {
         targetPostId: assignment.targetPost.postId,
         targetPostSha256: assignment.targetPost.sha256,
         designVariant: assignment.designVariant,
+        postTaskMeasure: assignment.postTaskMeasure,
         responsePostId: assignment.responsePost.postId,
         responsePostSha256: assignment.responsePost.sha256,
         commentOrder: assignment.commentOrder,
@@ -1786,7 +1834,16 @@ export default function AdviceTransferTask() {
           <ScaleQuestion legend="How difficult was it to come up with the gist of all the comments?"
             value={gistDifficulty} onChange={setGistDifficulty} disabled={phase1ReadOnly}
             low="not at all difficult" middle="somewhat difficult" high="very difficult" />
-          <SaveStatus state={saveState} />
+          <SaveStatus
+            state={
+              saveState === "offline" ||
+              commentLabels.some(Boolean) ||
+              gistText.trim() ||
+              gistDifficulty !== null
+                ? saveState
+                : "idle"
+            }
+          />
         </section>
         {stageSaveError && <p className="source-submission-error" role="alert">{stageSaveError}</p>}
         <div className="source-submit-row transfer-submit-row">
@@ -1874,29 +1931,55 @@ export default function AdviceTransferTask() {
           <p className="transfer-section-copy">Please answer both questions.</p>
           {phase2LockedAt && <LockedNotice>Your opinion and ratings have been saved and are read-only.</LockedNotice>}
           <ScaleQuestion
-            legend="How effortful was it to decide what to say?"
-            value={effort}
-            onChange={setEffort}
-            disabled={phase2ReadOnly}
-            low="Not at all effortful"
-            middle="Moderately effortful"
-            high="Extremely effortful"
-          />
-          <ScaleQuestion
             legend="How confident are you that the opinion you gave was right?"
             value={confidence}
-            onChange={setConfidence}
+            onChange={updateConfidence}
             disabled={phase2ReadOnly}
             low="Not at all confident"
             middle="Moderately confident"
             high="Extremely confident"
           />
-          <SaveStatus state={saveState} />
+          {isOpinionDifficultyMeasure ? (
+            <ScaleQuestion
+              legend="How difficult was it to form your final opinion about the dilemma?"
+              value={opinionDifficulty}
+              onChange={updateOpinionDifficulty}
+              disabled={phase2ReadOnly}
+              low="Not at all difficult"
+              middle="Moderately difficult"
+              high="Extremely difficult"
+            />
+          ) : (
+            <ScaleQuestion
+              legend="How effortful was it to decide what to say?"
+              value={effort}
+              onChange={updateEffort}
+              disabled={phase2ReadOnly}
+              low="Not at all effortful"
+              middle="Moderately effortful"
+              high="Extremely effortful"
+            />
+          )}
+          <SaveStatus
+            state={
+              saveState === "offline" ||
+              confidence !== null ||
+              (isOpinionDifficultyMeasure ? opinionDifficulty : effort) !== null
+                ? saveState
+                : "idle"
+            }
+          />
           {stageSaveError && <p className="source-submission-error" role="alert">{stageSaveError}</p>}
           <div className="transfer-action-row">
             <SecondaryButton disabled={Boolean(pendingStage)} onClick={() => returnToScreen("advice")}>Back to your opinion</SecondaryButton>
             <PrimaryButton
-              disabled={stageSaveState === "saving" || !phase2Complete(advice, effort, confidence)}
+              disabled={stageSaveState === "saving" || !phase2Complete(
+                advice,
+                effort,
+                confidence,
+                opinionDifficulty,
+                assignment.postTaskMeasure,
+              )}
               onClick={continueToPurpose}
             >
               {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue"}
