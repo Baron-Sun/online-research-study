@@ -5,7 +5,7 @@ import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
 import LegacyAdviceTransferTask from "./LegacyAdviceTransferTask.jsx";
 import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS, JUDGMENT_LABELS,
   POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY,
-  DRAFTABLE_SCREENS, countEnglishWords, judgmentsFor, labelsFromJudgments,
+  DRAFTABLE_SCREENS, countEnglishWords, displayPostBody, judgmentsFor, labelsFromJudgments,
   demographicsComplete, emptyDemographics, normalizeDemographics,
   phase1Complete, phase2Complete, restoreV4Draft, scaleValue } from "./advice-transfer-protocol.mjs";
 import { useAdviceTransferTiming } from "./useAdviceTransferTiming.js";
@@ -320,7 +320,7 @@ const PostPanel = ({ eyebrow, post, adviceTarget = false, guidance = A_TO_B_RESP
       )}
       <h2>{post.title}</h2>
     </div>
-    <div className="source-post-text">{post.body}</div>
+    <div className="source-post-text">{displayPostBody(post.body)}</div>
   </article>
 );
 

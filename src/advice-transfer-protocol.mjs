@@ -50,6 +50,11 @@ export const demographicsComplete = (value) => {
 export const countEnglishWords = (value) =>
   String(value || "").match(/[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*/g)?.length || 0;
 
+// Reddit sometimes exports blank lines as an encoded zero-width space.
+// Clean only the displayed body; stored text and audit hashes stay unchanged.
+export const displayPostBody = (value) =>
+  String(value ?? "").replace(/^[\t ]*&amp;#x200B;[\t ]*$/gm, "");
+
 export const scaleValue = (value) =>
   Number.isInteger(value) && value >= 1 && value <= 7 ? value : null;
 

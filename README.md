@@ -72,8 +72,15 @@ comment-source conditions. A participant reads one post and five Human or five
 AI comments, classifies each comment's expressed judgment, summarizes their
 gist, and rates the difficulty of producing that summary. The participant then
 returns to the same post and writes a final opinion, with their locked summary
-and the same five comments visible for reference. The three reserve stimuli
-remain inactive. The original B posts are retained only as historical stimulus
+and the same five comments visible for reference. Following the 16 September
+2026 material review, the active set is 01–07, 09, 11, and 13. Post 11 replaces
+Post 10; Post 13 replaces Post 08. Original IDs, text, and existing responses
+are preserved. Posts 08, 10, and 12 are inactive. Apply
+`supabase_advice_transfer_material_replacement_20260916.sql` to an existing
+database; it checks the reviewed text hashes, changes allocation flags, and
+adds quota tokens for the newly active cells without changing recruitment
+settings or historical records. See `STUDY2_MATERIAL_REVIEW_20260916.md`.
+The original B posts are retained only as historical stimulus
 metadata and are not displayed in the same-post design.
 
 ### V4 gist protocol (test release, 28 August 2026)
