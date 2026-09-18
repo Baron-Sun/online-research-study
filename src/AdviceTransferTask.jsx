@@ -12,6 +12,9 @@ import { useAdviceTransferTiming } from "./useAdviceTransferTiming.js";
 import { ensureSharedReviewParticipant } from "./advice-transfer-review-entry.mjs";
 import { usesLabelFeedback, feedbackForAssignment, labelsFromFeedback, feedbackComplete,
   restoredLabelSelection } from "./advice-transfer-label-feedback.mjs";
+import PerceptionQuestions from "./PerceptionQuestions.jsx";
+import { usesPerceptionQuestions, emptyPerceptionResponses, restorePerceptionResponses,
+  perceptionComplete, percentageValue } from "./advice-transfer-perception.mjs";
 export { MIN_ADVICE_WORDS, MIN_GIST_WORDS, countEnglishWords } from "./advice-transfer-protocol.mjs";
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -489,6 +492,7 @@ export default function AdviceTransferTask() {
   const [labelSaveError, setLabelSaveError] = useState("");
   const [gistText, setGistText] = useState("");
   const [gistDifficulty, setGistDifficulty] = useState(null);
+  const [perceptionResponses, setPerceptionResponses] = useState(emptyPerceptionResponses);
   const [advice, setAdvice] = useState("");
   const [effort, setEffort] = useState(null);
   const [opinionDifficulty, setOpinionDifficulty] = useState(null);
@@ -550,6 +554,8 @@ export default function AdviceTransferTask() {
       pendingLabelSelection,
       gistText,
       gistDifficulty,
+      perceptionQuestionsVersion: assignment.perceptionQuestionsVersion || "none",
+      ...perceptionResponses,
       advice,
       postTaskMeasure: assignment.postTaskMeasure,
       difficulty: isOpinionDifficultyMeasure ? opinionDifficulty : null,
@@ -581,6 +587,7 @@ export default function AdviceTransferTask() {
     pendingLabelSelection,
     gistText,
     gistDifficulty,
+    perceptionResponses,
     advice,
     effort,
     opinionDifficulty,
@@ -619,6 +626,8 @@ export default function AdviceTransferTask() {
       setPendingLabelSelection(null);
       setGistText(saved.gistText);
       setGistDifficulty(saved.gistDifficulty);
+      setPerceptionResponses(restorePerceptionResponses({ ...currentAssignment,
+        phase1LockedAt: response.phase1LockedAt, phase1Snapshot: saved }));
       setTimestamps((current) => ({ ...current, ...saved.timings, phase1LockedAt: response.phase1LockedAt }));
       timing.restore({ ...timing.read(), phase1ActiveTimeMs: saved.timings.phase1ActiveTimeMs, gistActiveTimeMs: saved.timings.gistActiveTimeMs });
     }
@@ -707,7 +716,7 @@ export default function AdviceTransferTask() {
         try {
           response = await supabaseRpcWithRetry(
             config,
-            "claim_advice_transfer_assignment_label_feedback",
+            "claim_advice_transfer_assignment_perception",
             claimPayload,
             CLAIM_RETRY_DELAYS_MS,
           );
@@ -783,6 +792,7 @@ export default function AdviceTransferTask() {
           setLabelSaveError("");
           setGistText(restored.gistText);
           setGistDifficulty(restored.gistDifficulty);
+          setPerceptionResponses(restorePerceptionResponses(response, restored));
           setAdvice(restored.advice);
           setEffort(restored.effort);
           setOpinionDifficulty(restored.opinionDifficulty);
@@ -1162,7 +1172,8 @@ export default function AdviceTransferTask() {
     setStageSaveError("");
     writeLocalDraft(assignment.participant, { ...freshDraft(), pendingStage: intent });
     try {
-      const result = await supabaseRpcWithRetry(assignment.config, "save_advice_transfer_stage", {
+      const result = await supabaseRpcWithRetry(assignment.config,
+        usesPerceptionQuestions(assignment) ? "save_advice_transfer_stage_perception" : "save_advice_transfer_stage", {
         p_assignment_id: assignment.assignmentId,
         p_prolific_pid: assignment.participant.prolificPid,
         p_stage: intent.stage,
@@ -1199,12 +1210,15 @@ export default function AdviceTransferTask() {
     if (pendingStageRef.current) { saveStage(pendingStageRef.current); return; }
     if (phase1LockedAt) { returnToScreen("advice"); return; }
     if (pendingLabelRef.current || !feedbackComplete(assignment, commentLabels, commentLabelFeedback) ||
+      !perceptionComplete(assignment, perceptionResponses) ||
       !phase1Complete(commentLabels, gistText, gistDifficulty)) return;
     const activeTimings = timing.pause();
     saveStage({ stage: "phase1", payload: {
       schemaVersion: SCHEMA_VERSION,
       commentJudgments: judgmentsFor(assignment, commentLabels),
       gistText: gistText.trim(), gistDifficulty,
+      perceptionQuestionsVersion: assignment.perceptionQuestionsVersion || "none",
+      ...perceptionResponses,
       timings: { ...timestamps, exposureCompletedAt: nowIso(),
         phase1ActiveTimeMs: activeTimings.phase1ActiveTimeMs,
         gistActiveTimeMs: activeTimings.gistActiveTimeMs },
@@ -1269,6 +1283,16 @@ export default function AdviceTransferTask() {
       commentJudgments: judgmentsFor(assignment, nextLabels), pendingLabelSelection: intent,
     });
     saveLabelSelection(intent);
+  };
+
+  const updatePerception = (key, value) => {
+    if (phase1ReadOnly || !usesPerceptionQuestions(assignment) ||
+      !Object.hasOwn(perceptionResponses, key) || percentageValue(value) === null) return;
+    const next = { ...perceptionResponses, [key]: value };
+    setPerceptionResponses(next);
+    const time = nowIso();
+    setTimestamps((current) => ({ ...current, [`${key}LastChangedAt`]: time }));
+    writeLocalDraft(assignment.participant, { ...freshDraft(), ...next, savedAt: time });
   };
 
   const updateGist = (event) => {
@@ -1438,6 +1462,9 @@ export default function AdviceTransferTask() {
       commentLabelFeedback: phase1Snapshot.commentLabelFeedback || [],
       gistText: phase1Snapshot.gistText,
       gistDifficulty: phase1Snapshot.gistDifficulty,
+      perceptionQuestionsVersion: assignment.perceptionQuestionsVersion || "none",
+      perceivedConsensus: phase1Snapshot.perceivedConsensus ?? null,
+      roomForDisagreement: phase1Snapshot.roomForDisagreement ?? null,
       phase1LockedAt,
       phase2LockedAt,
       effort: isOpinionDifficultyMeasure ? null : effort,
@@ -1739,6 +1766,7 @@ export default function AdviceTransferTask() {
               <p>If your selection differs from the label in the original comment, we will show that label after you choose. You may keep or change your answer.</p>
             )}
             <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>
+            {usesPerceptionQuestions(assignment) && <p>You will then answer two questions about the comments and the situation.</p>}
             <p>
               Copying, pasting, dragging, and the context menu are disabled. Please
               complete the task on your own without external tools.
@@ -1887,6 +1915,9 @@ export default function AdviceTransferTask() {
             }
           />
         </section>
+        {usesPerceptionQuestions(assignment) && (
+          <PerceptionQuestions answers={perceptionResponses} onChange={updatePerception} disabled={phase1ReadOnly} />
+        )}
         {stageSaveError && <p className="source-submission-error" role="alert">{stageSaveError}</p>}
         <div className="source-submit-row transfer-submit-row">
           <p>{phase1LockedAt ? "Your saved Phase 1 answers cannot be changed." : "When you continue, your Phase 1 answers will be saved and locked. The comments will remain available in Phase 2."}</p>
@@ -1894,6 +1925,7 @@ export default function AdviceTransferTask() {
             <SecondaryButton disabled={Boolean(pendingStage)} onClick={() => returnToScreen("phase2-instructions")}>Back to instructions</SecondaryButton>
             <PrimaryButton disabled={stageSaveState === "saving" || Boolean(pendingLabelSelection) ||
               !feedbackComplete(assignment, commentLabels, commentLabelFeedback) ||
+              !perceptionComplete(assignment, perceptionResponses) ||
               !phase1Complete(commentLabels, gistText, gistDifficulty)} onClick={continueToAdvice}>
               {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue to Phase 2"}
             </PrimaryButton>
