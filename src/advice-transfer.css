@@ -1,4 +1,5 @@
-.transfer-label-feedback {
+.transfer-comment-card .transfer-label-feedback,
+div.transfer-label-feedback {
   color: #000;
   background: none;
   box-shadow: none;
