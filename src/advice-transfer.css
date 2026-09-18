@@ -1,3 +1,11 @@
+.transfer-label-feedback {
+  color: #000;
+  background: none;
+  box-shadow: none;
+  margin: 12px 0 0;
+  line-height: 1.6;
+}
+
 .transfer-study-page {
   --transfer-accent: #1d4ed8;
   --transfer-accent-dark: #1e3a8a;

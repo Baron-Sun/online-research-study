@@ -10,6 +10,8 @@ import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS
   phase1Complete, phase2Complete, restoreV4Draft, scaleValue } from "./advice-transfer-protocol.mjs";
 import { useAdviceTransferTiming } from "./useAdviceTransferTiming.js";
 import { ensureSharedReviewParticipant } from "./advice-transfer-review-entry.mjs";
+import { usesLabelFeedback, feedbackForAssignment, labelsFromFeedback, feedbackComplete,
+  restoredLabelSelection } from "./advice-transfer-label-feedback.mjs";
 export { MIN_ADVICE_WORDS, MIN_GIST_WORDS, countEnglishWords } from "./advice-transfer-protocol.mjs";
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -418,7 +420,7 @@ const LockedNotice = ({ children }) => (
   <p className="transfer-locked-notice" role="status">{children}</p>
 );
 
-const CommentFeed = ({ assignment, labels, onLabel, disabled = false }) => (
+const CommentFeed = ({ assignment, labels, onLabel, disabled = false, feedback = [], pendingLabel = null }) => (
   <div className="source-comment-feed">
     {assignment.comments.map((comment, index) => (
       <article className="source-comment-card transfer-comment-card" key={`${index}-${assignment.commentHashes[index]}`}>
@@ -437,6 +439,15 @@ const CommentFeed = ({ assignment, labels, onLabel, disabled = false }) => (
               ))}
             </div>
           </fieldset>
+        )}
+        {labels && pendingLabel?.displayPosition === index + 1 && (
+          <p className="transfer-label-feedback" role="status">Saving your selection…</p>
+        )}
+        {labels && feedback.find((record) => record.displayPosition === index + 1)?.feedbackOffered && (
+          <p className="transfer-label-feedback" role="status">
+            The label given in the original comment was{" "}
+            <strong>{feedback.find((record) => record.displayPosition === index + 1).originalLabel}</strong>.
+          </p>
         )}
       </article>
     ))}
@@ -470,6 +481,12 @@ export default function AdviceTransferTask() {
   const pendingComprehensionRef = useRef(null);
   const comprehensionInFlight = useRef(false);
   const [commentLabels, setCommentLabels] = useState(["", "", "", "", ""]);
+  const [commentLabelFeedback, setCommentLabelFeedback] = useState([]);
+  const [pendingLabelSelection, setPendingLabelSelection] = useState(null);
+  const pendingLabelRef = useRef(null);
+  const labelInFlight = useRef(false);
+  const [labelSaveState, setLabelSaveState] = useState("idle");
+  const [labelSaveError, setLabelSaveError] = useState("");
   const [gistText, setGistText] = useState("");
   const [gistDifficulty, setGistDifficulty] = useState(null);
   const [advice, setAdvice] = useState("");
@@ -529,6 +546,8 @@ export default function AdviceTransferTask() {
       comprehension,
       pendingComprehension: pendingComprehensionRef.current,
       commentJudgments: judgmentsFor(assignment, commentLabels),
+      labelFeedbackVersion: assignment.labelFeedbackVersion || "none",
+      pendingLabelSelection,
       gistText,
       gistDifficulty,
       advice,
@@ -559,6 +578,7 @@ export default function AdviceTransferTask() {
     comprehension,
     comprehensionSaving,
     commentLabels,
+    pendingLabelSelection,
     gistText,
     gistDifficulty,
     advice,
@@ -584,6 +604,7 @@ export default function AdviceTransferTask() {
     pendingStage: pendingStageRef.current,
     pendingSubmission: pendingSubmissionRef.current,
     pendingComprehension: pendingComprehensionRef.current,
+    pendingLabelSelection: pendingLabelRef.current,
   } : null;
 
   const applyServerSnapshots = (response, currentAssignment = assignment) => {
@@ -593,6 +614,9 @@ export default function AdviceTransferTask() {
       setPhase1Snapshot(saved);
       setPhase1LockedAt(response.phase1LockedAt);
       setCommentLabels(labelsFromJudgments(currentAssignment, saved.commentJudgments));
+      setCommentLabelFeedback(feedbackForAssignment(currentAssignment, saved.commentLabelFeedback));
+      pendingLabelRef.current = null;
+      setPendingLabelSelection(null);
       setGistText(saved.gistText);
       setGistDifficulty(saved.gistDifficulty);
       setTimestamps((current) => ({ ...current, ...saved.timings, phase1LockedAt: response.phase1LockedAt }));
@@ -683,7 +707,7 @@ export default function AdviceTransferTask() {
         try {
           response = await supabaseRpcWithRetry(
             config,
-            "claim_advice_transfer_assignment_same_post",
+            "claim_advice_transfer_assignment_label_feedback",
             claimPayload,
             CLAIM_RETRY_DELAYS_MS,
           );
@@ -747,7 +771,16 @@ export default function AdviceTransferTask() {
           if (pendingComprehensionRef.current) setComprehensionError("Reconnecting to confirm your previous answer.");
           setAgreed(restored.agreed);
           setComprehension(restored.comprehension);
-          setCommentLabels(labelsFromJudgments(response, restored.commentJudgments));
+          const restoredFeedback = feedbackForAssignment(response, response.commentLabelFeedback);
+          setCommentLabelFeedback(restoredFeedback);
+          setCommentLabels(usesLabelFeedback(response)
+            ? labelsFromFeedback(response, restoredFeedback)
+            : labelsFromJudgments(response, restored.commentJudgments));
+          const restoredPendingLabel = restoredLabelSelection(response, restored.pendingLabelSelection);
+          pendingLabelRef.current = restoredPendingLabel;
+          setPendingLabelSelection(restoredPendingLabel);
+          setLabelSaveState("idle");
+          setLabelSaveError("");
           setGistText(restored.gistText);
           setGistDifficulty(restored.gistDifficulty);
           setAdvice(restored.advice);
@@ -1165,7 +1198,8 @@ export default function AdviceTransferTask() {
   const continueToAdvice = () => {
     if (pendingStageRef.current) { saveStage(pendingStageRef.current); return; }
     if (phase1LockedAt) { returnToScreen("advice"); return; }
-    if (!phase1Complete(commentLabels, gistText, gistDifficulty)) return;
+    if (pendingLabelRef.current || !feedbackComplete(assignment, commentLabels, commentLabelFeedback) ||
+      !phase1Complete(commentLabels, gistText, gistDifficulty)) return;
     const activeTimings = timing.pause();
     saveStage({ stage: "phase1", payload: {
       schemaVersion: SCHEMA_VERSION,
@@ -1177,10 +1211,64 @@ export default function AdviceTransferTask() {
     } });
   };
 
+  const saveLabelSelection = async (intent) => {
+    if (!assignment || !intent || labelInFlight.current) return;
+    labelInFlight.current = true;
+    setLabelSaveState("saving");
+    setLabelSaveError("");
+    try {
+      const result = await supabaseRpcWithRetry(assignment.config,
+        "record_advice_transfer_comment_label", {
+          p_assignment_id: assignment.assignmentId,
+          p_prolific_pid: assignment.participant.prolificPid,
+          p_display_position: intent.displayPosition,
+          p_comment_index: intent.commentIndex,
+          p_comment_sha256: intent.commentSha256,
+          p_selected_label: intent.selectedLabel,
+          p_event_id: intent.eventId,
+        }, [0, 500, 1_000, 2_000]);
+      if (!result.ok) throw new Error("The selection could not be confirmed.");
+      const feedback = feedbackForAssignment(assignment, result.commentLabelFeedback);
+      setCommentLabelFeedback(feedback);
+      setCommentLabels(labelsFromFeedback(assignment, feedback));
+      pendingLabelRef.current = null;
+      setPendingLabelSelection(null);
+      setLabelSaveState("idle");
+      applyServerSnapshots(result);
+    } catch {
+      setLabelSaveState("error");
+      setLabelSaveError("We could not confirm your selection. Reconnect and select Retry saving label to continue.");
+    } finally {
+      labelInFlight.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (draftReady && assignment && pendingLabelSelection && labelSaveState === "idle") {
+      saveLabelSelection(pendingLabelSelection);
+    }
+  }, [draftReady, assignment?.assignmentId, pendingLabelSelection, labelSaveState]);
+
   const updateCommentLabel = (index, label) => {
-    if (phase1ReadOnly) return;
-    setCommentLabels((current) => current.map((value, position) => position === index ? label : value));
-    setTimestamps((current) => ({ ...current, firstClassificationAt: current.firstClassificationAt || nowIso(), lastClassificationAt: nowIso() }));
+    if (phase1ReadOnly || pendingLabelRef.current) return;
+    const nextLabels = commentLabels.map((value, position) => position === index ? label : value);
+    setCommentLabels(nextLabels);
+    const selectedAt = nowIso();
+    setTimestamps((current) => ({ ...current, firstClassificationAt: current.firstClassificationAt || selectedAt, lastClassificationAt: selectedAt }));
+    if (!usesLabelFeedback(assignment)) return;
+    const intent = {
+      assignmentId: assignment.assignmentId, eventId: crypto.randomUUID(),
+      displayPosition: index + 1, commentIndex: assignment.commentOrder[index],
+      commentSha256: assignment.commentHashes[index], selectedLabel: label,
+    };
+    pendingLabelRef.current = intent;
+    setPendingLabelSelection(intent);
+    // Persist before requesting feedback; retries retain the same first answer.
+    writeLocalDraft(assignment.participant, {
+      ...(freshDraft() || {}), savedAt: selectedAt,
+      commentJudgments: judgmentsFor(assignment, nextLabels), pendingLabelSelection: intent,
+    });
+    saveLabelSelection(intent);
   };
 
   const updateGist = (event) => {
@@ -1346,6 +1434,8 @@ export default function AdviceTransferTask() {
       postTaskMeasure: assignment.postTaskMeasure,
       difficulty: isOpinionDifficultyMeasure ? opinionDifficulty : null,
       commentJudgments: phase1Snapshot.commentJudgments,
+      labelFeedbackVersion: assignment.labelFeedbackVersion || "none",
+      commentLabelFeedback: phase1Snapshot.commentLabelFeedback || [],
       gistText: phase1Snapshot.gistText,
       gistDifficulty: phase1Snapshot.gistDifficulty,
       phase1LockedAt,
@@ -1645,6 +1735,9 @@ export default function AdviceTransferTask() {
               conclusion.
             </p>
             <p>Please classify each comment carefully based on the conclusion expressed by the commenter.</p>
+            {usesLabelFeedback(assignment) && (
+              <p>If your selection differs from the label in the original comment, we will show that label after you choose. You may keep or change your answer.</p>
+            )}
             <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>
             <p>
               Copying, pasting, dragging, and the context menu are disabled. Please
@@ -1753,7 +1846,16 @@ export default function AdviceTransferTask() {
             </div>
             <p className="source-comments-instruction">Please read every comment and choose the label it expresses.</p>
             <JudgmentLabelKey />
-            <CommentFeed assignment={assignment} labels={commentLabels} onLabel={updateCommentLabel} disabled={phase1ReadOnly} />
+            <CommentFeed assignment={assignment} labels={commentLabels} onLabel={updateCommentLabel}
+              disabled={phase1ReadOnly || Boolean(pendingLabelSelection)}
+              feedback={commentLabelFeedback} pendingLabel={labelSaveState === "saving" ? pendingLabelSelection : null} />
+            {labelSaveError && (
+              <div className="transfer-label-feedback" role="alert">
+                <p>{labelSaveError}</p>
+                <SecondaryButton disabled={labelSaveState === "saving"}
+                  onClick={() => saveLabelSelection(pendingLabelRef.current)}>Retry saving label</SecondaryButton>
+              </div>
+            )}
           </section>
         </div>
         <section className="source-panel transfer-gist-panel source-rating-panel"
@@ -1790,7 +1892,9 @@ export default function AdviceTransferTask() {
           <p>{phase1LockedAt ? "Your saved Phase 1 answers cannot be changed." : "When you continue, your Phase 1 answers will be saved and locked. The comments will remain available in Phase 2."}</p>
           <div className="transfer-action-row transfer-inline-actions">
             <SecondaryButton disabled={Boolean(pendingStage)} onClick={() => returnToScreen("phase2-instructions")}>Back to instructions</SecondaryButton>
-            <PrimaryButton disabled={stageSaveState === "saving" || !phase1Complete(commentLabels, gistText, gistDifficulty)} onClick={continueToAdvice}>
+            <PrimaryButton disabled={stageSaveState === "saving" || Boolean(pendingLabelSelection) ||
+              !feedbackComplete(assignment, commentLabels, commentLabelFeedback) ||
+              !phase1Complete(commentLabels, gistText, gistDifficulty)} onClick={continueToAdvice}>
               {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue to Phase 2"}
             </PrimaryButton>
           </div>
