@@ -7,7 +7,6 @@ export const PERCEPTION_ITEMS = Object.freeze([
   },
   {
     key: "roomForDisagreement",
-    introduction: "Some situations have one clear right answer. Others are ones where thoughtful people could genuinely see it differently.",
     question: "How much room for disagreement is there in this situation?",
     low: "One clear right answer", high: "Genuinely open to debate",
   },

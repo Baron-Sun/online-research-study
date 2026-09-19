@@ -14,8 +14,6 @@ also work. Answers autosave, restore after refresh, and lock with Phase 1.
 
 2. **Room for disagreement**
 
-   Some situations have one clear right answer. Others are ones where thoughtful people could genuinely see it differently.
-
    How much room for disagreement is there in this situation?
 
    0 — One clear right answer; 100 — Genuinely open to debate.
@@ -23,6 +21,11 @@ also work. Answers autosave, restore after refresh, and lock with Phase 1.
 The first item concerns the comments. The second concerns the situation in
 general. These are the two final items; breadth of considerations is not an
 additional item. Existing difficulty, confidence, and timing measures remain.
+
+Wording update (2026-09-19): removed the introductory paragraph before the room
+for disagreement question. The question, scale anchors, and stored fields are
+unchanged. The deployment commit records this wording change; the data schema
+version remains `perception-questions-v1`.
 
 ## Data fields
 
