@@ -1,10 +1,10 @@
 import React from "react";
-import { PERCEPTION_ITEMS } from "./advice-transfer-perception.mjs";
+import { perceptionItemsFor } from "./advice-transfer-perception.mjs";
 
-export default function PerceptionQuestions({ answers, onChange, disabled }) {
+export default function PerceptionQuestions({ assignment, answers, onChange, disabled }) {
   return (
     <section className="source-panel transfer-perception-panel" aria-label="Your impressions">
-      {PERCEPTION_ITEMS.map(({ key, introduction, question, low, high }) => {
+      {perceptionItemsFor(assignment).map(({ key, introduction, question, low, high }) => {
         const value = answers[key];
         const id = `perception-${key}`;
         return (

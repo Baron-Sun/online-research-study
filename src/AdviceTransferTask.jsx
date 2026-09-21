@@ -716,7 +716,7 @@ export default function AdviceTransferTask() {
         try {
           response = await supabaseRpcWithRetry(
             config,
-            "claim_advice_transfer_assignment_perception",
+            "claim_advice_transfer_assignment_revised",
             claimPayload,
             CLAIM_RETRY_DELAYS_MS,
           );
@@ -1916,7 +1916,7 @@ export default function AdviceTransferTask() {
           />
         </section>
         {usesPerceptionQuestions(assignment) && (
-          <PerceptionQuestions answers={perceptionResponses} onChange={updatePerception} disabled={phase1ReadOnly} />
+          <PerceptionQuestions assignment={assignment} answers={perceptionResponses} onChange={updatePerception} disabled={phase1ReadOnly} />
         )}
         {stageSaveError && <p className="source-submission-error" role="alert">{stageSaveError}</p>}
         <div className="source-submit-row transfer-submit-row">

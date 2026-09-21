@@ -6,11 +6,11 @@ value; the initial midpoint is not a recorded answer. Clicking the midpoint or
 pressing Enter/Space on a focused slider records 50. Arrow, Home and End keys
 also work. Answers autosave, restore after refresh, and lock with Phase 1.
 
-1. **Perceived consensus**
+1. **Perceived similarity of reasons (wording v2)**
 
-   To what extent did the comments agree with one another about how to think about this situation?
+   How similar were the reasons the comments gave for their judgments?
 
-   0 — Not at all; 100 — Very much.
+   0 — Not at all similar; 100 — Very similar.
 
 2. **Room for disagreement**
 
@@ -18,7 +18,7 @@ also work. Answers autosave, restore after refresh, and lock with Phase 1.
 
    0 — One clear right answer; 100 — Genuinely open to debate.
 
-The first item concerns the comments. The second concerns the situation in
+The first item concerns the reasons given in the comments. The second concerns the situation in
 general. These are the two final items; breadth of considerations is not an
 additional item. Existing difficulty, confidence, and timing measures remain.
 
@@ -27,12 +27,18 @@ for disagreement question. The question, scale anchors, and stored fields are
 unchanged. The deployment commit records this wording change; the data schema
 version remains `perception-questions-v1`.
 
+Wording update (2026-09-21): new sessions use `perception-questions-v2-reasons`
+and the reasons-similarity question above. Existing v1 sessions retain “To what
+extent did the comments agree with one another about how to think about this
+situation?” with Not at all / Very much anchors. See `STUDY2_REVISED_MATERIALS.md`
+for deployment and the separate material-version record.
+
 ## Data fields
 
 | Database column | Snapshot / JSON key | Meaning |
 | --- | --- | --- |
-| `perception_questions_version` | `perceptionQuestionsVersion` | `perception-questions-v1` for new assignments; `none` for earlier assignments. |
-| `perceived_consensus` | `perceivedConsensus` | Participant's reported agreement among the comments, integer 0–100. Higher means more agreement. |
+| `perception_questions_version` | `perceptionQuestionsVersion` | `perception-questions-v2-reasons` for revised-entry assignments; `perception-questions-v1` for previous wording; `none` for sessions without these items. |
+| `perceived_consensus` | `perceivedConsensus` | Integer 0–100. Under v2, higher means more similar reasons; under v1, higher means more agreement among comments. Use the question version when interpreting this field. |
 | `room_for_disagreement` | `roomForDisagreement` | Participant's reported scope for disagreement about the situation, integer 0–100. Higher means more open to debate. |
 
 These are recorded responses, not model scores. Zero is a valid response, not

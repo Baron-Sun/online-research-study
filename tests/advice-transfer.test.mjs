@@ -47,7 +47,7 @@ test("registers an isolated advice-transfer route without replacing existing stu
 test("the client implements masked five-comment exposure and audited same-post responses", async () => {
   const client = await read("src/AdviceTransferTask.jsx");
 
-  assert.match(client, /claim_advice_transfer_assignment_perception/);
+  assert.match(client, /claim_advice_transfer_assignment_revised/);
   const perceptionMigration = await read("supabase_advice_transfer_perception_20260918.sql");
   assert.match(perceptionMigration, /public\.claim_advice_transfer_assignment_label_feedback\(/);
   const feedbackMigration = await read("supabase_advice_transfer_label_feedback_20260918.sql");
