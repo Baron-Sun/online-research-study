@@ -1,7 +1,7 @@
 import { admissionWait, jitterDelay, newComprehensionEvent, restoreComprehensionEvent, supabaseRpcWithRetry, supabaseRpcKeepalive } from "./advice-transfer-network.mjs";
 export { supabaseRpcWithRetry } from "./advice-transfer-network.mjs";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ADVICE_TRANSFER_CONSENT_TEXT } from "./advice-transfer-consent";
+import { consentTextForAssignment } from "./advice-transfer-consent";
 import LegacyAdviceTransferTask from "./LegacyAdviceTransferTask.jsx";
 import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS, JUDGMENT_LABELS,
   POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY,
@@ -1697,7 +1697,7 @@ export default function AdviceTransferTask() {
           <section className="source-panel source-consent-panel">
             <p className="source-eyebrow">Participant information</p>
             <h2>Informed Consent</h2>
-            <div className="source-consent-text">{ADVICE_TRANSFER_CONSENT_TEXT}</div>
+            <div className="source-consent-text">{consentTextForAssignment(assignment)}</div>
           </section>
           <aside className="source-panel source-consent-confirmation">
             <h3>Consent Confirmation</h3>

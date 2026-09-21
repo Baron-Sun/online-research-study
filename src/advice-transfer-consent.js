@@ -80,3 +80,14 @@ If you cannot print the consent and would like a copy for your records, contact 
 If you wish to participate, please click the “I Agree” button and you will be taken to the survey.
 
 If you do not wish to participate in this study, please select “I Disagree” or select X in the corner of your browser.`;
+
+// The new pilot uses the reward and sample size configured in its Prolific draft.
+// Preserve the earlier consent wording for historical formal assignments.
+export const PILOT_20260921_STUDY_ID = "6ab145947e9c974c2b6cf1cd";
+export const PILOT_20260921_CONSENT_TEXT = ADVICE_TRANSFER_CONSENT_TEXT
+  .replace("about 100 people", "about 200 people")
+  .replace("You will receive $1.50", "You will receive $3.00");
+
+export const consentTextForAssignment = (assignment) =>
+  assignment?.isTest || assignment?.participant?.studyId === PILOT_20260921_STUDY_ID
+    ? PILOT_20260921_CONSENT_TEXT : ADVICE_TRANSFER_CONSENT_TEXT;

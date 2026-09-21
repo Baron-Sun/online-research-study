@@ -1,5 +1,8 @@
 # Online Research Study App
 
+Current Study 2 recruitment configuration: [September 21 independent 200-person pilot](STUDY2_PILOT_20260921.md).
+Its cohort-scoped quota migration supersedes the older global quota setup below.
+
 This is a static React frontend for separate crowdsourcing tasks.
 It can be deployed to GitHub Pages.
 
