@@ -5,8 +5,11 @@ use `original-label-v1`. Existing assignments keep `none`, even when resumed.
 
 In Phase 1, selecting a label that differs from the original comment's leading
 label shows: **The label given in the original comment was NTA.** The last word
-is the actual original label. The hint is black text. It stays visible if the
-participant changes their answer. Matching first answers show no hint.
+is the actual original label. Selecting the matching label shows:
+**Correct, the label given by the author was NTA.** This applies both to a
+matching first choice and to a later corrected choice. Feedback is black text
+and appears only once the server confirms the current selection. Changing a
+correct answer to a mismatched answer restores the original-label hint.
 
 Participants may keep their own choice. Neither continuation nor inclusion
 requires agreement with the original label. Five saved choices are required.
@@ -43,6 +46,16 @@ Each event stores `eventId`, `displayPosition`, `commentIndex`, `commentSha256`,
 are server timestamps with UTC offsets. An offer does not prove that a hint was
 rendered or read. A first choice on a later comment may follow feedback on an
 earlier comment; the event sequence preserves that order.
+
+The September 21, 2026 client adds positive confirmation without changing the
+server's selection protocol (`original-label-v1`). Its final submission payload
+records `clientAudit.labelFeedbackPresentationVersion` as
+`original-label-confirmation-v2` for feedback-enabled assignments, or `none` for
+older assignments without feedback. This identifies the submitting client; it
+does not prove that any individual message was read. Earlier clients showed
+only mismatch hints and did not include this presentation-version field.
+`feedbackOffered` continues to track mismatch hints only, not positive
+confirmation. Historical choices and feedback events are not rewritten.
 
 The server copies the canonical records into the locked Phase 1 snapshot and
 final submission payload. Existing `commentJudgments` contains final choices.

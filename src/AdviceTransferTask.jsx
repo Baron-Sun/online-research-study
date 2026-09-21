@@ -11,7 +11,7 @@ import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS
 import { useAdviceTransferTiming } from "./useAdviceTransferTiming.js";
 import { ensureSharedReviewParticipant } from "./advice-transfer-review-entry.mjs";
 import { usesLabelFeedback, feedbackForAssignment, labelsFromFeedback, feedbackComplete,
-  restoredLabelSelection } from "./advice-transfer-label-feedback.mjs";
+  restoredLabelSelection, LABEL_FEEDBACK_PRESENTATION_VERSION } from "./advice-transfer-label-feedback.mjs";
 import PerceptionQuestions from "./PerceptionQuestions.jsx";
 import { usesPerceptionQuestions, emptyPerceptionResponses, restorePerceptionResponses,
   perceptionComplete, percentageValue } from "./advice-transfer-perception.mjs";
@@ -423,6 +423,21 @@ const LockedNotice = ({ children }) => (
   <p className="transfer-locked-notice" role="status">{children}</p>
 );
 
+const CommentLabelFeedback = ({ record, selectedLabel }) => {
+  // Wait for the server to confirm the current choice before showing feedback.
+  if (!record || record.finalLabel !== selectedLabel) return null;
+  const matchesOriginal = record.finalLabel === record.originalLabel;
+  if (!matchesOriginal && !record.feedbackOffered) return null;
+  return (
+    <p className="transfer-label-feedback" role="status">
+      {matchesOriginal
+        ? "Correct, the label given by the author was "
+        : "The label given in the original comment was "}
+      <strong>{record.originalLabel}</strong>.
+    </p>
+  );
+};
+
 const CommentFeed = ({ assignment, labels, onLabel, disabled = false, feedback = [], pendingLabel = null }) => (
   <div className="source-comment-feed">
     {assignment.comments.map((comment, index) => (
@@ -446,11 +461,10 @@ const CommentFeed = ({ assignment, labels, onLabel, disabled = false, feedback =
         {labels && pendingLabel?.displayPosition === index + 1 && (
           <p className="transfer-label-feedback" role="status">Saving your selection…</p>
         )}
-        {labels && feedback.find((record) => record.displayPosition === index + 1)?.feedbackOffered && (
-          <p className="transfer-label-feedback" role="status">
-            The label given in the original comment was{" "}
-            <strong>{feedback.find((record) => record.displayPosition === index + 1).originalLabel}</strong>.
-          </p>
+        {labels && (
+          <CommentLabelFeedback
+            record={feedback.find((record) => record.displayPosition === index + 1)}
+            selectedLabel={labels[index]} />
         )}
       </article>
     ))}
@@ -1477,6 +1491,8 @@ export default function AdviceTransferTask() {
       demographics: normalizeDemographics(demographics),
       timings: finalTimestamps,
       clientAudit: {
+        labelFeedbackPresentationVersion: usesLabelFeedback(assignment)
+          ? LABEL_FEEDBACK_PRESENTATION_VERSION : "none",
         pairNumber: assignment.pairNumber,
         pairRole: assignment.pairRole,
         exposurePostId: assignment.exposurePost.postId,
@@ -1763,7 +1779,7 @@ export default function AdviceTransferTask() {
             </p>
             <p>Please classify each comment carefully based on the conclusion expressed by the commenter.</p>
             {usesLabelFeedback(assignment) && (
-              <p>If your selection differs from the label in the original comment, we will show that label after you choose. You may keep or change your answer.</p>
+              <p>After you choose, we will show the label given by the comment’s author. You may keep or change your answer.</p>
             )}
             <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>
             {usesPerceptionQuestions(assignment) && <p>You will then answer two questions about the comments and the situation.</p>}

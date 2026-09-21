@@ -1,6 +1,7 @@
 import { JUDGMENT_LABELS } from "./advice-transfer-protocol.mjs";
 
 export const LABEL_FEEDBACK_VERSION = "original-label-v1";
+export const LABEL_FEEDBACK_PRESENTATION_VERSION = "original-label-confirmation-v2";
 
 export const usesLabelFeedback = (assignment) =>
   assignment?.labelFeedbackVersion === LABEL_FEEDBACK_VERSION;
