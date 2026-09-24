@@ -407,7 +407,7 @@ const CommentLabelFeedback = ({ record, selectedLabel }) => {
   return (
     <p className="transfer-label-feedback" role="status">
       {matchesOriginal
-        ? "Correct, the label given by the author was "
+        ? "Correct, the label given in the original comment was "
         : "The label given in the original comment was "}
       <strong>{record.originalLabel}</strong>.
     </p>
@@ -1763,7 +1763,7 @@ export default function AdviceTransferTask() {
             </p>
             <p>Please classify each comment carefully based on the conclusion expressed by the commenter.</p>
             {usesLabelFeedback(assignment) && (
-              <p>After you choose, we will show the label given by the comment’s author. You may keep or change your answer.</p>
+              <p>After you choose, we will show the label given in the original comment. You may keep or change your answer.</p>
             )}
             <p>Finally, you will summarize the gist of all 5 comments you read in your own words.</p>
             {usesPerceptionQuestions(assignment) && <p>You will then answer two questions about the comments and the situation.</p>}
