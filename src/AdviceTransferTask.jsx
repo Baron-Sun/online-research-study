@@ -7,11 +7,12 @@ import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS
   POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY,
   DRAFTABLE_SCREENS, countEnglishWords, displayPostBody, judgmentsFor, labelsFromJudgments,
   demographicsComplete, emptyDemographics, normalizeDemographics,
-  phase1Complete, phase2Complete, restoreV4Draft, scaleValue } from "./advice-transfer-protocol.mjs";
+  phase1Complete, phase2Complete, restoreV4Draft, scaleValue, ratingScaleFor, LEGACY_RATING_SCALE, RATING_SCALE_100 } from "./advice-transfer-protocol.mjs";
 import { useAdviceTransferTiming } from "./useAdviceTransferTiming.js";
 import { ensureSharedReviewParticipant } from "./advice-transfer-review-entry.mjs";
 import { usesLabelFeedback, feedbackForAssignment, labelsFromFeedback, feedbackComplete,
   restoredLabelSelection, LABEL_FEEDBACK_PRESENTATION_VERSION } from "./advice-transfer-label-feedback.mjs";
+import ScaleQuestion from "./RatingScaleQuestion.jsx";
 import PerceptionQuestions from "./PerceptionQuestions.jsx";
 import { usesPerceptionQuestions, emptyPerceptionResponses, restorePerceptionResponses,
   perceptionComplete, percentageValue } from "./advice-transfer-perception.mjs";
@@ -186,6 +187,9 @@ export const validateAdviceTransferAssignment = (value) => {
   if (!["a_to_b", SAME_POST_DESIGN].includes(value.designVariant)) {
     throw new Error("The assigned study design was incomplete.");
   }
+  if (![LEGACY_RATING_SCALE, RATING_SCALE_100].includes(ratingScaleFor(value))) {
+    throw new Error("The assigned rating scale is not supported. Please reload this page.");
+  }
   if (![POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY].includes(value.postTaskMeasure)) {
     throw new Error("The assigned post-task measure was incomplete.");
   }
@@ -327,34 +331,6 @@ const PostPanel = ({ eyebrow, post, adviceTarget = false, guidance = A_TO_B_RESP
     </div>
     <div className="source-post-text">{displayPostBody(post.body)}</div>
   </article>
-);
-
-const ScaleQuestion = ({ legend, value, onChange, low, middle, high, disabled = false }) => (
-  <fieldset className="transfer-scale-fieldset" disabled={disabled}>
-    <legend>{legend}</legend>
-    <div className="source-rating-options transfer-rating-options">
-      {[1, 2, 3, 4, 5, 6, 7].map((number) => (
-        <label
-          className={`source-rating-option ${value === number ? "selected" : ""}`}
-          key={number}
-        >
-          <input
-            type="radio"
-            name={legend}
-            value={number}
-            checked={value === number}
-            onChange={() => onChange(number)}
-          />
-          <span>{number}</span>
-        </label>
-      ))}
-    </div>
-    <div className="source-rating-anchors transfer-rating-anchors">
-      <span><b>1</b> — {low}</span>
-      <span><b>4</b> — {middle}</span>
-      <span><b>7</b> — {high}</span>
-    </div>
-  </fieldset>
 );
 
 const ThreeWayChoice = ({ name, value, onChange, disabled = false }) => (
@@ -550,6 +526,7 @@ export default function AdviceTransferTask() {
   const completion = useMemo(() => getCompletion(), []);
   const wordCount = useMemo(() => countEnglishWords(advice), [advice]);
   const gistWordCount = useMemo(() => countEnglishWords(gistText), [gistText]);
+  const ratingScaleVersion = ratingScaleFor(assignment);
   const isSamePostDesign = assignment?.designVariant === SAME_POST_DESIGN;
   const isOpinionDifficultyMeasure =
     assignment?.postTaskMeasure === POST_TASK_OPINION_DIFFICULTY;
@@ -557,6 +534,7 @@ export default function AdviceTransferTask() {
     if (!assignment || !DRAFTABLE_SCREENS.has(screen)) return null;
     return {
       schemaVersion: SCHEMA_VERSION,
+      ratingScaleVersion,
       assignmentId: assignment.assignmentId,
       savedAt: nowIso(),
       screen,
@@ -593,6 +571,7 @@ export default function AdviceTransferTask() {
     };
   }, [
     assignment?.assignmentId,
+    ratingScaleVersion,
     screen,
     agreed,
     comprehension,
@@ -730,7 +709,7 @@ export default function AdviceTransferTask() {
         try {
           response = await supabaseRpcWithRetry(
             config,
-            "claim_advice_transfer_assignment_revised",
+            "claim_advice_transfer_assignment_ratings",
             claimPayload,
             CLAIM_RETRY_DELAYS_MS,
           );
@@ -815,7 +794,7 @@ export default function AdviceTransferTask() {
           setCommentsStoodOut(["yes", "no", "unsure"].includes(restored.commentsStoodOut) ? restored.commentsStoodOut : "");
           setCommentsStoodOutDetails(String(restored.commentsStoodOutDetails || ""));
           setAiGeneratedBelief(["yes", "no", "unsure"].includes(restored.aiGeneratedBelief) ? restored.aiGeneratedBelief : "");
-          setAiLikelihood(scaleValue(restored.aiLikelihood));
+          setAiLikelihood(scaleValue(restored.aiLikelihood, ratingScaleFor(nextAssignment)));
           setDemographics(normalizeDemographics(restored.demographics));
           setTimestamps(restored.timestamps);
           timing.restore(restored.timings);
@@ -1208,7 +1187,7 @@ export default function AdviceTransferTask() {
       setTimestamps(nextTimestamps);
       // Persist the receipt immediately, before any navigation/refresh can occur.
       writeLocalDraft(assignment.participant, { ...freshDraft(), ...result,
-        schemaVersion: SCHEMA_VERSION, screen: nextScreen, timestamps: nextTimestamps,
+        schemaVersion: SCHEMA_VERSION, ratingScaleVersion, screen: nextScreen, timestamps: nextTimestamps,
         pendingStage: null, pendingSubmission: pendingSubmissionRef.current });
       setScreen(nextScreen);
       goTop();
@@ -1225,10 +1204,11 @@ export default function AdviceTransferTask() {
     if (phase1LockedAt) { returnToScreen("advice"); return; }
     if (pendingLabelRef.current || !feedbackComplete(assignment, commentLabels, commentLabelFeedback) ||
       !perceptionComplete(assignment, perceptionResponses) ||
-      !phase1Complete(commentLabels, gistText, gistDifficulty)) return;
+      !phase1Complete(commentLabels, gistText, gistDifficulty, ratingScaleVersion)) return;
     const activeTimings = timing.pause();
     saveStage({ stage: "phase1", payload: {
       schemaVersion: SCHEMA_VERSION,
+      ratingScaleVersion,
       commentJudgments: judgmentsFor(assignment, commentLabels),
       gistText: gistText.trim(), gistDifficulty,
       perceptionQuestionsVersion: assignment.perceptionQuestionsVersion || "none",
@@ -1367,10 +1347,12 @@ export default function AdviceTransferTask() {
       confidence,
       opinionDifficulty,
       assignment.postTaskMeasure,
+      ratingScaleVersion,
     )) return;
     const activeTimings = timing.pause();
     saveStage({ stage: "phase2", payload: {
       schemaVersion: SCHEMA_VERSION,
+      ratingScaleVersion,
       postTaskMeasure: assignment.postTaskMeasure,
       adviceText: advice.trim(),
       difficulty: isOpinionDifficultyMeasure ? opinionDifficulty : null,
@@ -1425,13 +1407,14 @@ export default function AdviceTransferTask() {
     if (
       !assignment ||
       !phase1LockedAt || !phase2LockedAt ||
-      !phase1Complete(commentLabels, gistText, gistDifficulty) ||
+      !phase1Complete(commentLabels, gistText, gistDifficulty, ratingScaleVersion) ||
       !phase2Complete(
         advice,
         effort,
         confidence,
         opinionDifficulty,
         assignment.postTaskMeasure,
+        ratingScaleVersion,
       ) ||
       !purposeGuess.trim() ||
       !commentsStoodOut ||
@@ -1464,6 +1447,7 @@ export default function AdviceTransferTask() {
 
     const payload = pendingSubmissionRef.current || {
       schemaVersion: SCHEMA_VERSION,
+      ratingScaleVersion,
       assignmentId: assignment.assignmentId,
       participant: assignment.participant,
       adviceText: advice.trim(),
@@ -1917,7 +1901,7 @@ export default function AdviceTransferTask() {
           <div id="gist-word-count" className={`transfer-word-count ${gistWordCount >= MIN_GIST_WORDS ? "complete" : ""}`}>
             <strong>{gistWordCount}</strong> / {MIN_GIST_WORDS} words minimum
           </div>
-          <ScaleQuestion legend="How difficult was it to come up with the gist of all the comments?"
+          <ScaleQuestion version={ratingScaleVersion} legend="How difficult was it to come up with the gist of all the comments?"
             value={gistDifficulty} onChange={setGistDifficulty} disabled={phase1ReadOnly}
             low="not at all difficult" middle="somewhat difficult" high="very difficult" />
           <SaveStatus
@@ -1942,7 +1926,7 @@ export default function AdviceTransferTask() {
             <PrimaryButton disabled={stageSaveState === "saving" || Boolean(pendingLabelSelection) ||
               !feedbackComplete(assignment, commentLabels, commentLabelFeedback) ||
               !perceptionComplete(assignment, perceptionResponses) ||
-              !phase1Complete(commentLabels, gistText, gistDifficulty)} onClick={continueToAdvice}>
+              !phase1Complete(commentLabels, gistText, gistDifficulty, ratingScaleVersion)} onClick={continueToAdvice}>
               {stageSaveState === "saving" ? "Saving…" : stageSaveState === "error" ? "Retry save" : "Continue to Phase 2"}
             </PrimaryButton>
           </div>
@@ -2022,7 +2006,7 @@ export default function AdviceTransferTask() {
           <h2>Post-task survey</h2>
           <p className="transfer-section-copy">Please answer both questions.</p>
           {phase2LockedAt && <LockedNotice>Your opinion and ratings have been saved and are read-only.</LockedNotice>}
-          <ScaleQuestion
+          <ScaleQuestion version={ratingScaleVersion}
             legend="How confident are you that the opinion you gave was right?"
             value={confidence}
             onChange={updateConfidence}
@@ -2032,7 +2016,7 @@ export default function AdviceTransferTask() {
             high="Extremely confident"
           />
           {isOpinionDifficultyMeasure ? (
-            <ScaleQuestion
+            <ScaleQuestion version={ratingScaleVersion}
               legend="How difficult was it to form your final opinion about the dilemma?"
               value={opinionDifficulty}
               onChange={updateOpinionDifficulty}
@@ -2042,7 +2026,7 @@ export default function AdviceTransferTask() {
               high="Extremely difficult"
             />
           ) : (
-            <ScaleQuestion
+            <ScaleQuestion version={ratingScaleVersion}
               legend="How effortful was it to decide what to say?"
               value={effort}
               onChange={updateEffort}
@@ -2071,6 +2055,7 @@ export default function AdviceTransferTask() {
                 confidence,
                 opinionDifficulty,
                 assignment.postTaskMeasure,
+                ratingScaleVersion,
               )}
               onClick={continueToPurpose}
             >
@@ -2141,7 +2126,7 @@ export default function AdviceTransferTask() {
           <h2>Do you think the comments you read may have been generated by artificial intelligence?</h2>
           <ThreeWayChoice name="ai-generated-belief" value={aiGeneratedBelief} onChange={setAiGeneratedBelief} disabled={Boolean(pendingSubmission)} />
           <div className="transfer-likelihood-block">
-            <ScaleQuestion
+            <ScaleQuestion version={ratingScaleVersion}
               legend="How likely is it that the comments were generated by artificial intelligence (e.g. ChatGPT)?"
               value={aiLikelihood}
               onChange={setAiLikelihood}

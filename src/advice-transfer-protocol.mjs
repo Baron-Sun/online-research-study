@@ -55,8 +55,15 @@ export const countEnglishWords = (value) =>
 export const displayPostBody = (value) =>
   String(value ?? "").replace(/^[\t ]*&amp;#x200B;[\t ]*$/gm, "");
 
-export const scaleValue = (value) =>
-  Number.isInteger(value) && value >= 1 && value <= 7 ? value : null;
+export const LEGACY_RATING_SCALE = "likert-1-7-v1";
+export const RATING_SCALE_100 = "ratings-0-100-v1";
+export const ratingScaleFor = (assignment) => assignment?.ratingScaleVersion ?? LEGACY_RATING_SCALE;
+export const scaleValue = (value, version = LEGACY_RATING_SCALE) => {
+  if (!Number.isInteger(value)) return null;
+  if (version === RATING_SCALE_100) return value >= 0 && value <= 100 ? value : null;
+  if (version === LEGACY_RATING_SCALE) return value >= 1 && value <= 7 ? value : null;
+  return null;
+};
 
 export const judgmentsFor = (assignment, labels) =>
   assignment.commentOrder.map((commentIndex, index) => ({
@@ -78,11 +85,11 @@ export const labelsFromJudgments = (assignment, judgments) =>
       : "";
   });
 
-export const phase1Complete = (labels, gistText, gistDifficulty) =>
+export const phase1Complete = (labels, gistText, gistDifficulty, version = LEGACY_RATING_SCALE) =>
   Array.isArray(labels) && labels.length === 5 &&
   labels.every((label) => JUDGMENT_LABELS.includes(label)) &&
   countEnglishWords(gistText) >= MIN_GIST_WORDS &&
-  scaleValue(gistDifficulty) !== null;
+  scaleValue(gistDifficulty, version) !== null;
 
 export const phase2Complete = (
   advice,
@@ -90,6 +97,7 @@ export const phase2Complete = (
   confidence,
   opinionDifficulty = null,
   postTaskMeasure = POST_TASK_EFFORT,
+  version = LEGACY_RATING_SCALE,
 ) => {
   if (![POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY].includes(postTaskMeasure)) {
     return false;
@@ -98,7 +106,7 @@ export const phase2Complete = (
     ? opinionDifficulty
     : effort;
   return countEnglishWords(advice) >= MIN_ADVICE_WORDS &&
-    scaleValue(selectedRating) !== null && scaleValue(confidence) !== null;
+    scaleValue(selectedRating, version) !== null && scaleValue(confidence, version) !== null;
 };
 
 export const emptyActiveTimings = () => ({
@@ -142,9 +150,12 @@ export const DRAFTABLE_SCREENS = new Set([
 // Locks are trusted ONLY from the server assignment, never from device drafts.
 // A later stale device timestamp cannot erase an earlier committed snapshot.
 export const restoreV4Draft = (assignment, drafts) => {
+  const version = ratingScaleFor(assignment);
+  const rating = (value) => scaleValue(value, version);
   const candidates = drafts.filter((draft) =>
     draft?.schemaVersion === SCHEMA_VERSION &&
     draft.assignmentId === assignment.assignmentId &&
+    ratingScaleFor(draft) === version &&
     DRAFTABLE_SCREENS.has(draft.screen),
   ).sort((a, b) => (Date.parse(b.savedAt) || 0) - (Date.parse(a.savedAt) || 0));
   const draft = candidates[0] || {};
@@ -157,10 +168,12 @@ export const restoreV4Draft = (assignment, drafts) => {
   const comprehension = draft.comprehension === CORRECT_COMPREHENSION || phase1
     ? CORRECT_COMPREHENSION : "";
   const pendingStage = draft.pendingStage?.payload?.schemaVersion === SCHEMA_VERSION &&
+    ratingScaleFor(draft.pendingStage.payload) === version &&
     ["phase1", "phase2"].includes(draft.pendingStage?.stage) &&
     !(draft.pendingStage.stage === "phase1" ? phase1 : phase2)
     ? draft.pendingStage : null;
   const pendingSubmission = draft.pendingSubmission?.schemaVersion === SCHEMA_VERSION &&
+    ratingScaleFor(draft.pendingSubmission) === version &&
     draft.pendingSubmission?.assignmentId === assignment.assignmentId && phase2 &&
     demographicsComplete(draft.pendingSubmission?.demographics)
     ? draft.pendingSubmission : null;
@@ -189,16 +202,16 @@ export const restoreV4Draft = (assignment, drafts) => {
     screen, agreed, comprehension, pendingStage, pendingSubmission,
     commentJudgments: phase1?.commentJudgments || draft.commentJudgments || [],
     gistText: String(phase1?.gistText ?? draft.gistText ?? ""),
-    gistDifficulty: scaleValue(phase1?.gistDifficulty ?? draft.gistDifficulty),
+    gistDifficulty: rating(phase1?.gistDifficulty ?? draft.gistDifficulty),
     advice: String(phase2?.adviceText ?? draft.advice ?? ""),
     // Once Phase 2 is locked, explicit NULLs in its server snapshot are
     // authoritative too. Falling back through `??` would resurrect the other
     // measure from an older local draft and silently mix effort with difficulty.
-    effort: phase2 ? scaleValue(phase2.effort) : scaleValue(draft.effort),
+    effort: phase2 ? rating(phase2.effort) : rating(draft.effort),
     opinionDifficulty: phase2
-      ? scaleValue(phase2.difficulty)
-      : scaleValue(draft.opinionDifficulty ?? draft.difficulty),
-    confidence: phase2 ? scaleValue(phase2.confidence) : scaleValue(draft.confidence),
+      ? rating(phase2.difficulty)
+      : rating(draft.opinionDifficulty ?? draft.difficulty),
+    confidence: phase2 ? rating(phase2.confidence) : rating(draft.confidence),
     demographics: normalizeDemographics(draft.demographics),
     phase1Snapshot: phase1, phase1LockedAt,
     phase2Snapshot: phase2, phase2LockedAt,
