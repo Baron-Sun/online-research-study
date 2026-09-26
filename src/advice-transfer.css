@@ -352,7 +352,7 @@ div.transfer-label-feedback {
   letter-spacing: -0.015em;
 }
 
-.transfer-response-panel > p:not(.source-eyebrow),
+.transfer-response-panel > p:not(.source-eyebrow):not(.transfer-advice-prompt),
 .transfer-section-copy {
   margin: 10px 0 18px;
   color: var(--source-slate-600);

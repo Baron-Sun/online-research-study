@@ -22,7 +22,7 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 const DRAFT_SAVE_DELAY_MS = 1_500;
 const SAME_POST_DESIGN = "same_post";
 const SAME_POST_RESPONSE_GUIDANCE =
-  "Now, imagine you are commenting on the same Reddit post. Write the opinion you would give to the user. The summary you wrote and the five comments you read in Phase 1 are shown below in case they are useful. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then write your opinion.";
+  "Now, imagine you are commenting on the same Reddit post. Write the opinion you would give to the user. The summary you wrote and the five comments you read in Phase 1 are shown on this page in case they are useful. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then write your opinion.";
 const A_TO_B_RESPONSE_GUIDANCE =
   "Imagine you are commenting on this post in the online platform. Write the opinion you would give to the user. We have provided the comments you previously read in case this dilemma is similar. First, give one judgment label: YTA, NTA, ESH, NAH, or INFO. Then write your opinion.";
 const CLAIM_RETRY_DELAYS_MS = [0, 500, 1_000, 2_000, 4_000, 6_000];
@@ -318,15 +318,10 @@ const Page = ({ children, wide = false, ready = true }) => (
   </main>
 );
 
-const PostPanel = ({ eyebrow, post, adviceTarget = false, guidance = A_TO_B_RESPONSE_GUIDANCE }) => (
+const PostPanel = ({ eyebrow, post }) => (
   <article className="source-panel source-post-panel transfer-post-panel">
     <div className="source-panel-heading">
       <p className="source-eyebrow">{eyebrow}</p>
-      {adviceTarget && (
-        <p className="transfer-advice-prompt">
-          {guidance}
-        </p>
-      )}
       <h2>{post.title}</h2>
     </div>
     <div className="source-post-text">{displayPostBody(post.body)}</div>
@@ -1950,8 +1945,6 @@ export default function AdviceTransferTask() {
             <PostPanel
               eyebrow={isSamePostDesign ? "The Reddit post" : "The second Reddit post"}
               post={assignment.responsePost}
-              adviceTarget
-              guidance={isSamePostDesign ? SAME_POST_RESPONSE_GUIDANCE : A_TO_B_RESPONSE_GUIDANCE}
             />
             {isSamePostDesign && (
               <section className="source-panel transfer-previous-gist" aria-label="Your Phase 1 summary">
@@ -1968,6 +1961,9 @@ export default function AdviceTransferTask() {
           </div>
           <section className="source-panel transfer-response-panel">
             <label className="transfer-response-label" htmlFor="opinion-response">Your response</label>
+            <p id="opinion-guidance" className="transfer-advice-prompt">
+              {isSamePostDesign ? SAME_POST_RESPONSE_GUIDANCE : A_TO_B_RESPONSE_GUIDANCE}
+            </p>
             <textarea
               id="opinion-response"
               className="transfer-textarea transfer-advice-textarea"
@@ -1977,7 +1973,7 @@ export default function AdviceTransferTask() {
               onPaste={(event) => event.preventDefault()}
               onDrop={(event) => event.preventDefault()}
               placeholder="Begin with YTA, NTA, ESH, NAH, or INFO, then write your opinion…"
-              aria-describedby="advice-word-count"
+              aria-describedby="opinion-guidance advice-word-count"
             />
             <div
               id="advice-word-count"
