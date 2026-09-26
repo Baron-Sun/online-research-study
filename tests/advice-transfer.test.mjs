@@ -2,12 +2,33 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
 import { ADVICE_TRANSFER_CONSENT_TEXT, PILOT_20260921_CONSENT_TEXT,
   PILOT_20260921_STUDY_ID, FORMAL_20260926_STUDY_ID,
   FORMAL_20260926_CONSENT_TEXT, consentTextForAssignment } from "../src/advice-transfer-consent.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
+
+test("the actual formal entry resolves its completion code without a URL code or build variable", async () => {
+  const client = await read("src/AdviceTransferTask.jsx");
+  const cleanSource = client.slice(client.indexOf("const cleanParameter ="), client.indexOf("const getQueryParams ="));
+  const completionSource = client.slice(client.indexOf("const getCompletion ="), client.indexOf("export const validateAdviceTransferAssignment"));
+  const resolve = (search, configuredCode = "") => vm.runInNewContext(
+    `${cleanSource}\n${completionSource.replace("import.meta.env.VITE_ADVICE_TRANSFER_COMPLETION_CODE", "configuredCode")}\ngetCompletion();`,
+    { getQueryParams: () => new URLSearchParams(search), configuredCode,
+      FORMAL_20260926_STUDY_ID, PROLIFIC_COMPLETION_BASE_URL: "https://app.prolific.com/submissions/complete" },
+  );
+  const formal = resolve(`PROLIFIC_PID=example-real-participant&STUDY_ID=${FORMAL_20260926_STUDY_ID}&SESSION_ID=example-session`);
+  assert.equal(formal.code, "CXB1PONQ");
+  assert.equal(formal.url, "https://app.prolific.com/submissions/complete?cc=CXB1PONQ");
+  assert.equal(resolve(`study_id=${FORMAL_20260926_STUDY_ID}`).code, "CXB1PONQ");
+  assert.equal(resolve("STUDY_ID=unrelated-study").url, "");
+  assert.equal(resolve(`STUDY_ID=${PILOT_20260921_STUDY_ID}`).url, "");
+  assert.equal(resolve(`STUDY_ID=${FORMAL_20260926_STUDY_ID}&completion_code=EXPLICIT`).code, "EXPLICIT");
+  assert.equal(resolve(`STUDY_ID=${FORMAL_20260926_STUDY_ID}`, "CONFIGURED").code, "CONFIGURED");
+  assert.equal(resolve(`STUDY_ID=${FORMAL_20260926_STUDY_ID}&completion_code=bad/code`).url, "");
+});
 
 test("consent preserves the original full form with only the approved duration and sample-size substitutions", () => {
   assert.match(ADVICE_TRANSFER_CONSENT_TEXT, /around 10–12 minutes/);

@@ -1,7 +1,7 @@
 import { admissionWait, jitterDelay, newComprehensionEvent, restoreComprehensionEvent, supabaseRpcWithRetry, supabaseRpcKeepalive } from "./advice-transfer-network.mjs";
 export { supabaseRpcWithRetry } from "./advice-transfer-network.mjs";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { consentTextForAssignment } from "./advice-transfer-consent";
+import { consentTextForAssignment, FORMAL_20260926_STUDY_ID } from "./advice-transfer-consent";
 import LegacyAdviceTransferTask from "./LegacyAdviceTransferTask.jsx";
 import { CORRECT_COMPREHENSION, SCHEMA_VERSION, MIN_ADVICE_WORDS, MIN_GIST_WORDS, JUDGMENT_LABELS,
   POST_TASK_EFFORT, POST_TASK_OPINION_DIFFICULTY,
@@ -163,10 +163,12 @@ const getSupabaseConfig = () => {
 
 const getCompletion = () => {
   const params = getQueryParams();
+  const studyId = cleanParameter(params.get("STUDY_ID") || params.get("study_id"));
   const code = cleanParameter(
     params.get("completion_code") ||
       params.get("COMPLETION_CODE") ||
-      import.meta.env.VITE_ADVICE_TRANSFER_COMPLETION_CODE,
+      import.meta.env.VITE_ADVICE_TRANSFER_COMPLETION_CODE ||
+      (studyId === FORMAL_20260926_STUDY_ID ? "CXB1PONQ" : ""),
   );
   if (!code || !/^[A-Za-z0-9_-]{3,80}$/.test(code)) {
     return { code: "", url: "" };
