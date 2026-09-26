@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { ADVICE_TRANSFER_CONSENT_TEXT, PILOT_20260921_CONSENT_TEXT,
-  PILOT_20260921_STUDY_ID, consentTextForAssignment } from "../src/advice-transfer-consent.js";
+  PILOT_20260921_STUDY_ID, FORMAL_20260926_STUDY_ID,
+  FORMAL_20260926_CONSENT_TEXT, consentTextForAssignment } from "../src/advice-transfer-consent.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
@@ -24,7 +25,9 @@ test("consent preserves the original full form with only the approved duration a
   );
   assert.equal(consentTextForAssignment({participant: {studyId: "historical-study"}}), ADVICE_TRANSFER_CONSENT_TEXT);
   assert.equal(consentTextForAssignment({participant: {studyId: PILOT_20260921_STUDY_ID}}), PILOT_20260921_CONSENT_TEXT);
-  assert.equal(consentTextForAssignment({isTest: true}), PILOT_20260921_CONSENT_TEXT);
+  assert.equal(consentTextForAssignment({isTest: true}), FORMAL_20260926_CONSENT_TEXT);
+  assert.equal(consentTextForAssignment({participant: {studyId: FORMAL_20260926_STUDY_ID}}), FORMAL_20260926_CONSENT_TEXT);
+  assert.equal(FORMAL_20260926_CONSENT_TEXT.replace("about 2000 people", "about 200 people"), PILOT_20260921_CONSENT_TEXT);
   assert.equal(PILOT_20260921_CONSENT_TEXT
     .replace("about 200 people", "about 100 people")
     .replace("You will receive $3.00", "You will receive $1.50"), ADVICE_TRANSFER_CONSENT_TEXT);

@@ -88,6 +88,15 @@ export const PILOT_20260921_CONSENT_TEXT = ADVICE_TRANSFER_CONSENT_TEXT
   .replace("about 100 people", "about 200 people")
   .replace("You will receive $1.50", "You will receive $3.00");
 
-export const consentTextForAssignment = (assignment) =>
-  assignment?.isTest || assignment?.participant?.studyId === PILOT_20260921_STUDY_ID
-    ? PILOT_20260921_CONSENT_TEXT : ADVICE_TRANSFER_CONSENT_TEXT;
+export const FORMAL_20260926_STUDY_ID = "6ab3fa4fe3086041cbc44a37";
+export const FORMAL_20260926_CONSENT_TEXT = PILOT_20260921_CONSENT_TEXT
+  .replace("about 200 people", "about 2000 people");
+
+export const consentTextForAssignment = (assignment) => {
+  const studyId = assignment?.participant?.studyId;
+  if (studyId === PILOT_20260921_STUDY_ID) return PILOT_20260921_CONSENT_TEXT;
+  if (studyId === FORMAL_20260926_STUDY_ID || assignment?.isTest) {
+    return FORMAL_20260926_CONSENT_TEXT;
+  }
+  return ADVICE_TRANSFER_CONSENT_TEXT;
+};
