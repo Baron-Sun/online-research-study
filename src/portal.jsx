@@ -53,6 +53,21 @@ const Portal = () => (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <a
             className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:bg-white hover:shadow-sm"
+            href="./original-comments/?preview=1"
+          >
+            <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500">
+              Researcher Preview
+            </span>
+            <span className="mt-2 block text-lg font-semibold text-slate-950">
+              Three-Post Original Comments
+            </span>
+            <span className="mt-2 block text-sm leading-6 text-slate-600">
+              100 fixed assignments. Three original-prompt responses per participant,
+              with test data kept separate from recruitment places.
+            </span>
+          </a>
+          <a
+            className="rounded-lg border border-slate-200 bg-slate-50 p-5 transition hover:bg-white hover:shadow-sm"
             href="./advice/"
           >
             <span className="block text-sm font-semibold uppercase tracking-wide text-slate-500">

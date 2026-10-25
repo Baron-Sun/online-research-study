@@ -1,0 +1,21 @@
+.original100-page, .original100-page * { user-select: text; -webkit-user-select: text; }
+.original100-preview { padding: 12px 16px; margin: 0 0 22px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; color: #1e3a8a; font-size: 13px; line-height: 1.6; }
+.original100-preview-tools { margin-top: 6px; } .original100-preview-tools summary { cursor: pointer; } .original100-preview-tools select, .original100-preview-tools button { margin-top: 8px; padding: 6px 10px; background: white; border: 1px solid #bfdbfe; border-radius: 5px; color: #1e3a8a; }
+.original100-error { padding: 16px; margin: 0 0 20px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: 8px; }
+.original100-error pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.original100-task-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(360px,.85fr); gap: 20px; align-items: start; }
+.original100-prompt { white-space: pre-wrap; overflow-wrap: anywhere; color: #0f172a; font-size: 15px; line-height: 1.8; }
+.original100-response { padding: 26px; position: sticky; top: 22px; }
+.original100-response label { display: block; margin: 0 0 16px; font-size: 21px; font-weight: 650; }
+.original100-response textarea { display: block; width: 100%; min-height: 340px; padding: 16px; resize: vertical; border: 1px solid #94a3b8; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.7; color: #0f172a; background: #fff; }
+.original100-response textarea:focus { outline: 3px solid #bfdbfe; border-color: #2563eb; }
+.original100-save { min-height: 22px; color: #475569; font-size: 13px; margin: 12px 0 20px; }
+.original100-help { color: #64748b; font-size: 13px; line-height: 1.6; margin: 20px 0 0; }
+.original100-review { padding: 24px 0; border-top: 1px solid #e2e8f0; }
+.original100-review > div { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.original100-review h3 { margin: 0; }
+.original100-review p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.original100-footer { margin-top: 32px; color: #64748b; font-size: 13px; }
+.original100-footer > button { border: 0; padding: 0; background: none; color: #64748b; text-decoration: underline; cursor: pointer; }
+@media(max-width:850px) { .original100-task-grid { grid-template-columns: 1fr; } .original100-response { position: static; } .original100-response textarea { min-height: 280px; } }
+@media(max-width:480px) { .original100-response { padding: 20px; } .original100-page .source-study-header h1 { font-size: 30px; } .original100-page .source-session-card { min-width: auto; } }

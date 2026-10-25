@@ -21,6 +21,7 @@ export default defineConfig({
         ratings: resolve(__dirname, "ratings/index.html"),
         commentSource: resolve(__dirname, "comment-source/index.html"),
         adviceTransfer: resolve(__dirname, "advice-transfer/index.html"),
+        originalComments: resolve(__dirname, "original-comments/index.html"),
       },
     },
   },
