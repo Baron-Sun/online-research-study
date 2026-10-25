@@ -1,4 +1,4 @@
-# Original-prompt three-post study — preview
+# Private judgment three-post study — preview
 
 This is an additive route in the existing **Baron-Sun/online-research-study**
 React/Vite/GitHub Pages application. It reuses the previous study's neutral
@@ -17,8 +17,19 @@ deployment has not been changed.
 - Source: the reviewed `prolific_original_100_20261024` CSV/JSONL package.
 - 100 posts, 100 fixed participant slots, three distinct posts per slot.
 - Each post occurs in exactly three different slots and once at each position.
-- Original instructions plus **body only**, without a title or other comments.
-- Original wording (including “You are an AI assistant…”) is preserved verbatim.
+- Current condition: `private100-20261024-v2`. The neutral prompt asks for the
+  participant's own judgment and reasons, with a label followed by an explanation.
+- The original **body only** is preserved exactly, including embedded line endings;
+  no title, previous comments, votes, or ratings are shown.
+- Participants are told their responses are for research, will not be posted on a
+  public forum or shown/rated by other participants, and payment does not depend on
+  their judgment. The diversity hypothesis is not mentioned.
+- `private100_prompt_template.txt` and the parent directory's
+  `participant_stimuli_private_100.jsonl` contain the shared core prompt for this
+  condition. No new LLM responses have been generated.
+- The original LLM prompts remain archived as `original100-20261024-v1`, with
+  existing sessions pinned to their own material version. Old preview links offer
+  a fresh preview rather than silently changing the task midway.
 - Database and browser check SHA-256 for every assigned prompt.
 - `supabase_original100_seed.sql` includes only stimuli and allocation, never
   historical participant comments, model responses, or judgment labels.
@@ -29,8 +40,9 @@ The existing Supabase project `kkfyoztlpjuvipqaoyig` contains the new isolated
 `original100_*` tables and RPCs. Setup and seed were applied and verified on
 2026-10-24 (Chicago). Existing study tables and RPCs were not modified.
 
-Formal recruitment remains **closed**. The database contains 100 prompts and
-300 assignment rows, with zero formal participants/comments at verification.
+Formal recruitment remains **closed**. The database contains 100 current prompts,
+100 archived Original prompts, and 300 assignment rows, with zero formal
+participants/comments at verification.
 All retained test sessions use `mode='preview'` and explicit preview/QA IDs.
 
 Participant writes go through `original100_session`, using a session capability
@@ -38,26 +50,32 @@ token. The stored token is hashed. Raw tables and the researcher export view
 are inaccessible to anonymous/authenticated browser clients. Only the
 participant's three assigned prompts and own responses are returned.
 
-An explicit attention check now appears on the instructions page before the
-first post: “To confirm that you are reading carefully, please select Blue for
-this question.” Green, Blue and Yellow are the response options. The server
-records each answer, correctness, version and timestamp. Retries of the same
-request do not count twice. An incorrect answer prompts rereading and retry;
-refresh preserves the recorded result. Task writes cannot begin until the
-check is passed. This single check does not automatically exclude participants
-or trigger payment rejection. It is unrelated to the moral judgments under
-study. Apply `supabase_original100_attention.sql` to the already-connected
-database, or use the updated full setup for a new database.
+A task comprehension check appears before the first situation. It asks which
+response matches the task, with four plausible alternatives: summarize the
+events, give one's own judgment and reasons (correct), recommend practical
+solutions, or give only a judgment label. Instructions remain visible above it.
+The server records each answer, correctness, version and timestamp. Repeated
+delivery of one request counts once; refreshing retains the result. Participants
+have two attempts. After the first error they are asked to reread the instructions.
+After the second, the session ends and asks them to return the study on Prolific.
+Its fixed slot becomes available for a replacement; the same identity cannot
+restart. No payment rejection or Prolific account action is automated.
 
-The user is reviewing a proposed neutral/private-response framing. No proposed
-replacement prompt has been applied yet; stored Original prompts remain intact.
+The additive migration `supabase_private100_migration.sql` installs this condition
+on the connected database. For a fresh database, apply the current
+`supabase_original100_setup.sql`, then `supabase_original100_seed.sql`, then
+`supabase_private100_migration.sql`. The earlier
+`supabase_original100_attention.sql` is historical and must not be applied after
+the private-condition migration. The migration requires recruitment closed and
+zero formal participants. Regenerate it with `python3 scripts/build_private100_materials.py`.
 
 The allocator serializes claims/releases, prevents duplicate formal Prolific
 IDs, and permits at most one active/completed formal participant per fixed slot.
 Draft writes have revision checks. Final submission requires three correctly
 formatted comments and the exact reviewed revisions; completion locks editing.
 
-Replacement requires a researcher decision. In the Supabase SQL editor, call
+For other exclusions or abandonment, replacement requires a researcher decision.
+In the Supabase SQL editor, call
 `original100_release(participant_uuid, documented_reason)` for an excluded or
 abandoned participant. This retains their raw responses and audit history,
 excludes them from completed coverage, and reopens their exact slot. That
@@ -69,7 +87,8 @@ For a de-identified completed dataset, use:
 
 ```sql
 select participant_id, slot_id, position, stimulus_id, submission_id,
-       prompt_sha256, comment, completed_at
+       prompt_version, prompt_sha256, comment, completed_at,
+       comprehension_attempts, comprehension_passed_at
 from public.original100_completed_comments
 order by stimulus_id, participant_id;
 ```
@@ -86,21 +105,29 @@ group by p.stimulus_id order by p.stimulus_id;
 
 ## Verification
 
-- Existing site's 67 tests pass; two additional material/integrity tests pass.
+- Existing site's 67 tests pass; three material/integrity tests pass.
 - Production build passes, including the GitHub Pages repository base path.
 - SQL transaction rehearsal completes 100 people / 300 comments and checks
   three distinct people per post; duplicate identity, 101st arrival, wrong
   token, incomplete submit, stale draft, completed edit, and exclusion/refill
-  assertions pass. **All formal rehearsal data/settings were rolled back.**
+  assertions pass. The updated rehearsal also checks material-version retention,
+  two incorrect comprehension answers, duplicate attempt delivery and slot reuse.
+  **All formal rehearsal data/settings were rolled back.**
 - Live public-API test: 16 concurrent claims for one QA identity produce one
   assignment; eight conflicting saves accept exactly one. Lost-receipt retries,
   duplicate final submission, page restoration, closed formal entry, and raw
-  table denial pass. Synthetic comments are explicitly labeled as tests.
-- Browser preview: consent → three actual assigned posts → autosave → refresh
-  on post 2 → final review → completion. Mobile and desktop layouts inspected.
+  table denial pass. Comprehension gating, retry counting, a successful second
+  attempt, persistent failure and rejection of the old color-check shortcut pass.
+  Synthetic comments are explicitly labeled as tests.
+- The earlier full browser run covered consent → three assigned posts → final
+  review → completion. The updated private-condition preview verifies the actual
+  new instructions, distractors, one incorrect answer, persistent feedback after
+  refresh, successful correction, neutral prompts, saving and restoration on
+  situation 2. The new comprehension layout was visually inspected at narrow width.
 
-Scripts: `tests/original100.test.mjs`, `tests/original100-rehearsal.sql`, and
-`tests/original100-live.mjs`. Local test evidence is in ignored `verification/`.
+Scripts: `tests/original100.test.mjs`, `tests/private100.test.mjs`,
+`tests/original100-rehearsal.sql`, and `tests/original100-live.mjs`.
+Local test evidence is in ignored `verification/`.
 `.env.local` contains only the old site's existing public browser configuration
 and is ignored. No privileged database credential is used in the frontend.
 

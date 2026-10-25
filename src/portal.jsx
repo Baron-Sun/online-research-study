@@ -59,10 +59,10 @@ const Portal = () => (
               Researcher Preview
             </span>
             <span className="mt-2 block text-lg font-semibold text-slate-950">
-              Three-Post Original Comments
+              Three-Situation Judgment Task
             </span>
             <span className="mt-2 block text-sm leading-6 text-slate-600">
-              100 fixed assignments. Three original-prompt responses per participant,
+              100 fixed assignments. Three private judgment responses per participant,
               with test data kept separate from recruitment places.
             </span>
           </a>

@@ -80,3 +80,9 @@ dist/
 !tests/original100.test.mjs
 !tests/original100-rehearsal.sql
 !tests/original100-live.mjs
+!src/private100-content.mjs
+!private100_prompt_template.txt
+!private100-material-manifest.json
+!supabase_private100_migration.sql
+!scripts/build_private100_materials.py
+!tests/private100.test.mjs

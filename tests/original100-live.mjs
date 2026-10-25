@@ -14,16 +14,28 @@ const claimed=await Promise.all(Array.from({length:16},()=>call('claim',{consent
 assert.equal(new Set(claimed.map(p=>p.id)).size,1);
 await verifyMaterial(claimed[0]);
 await assert.rejects(requestSession(config,{...identity,token:randomBytes(32).toString('hex')},'resume',{}));
-await assert.rejects(call('navigate',{position:1}),/attention check/);
-await assert.rejects(call('save',{position:1,revision:0,answer:'NTA\nCannot save before the check.'}),/attention check/);
-const wrongCheck={event_id:randomUUID(),choice:'green',version:'attention-v1-blue'};
-const attempts=await Promise.all(Array.from({length:8},()=>call('attention_check',wrongCheck)));
-assert.ok(attempts.every(r=>r.attentionCheck.attempts===1&&!r.attentionCheck.passed));
-assert.equal((await call('resume',{})).attentionCheck.attempts,1);
-await assert.rejects(call('attention_check',{...wrongCheck,choice:'blue'}),/already recorded/);
-const passed=await call('attention_check',{event_id:randomUUID(),choice:'blue',version:'attention-v1-blue'});
-assert.deepEqual(passed.attentionCheck,{version:'attention-v1-blue',attempts:2,passed:true});
-assert.equal((await call('resume',{})).attentionCheck.passed,true);
+await assert.rejects(call('navigate',{position:1}),/task understanding check/);
+await assert.rejects(call('save',{position:1,revision:0,answer:'NTA\nCannot save before the check.'}),/task understanding check/);
+const wrongCheck={event_id:randomUUID(),choice:'summarize',version:'task-comprehension-v1'};
+const attempts=await Promise.all(Array.from({length:8},()=>call('comprehension_check',wrongCheck)));
+assert.ok(attempts.every(r=>r.comprehensionCheck.attempts===1&&!r.comprehensionCheck.passed));
+assert.equal((await call('resume',{})).comprehensionCheck.attempts,1);
+await assert.rejects(call('comprehension_check',{...wrongCheck,choice:'judgment_reasons'}),/already recorded/);
+const passed=await call('comprehension_check',{event_id:randomUUID(),choice:'judgment_reasons',version:'task-comprehension-v1'});
+assert.deepEqual(passed.comprehensionCheck,{version:'task-comprehension-v1',attempts:2,passed:true,failed:false,remainingAttempts:0});
+assert.equal((await call('resume',{})).comprehensionCheck.passed,true);
+await assert.rejects(call('attention_check',{event_id:randomUUID(),choice:'blue',version:'attention-v1-blue'}),/earlier task version/);
+const failedIdentity={...identity,pid:pid+'-fail',sessionId:pid+'-fail',token:randomBytes(32).toString('hex')};
+const failCall=(action,payload)=>requestSession(config,failedIdentity,action,payload);
+await failCall('claim',{consent:true,slot:'S001'});
+let failed=await failCall('comprehension_check',{event_id:randomUUID(),choice:'advice',version:'task-comprehension-v1'});
+assert.equal(failed.comprehensionCheck.remainingAttempts,1);
+const failedAttempt={event_id:randomUUID(),choice:'label_only',version:'task-comprehension-v1'};
+const failureRetries=await Promise.all(Array.from({length:8},()=>failCall('comprehension_check',failedAttempt)));
+assert.ok(failureRetries.every(r=>r.status==='screened_out'&&r.comprehensionCheck.attempts===2));
+assert.equal((await failCall('resume',{})).status,'screened_out');
+assert.equal((await failCall('comprehension_check',{event_id:randomUUID(),choice:'judgment_reasons',version:'task-comprehension-v1'})).status,'screened_out');
+assert.equal((await failCall('save',{position:1,revision:0,answer:'NTA\nForbidden after screening'})).posts[0].answer,'');
 const raced=await Promise.allSettled(Array.from({length:8},(_,i)=>call('save',{position:1,revision:0,answer:`NTA\nSYNTHETIC API CONCURRENCY TEST ONLY. Writer ${i}.`})));
 assert.equal(raced.filter(r=>r.status==='fulfilled').length,1);
 let current=await call('resume',{});
@@ -38,14 +50,14 @@ assert.ok(completed.every(r=>r.status==='completed'&&r.completionCode===null));
 await assert.rejects(call('save',{position:1,revision:1,answer:'NTA\nForbidden edit'}));
 await assert.rejects(requestSession(config,{...identity,pid:'a'.repeat(24),studyId:'not-launched',sessionId:'b'.repeat(24),preview:false},'claim',{consent:true}));
 const privacy=[];
-for(const table of ['original100_participants','original100_responses','original100_completed_comments']) {
+for(const table of ['original100_participants','original100_responses','original100_completed_comments','original100_materials']) {
  const response=await fetch(`${config.url}/rest/v1/${table}?select=*&limit=1`,{headers:{apikey:config.anonKey,Authorization:`Bearer ${config.anonKey}`}});
  assert.ok([401,403].includes(response.status));privacy.push({table,status:response.status});
 }
 const result={timestamp:new Date().toISOString(),project:'kkfyoztlpjuvipqaoyig',syntheticPid:pid,previewId:claimed[0].id,
   concurrentIdenticalClaims:16,uniqueAssignments:1,competingSaves:8,acceptedCompetingSaves:1,
   wrongTokenRejected:true,staleWriteRejected:true,idempotentRetry:true,incompleteSubmitRejected:true,
-  attentionGateEnforced:true,attentionFailurePersisted:true,attentionRetryIdempotent:true,attentionPassedAfterCorrection:true,
+  comprehensionGateEnforced:true,comprehensionFailurePersisted:true,comprehensionRetryIdempotent:true,comprehensionPassedAfterCorrection:true,twoFailuresEndSession:true,originalColorCheckRejected:true,
   positionRestored:true,concurrentFinalSubmissionsIdempotent:true,completedAnswersLocked:true,formalEntryClosed:true,privacy};
 await mkdir(new URL('../verification/',import.meta.url),{recursive:true});
 await writeFile(new URL('../verification/live-api.json',import.meta.url),JSON.stringify(result,null,2));

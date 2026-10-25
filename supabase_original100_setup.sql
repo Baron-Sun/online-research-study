@@ -64,6 +64,23 @@ alter table public.original100_participants add column if not exists attention_a
 alter table public.original100_participants add column if not exists attention_passed_at timestamptz;
 create unique index if not exists original100_attention_event_once
  on public.original100_events(participant_id,(detail->>'event_id')) where action='attention_check';
+-- Material versions are immutable; every participant keeps the version they saw.
+create table if not exists public.original100_materials (
+ version text not null,
+ stimulus_id text not null references public.original100_posts,
+ prompt_text text not null,
+ prompt_sha256 text not null check(length(prompt_sha256)=64),
+ body_sha256 text not null check(length(body_sha256)=64),
+ primary key(version,stimulus_id)
+);
+alter table public.original100_materials enable row level security;
+revoke all on public.original100_materials from anon,authenticated;
+alter table public.original100_participants add column if not exists material_version text not null default 'original100-20261024-v1';
+alter table public.original100_participants add column if not exists comprehension_attempts integer not null default 0;
+alter table public.original100_participants add column if not exists comprehension_passed_at timestamptz;
+alter table public.original100_participants add column if not exists comprehension_failed_at timestamptz;
+create unique index if not exists original100_comprehension_event_once
+ on public.original100_events(participant_id,(detail->>'event_id')) where action='comprehension_check';
 alter table public.original100_settings enable row level security;
 alter table public.original100_posts enable row level security;
 alter table public.original100_slots enable row level security;
@@ -100,7 +117,7 @@ begin
  if (p_preview and p_pid !~ '^(preview|test|qa)-[A-Za-z0-9_-]+$')
    or (not p_preview and (p_pid !~ '^[a-f0-9]{24}$' or p_session_id !~ '^[a-f0-9]{24}$'))
    then raise exception 'Please open the study using your Prolific link.'; end if;
- if p_action is null or p_action not in ('claim','resume','save','navigate','complete','withdraw','attention_check') then raise exception 'Unknown action.'; end if;
+ if p_action is null or p_action not in ('claim','resume','save','navigate','complete','withdraw','attention_check','comprehension_check') then raise exception 'Unknown action.'; end if;
  token_digest := encode(digest(p_token,'sha256'),'hex');
  -- One lock order for every action; protects claim/release/complete against each other.
  perform pg_advisory_xact_lock(10020261024);
@@ -123,19 +140,24 @@ begin
    end if;
    if selected_slot is null then raise exception 'All study places are currently assigned. Please contact the researcher.'; end if;
    if (select count(*) from public.original100_plan where slot_id=selected_slot)<>3 then raise exception 'The study material is incomplete.'; end if;
-   insert into public.original100_participants(mode,prolific_pid,study_id,session_id,token_hash,slot_id,consent_version)
-     values(study_mode,p_pid,p_study_id,p_session_id,token_digest,selected_slot,cfg.consent_version) returning * into person;
+   if (select count(*) from public.original100_materials where version=cfg.version)<>100 then raise exception 'The study material is incomplete.'; end if;
+   insert into public.original100_participants(mode,prolific_pid,study_id,session_id,token_hash,slot_id,consent_version,material_version)
+     values(study_mode,p_pid,p_study_id,p_session_id,token_digest,selected_slot,cfg.consent_version,cfg.version) returning * into person;
    insert into public.original100_responses(participant_id,position,stimulus_id)
      select person.id,position,stimulus_id from public.original100_plan where slot_id=selected_slot;
    insert into public.original100_events(participant_id,action) values(person.id,'consent_and_claim');
  end if;
  if person.token_hash<>token_digest or person.study_id<>p_study_id or person.session_id<>p_session_id
    then raise exception 'This participant already has a session. Reopen the original browser and study link.'; end if;
- if person.status in ('withdrawn','excluded') then raise exception 'This session has ended. Please contact the researcher.'; end if;
+ if person.comprehension_failed_at is not null then p_action:='resume';
+ elsif person.status in ('withdrawn','excluded') then raise exception 'This session has ended. Please contact the researcher.'; end if;
  if p_action in ('save','navigate','withdraw') and person.status<>'active' then raise exception 'Your submitted responses are locked.'; end if;
- if p_action in ('save','navigate','complete') and person.status='active' and person.attention_passed_at is null
-   then raise exception 'Please complete the attention check before beginning the posts.'; end if;
+ if p_action in ('save','navigate','complete') and person.status='active' then
+   if person.material_version='original100-20261024-v1' and person.attention_passed_at is null then raise exception 'Please complete the attention check before beginning the posts.'; end if;
+   if person.material_version='private100-20261024-v2' and person.comprehension_passed_at is null then raise exception 'Please complete the task understanding check before beginning the situations.'; end if;
+ end if;
  if p_action='attention_check' then
+   if person.material_version<>'original100-20261024-v1' then raise exception 'This check belongs to an earlier task version.'; end if;
    check_event:=p_payload->>'event_id'; check_choice:=p_payload->>'choice';
    if check_event is null or check_event !~ '^[a-f0-9-]{36}$' or check_choice is null or check_choice not in ('green','blue','yellow')
      or p_payload->>'version' is distinct from 'attention-v1-blue' then raise exception 'Invalid attention-check response.'; end if;
@@ -147,6 +169,28 @@ begin
        jsonb_build_object('event_id',check_event,'choice',check_choice,'correct',check_choice='blue','version','attention-v1-blue'));
      update public.original100_participants set attention_attempts=attention_attempts+1,
        attention_passed_at=case when check_choice='blue' then now() else null end,updated_at=now() where id=person.id;
+   end if;
+ elsif p_action='comprehension_check' then
+   if person.material_version<>'private100-20261024-v2' then raise exception 'Please start a new preview for the updated task.'; end if;
+   check_event:=p_payload->>'event_id'; check_choice:=p_payload->>'choice';
+   if check_event is null or check_event !~ '^[a-f0-9-]{36}$' or check_choice is null
+     or check_choice not in ('summarize','judgment_reasons','advice','label_only')
+     or p_payload->>'version' is distinct from 'task-comprehension-v1' then raise exception 'Invalid task understanding response.'; end if;
+   select detail into previous_check from public.original100_events where participant_id=person.id and action='comprehension_check' and detail->>'event_id'=check_event;
+   if previous_check is not null then
+     if previous_check->>'choice'<>check_choice then raise exception 'This check response was already recorded.'; end if;
+   elsif person.comprehension_passed_at is null and person.status='active' then
+     insert into public.original100_events(participant_id,action,detail) values(person.id,'comprehension_check',
+       jsonb_build_object('event_id',check_event,'choice',check_choice,'correct',check_choice='judgment_reasons','version','task-comprehension-v1'));
+     update public.original100_participants set comprehension_attempts=comprehension_attempts+1,
+       comprehension_passed_at=case when check_choice='judgment_reasons' then now() else null end,
+       comprehension_failed_at=case when check_choice<>'judgment_reasons' and comprehension_attempts+1>=2 then now() else null end,
+       status=case when check_choice<>'judgment_reasons' and comprehension_attempts+1>=2 then 'excluded' else status end,
+       release_reason=case when check_choice<>'judgment_reasons' and comprehension_attempts+1>=2 then 'comprehension_check_failed' else release_reason end,
+       updated_at=now() where id=person.id;
+     if check_choice<>'judgment_reasons' and person.comprehension_attempts+1>=2 then
+       insert into public.original100_events(participant_id,action,detail) values(person.id,'comprehension_screened_out',jsonb_build_object('version','task-comprehension-v1','slot_released',person.slot_id));
+     end if;
    end if;
  elsif p_action='save' then
    pos:=(p_payload->>'position')::integer; answer_text:=p_payload->>'answer';
@@ -177,13 +221,14 @@ begin
    insert into public.original100_events(participant_id,action) values(person.id,'withdraw');
    return jsonb_build_object('status','withdrawn');
  end if;
- select jsonb_build_object('id',p.id,'mode',p.mode,'slot',p.slot_id,'status',p.status,
-   'position',p.current_position,'completedAt',p.completed_at,'version',cfg.version,
+ select jsonb_build_object('id',p.id,'mode',p.mode,'slot',p.slot_id,'status',case when p.comprehension_failed_at is not null then 'screened_out' else p.status end,
+   'position',p.current_position,'completedAt',p.completed_at,'version',p.material_version,
    'attentionCheck',jsonb_build_object('version','attention-v1-blue','attempts',p.attention_attempts,'passed',p.attention_passed_at is not null),
+   'comprehensionCheck',jsonb_build_object('version','task-comprehension-v1','attempts',p.comprehension_attempts,'passed',p.comprehension_passed_at is not null,'failed',p.comprehension_failed_at is not null,'remainingAttempts',greatest(0,2-p.comprehension_attempts)),
    'completionCode',case when p.mode='formal' and p.status='completed' then cfg.completion_code else null end,
    'posts',(select jsonb_agg(jsonb_build_object('position',r.position,'stimulusId',r.stimulus_id,
-     'prompt',s.prompt_text,'sha256',s.prompt_sha256,'answer',r.answer,'revision',r.revision) order by r.position)
-      from public.original100_responses r join public.original100_posts s using(stimulus_id) where r.participant_id=p.id))
+     'prompt',m.prompt_text,'sha256',m.prompt_sha256,'answer',r.answer,'revision',r.revision) order by r.position)
+      from public.original100_responses r join public.original100_materials m on m.stimulus_id=r.stimulus_id and m.version=p.material_version where r.participant_id=p.id))
  into result from public.original100_participants p where p.id=person.id;
  return result;
 end $$;
@@ -200,9 +245,11 @@ begin
 end $$;
 create or replace view public.original100_completed_comments as
  select p.id as participant_id,p.prolific_pid,p.study_id,p.session_id,p.slot_id,r.position,r.stimulus_id,
-   s.submission_id,s.prompt_sha256,r.answer as comment,p.completed_at
+   s.submission_id,m.prompt_sha256,r.answer as comment,p.completed_at,
+   p.material_version as prompt_version,p.comprehension_attempts,p.comprehension_passed_at
  from public.original100_participants p join public.original100_responses r on r.participant_id=p.id
- join public.original100_posts s using(stimulus_id) where p.mode='formal' and p.status='completed';
+ join public.original100_posts s using(stimulus_id)
+ join public.original100_materials m on m.stimulus_id=r.stimulus_id and m.version=p.material_version where p.mode='formal' and p.status='completed';
 revoke all on public.original100_completed_comments from anon,authenticated;
 revoke all on function public.original100_valid_answer(text) from public,anon,authenticated;
 revoke all on function public.original100_session(text,text,text,text,text,boolean,jsonb) from public;

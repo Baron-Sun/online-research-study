@@ -1,10 +1,12 @@
-export const VERSION = 'original100-20261024-v1';
+import {MATERIAL_VERSION} from './private100-content.mjs';
+export const VERSION = MATERIAL_VERSION;
 export function validComment(answer) {
   const lines = String(answer).replace(/\r\n/g, '\n').split('\n');
   return /^(YTA|NTA|ESH|NAH|INFO)$/.test(lines[0].trim()) && lines.slice(1).join('\n').trim().length > 0;
 }
 export async function verifyMaterial(session) {
-  if (session.version !== VERSION || session.posts?.length !== 3 || new Set(session.posts.map(p=>p.stimulusId)).size !== 3) {
+  if (session.version !== VERSION) throw new Error('This preview uses an earlier version of the task. Please start a fresh preview.');
+  if (session.posts?.length !== 3 || new Set(session.posts.map(p=>p.stimulusId)).size !== 3) {
     throw new Error('The assigned study material is incomplete. Please contact the researcher.');
   }
   for (const [index, post] of session.posts.entries()) {

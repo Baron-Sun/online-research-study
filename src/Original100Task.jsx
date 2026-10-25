@@ -1,12 +1,13 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {ADVICE_TRANSFER_CONSENT_TEXT} from './advice-transfer-consent';
 import {requestSession,verifyMaterial,validComment} from './original100-protocol.mjs';
+import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION} from './private100-content.mjs';
 
 const consentText = ADVICE_TRANSFER_CONSENT_TEXT
-  .replace('We expect that you will be in this research study for around 10–12 minutes.', 'You will read three online posts and write one comment about each. Please refer to the Prolific study description for the estimated duration.')
+  .replace('We expect that you will be in this research study for around 10–12 minutes.', 'You will read three interpersonal situations and write your judgment and reasoning for each. Please refer to the Prolific study description for the estimated duration.')
   .replace('You will receive $1.50 for your participation in this 10–12-minute study.', 'Compensation and the estimated duration will be stated in the Prolific study description before recruitment begins.')
   .replace('Data will be collected anonymously and will not be labeled with any identifying information.', 'Your Prolific participant ID will be stored separately from the response text for assignment, duplicate prevention, and study administration. Research exports will use coded participant identifiers.')
-  .replace('If you agree to participate, you will complete a research survey. The survey asks about your agreement or disagreement with various statements, along with free-response items. The topics include your attitudes and opinions about various topics, including your personal relationships and your political views. It includes some comprehension questions intended to make sure you understand information you have read.', 'If you agree to participate, you will read three public online posts about social dilemmas. For each post, you will read the provided instructions and write a comment expressing a judgment and your reasoning.');
+  .replace('If you agree to participate, you will complete a research survey. The survey asks about your agreement or disagreement with various statements, along with free-response items. The topics include your attitudes and opinions about various topics, including your personal relationships and your political views. It includes some comprehension questions intended to make sure you understand information you have read.', 'If you agree to participate, you will read three descriptions of interpersonal situations. For each situation, you will read the provided instructions and write a response expressing your judgment and reasoning.');
 
 function readJson(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
 function getIdentity() {
@@ -40,8 +41,8 @@ export default function Original100Task() {
   const [saveState,setSaveState]=useState('');
   const [recovered,setRecovered]=useState([]);
   const [showWithdraw,setShowWithdraw]=useState(false);
-  const [attentionChoice,setAttentionChoice]=useState(()=>readJson(identity.key+':attention-pending')?.choice||'');
-  const [attentionFeedback,setAttentionFeedback]=useState('');
+  const [checkChoice,setCheckChoice]=useState(()=>readJson(identity.key+':comprehension-pending-v1')?.choice||'');
+  const [checkFeedback,setCheckFeedback]=useState('');
   const remote=useRef(null), latest=useRef(answers), queue=useRef(Promise.resolve());
   const config={url:import.meta.env.VITE_SUPABASE_URL,anonKey:import.meta.env.VITE_SUPABASE_ANON_KEY};
   const remember=(consented=true)=>localStorage.setItem(identity.key,JSON.stringify({...identity,consented}));
@@ -66,8 +67,8 @@ export default function Original100Task() {
         return p.answer;
       });
       setRecovered(conflicts);latest.current=restored;setAnswers(restored);
-      setScreen(value.status==='completed'?'complete':!value.attentionCheck?.passed||action==='claim'?'instructions':value.position===4?'review':'task');
-      if(value.attentionCheck?.attempts>0&&!value.attentionCheck.passed) setAttentionFeedback('Please reread the question below and try again.');
+      setScreen(value.status==='screened_out'?'screened-out':value.status==='completed'?'complete':!value.comprehensionCheck?.passed||action==='claim'?'instructions':value.position===4?'review':'task');
+      if(value.comprehensionCheck?.attempts>0&&!value.comprehensionCheck.passed) setCheckFeedback('That answer does not match the task. Please reread the instructions above. You have one attempt remaining.');
       setSaveState(restored.some((a,i)=>a!==value.posts[i].answer)?'Draft restored on this device':'All changes saved');
     } catch(e) { setError(e.message);setScreen('error'); } finally {setBusy(false);}
   };
@@ -115,15 +116,16 @@ export default function Original100Task() {
     try {await saveAll();const result=await rpc('complete',{revisions:remote.current.posts.map(p=>p.revision)});adopt(result);setScreen('complete');localStorage.removeItem(identity.key+':draft');window.scrollTo(0,0);}
     catch(e){setError(e.message);}finally{setBusy(false);}
   };
-  const checkAttention=async()=>{
-    setBusy(true);setError('');setAttentionFeedback('');
+  const checkTaskUnderstanding=async()=>{
+    setBusy(true);setError('');setCheckFeedback('');
     try {
-      const pending=readJson(identity.key+':attention-pending') || {event_id:crypto.randomUUID(),choice:attentionChoice,version:'attention-v1-blue'};
-      localStorage.setItem(identity.key+':attention-pending',JSON.stringify(pending));
-      const result=await rpc('attention_check',pending);adopt(result);
-      localStorage.removeItem(identity.key+':attention-pending');
-      if(result.attentionCheck.passed) setAttentionFeedback('Thank you. You can now begin.');
-      else {setAttentionChoice('');setAttentionFeedback('Please reread the question below and try again.');}
+      const pending=readJson(identity.key+':comprehension-pending-v1') || {event_id:crypto.randomUUID(),choice:checkChoice,version:CHECK_VERSION};
+      localStorage.setItem(identity.key+':comprehension-pending-v1',JSON.stringify(pending));
+      const result=await rpc('comprehension_check',pending);adopt(result);
+      localStorage.removeItem(identity.key+':comprehension-pending-v1');
+      if(result.status==='screened_out') {setScreen('screened-out');window.scrollTo(0,0);}
+      else if(result.comprehensionCheck.passed) setCheckFeedback('Thank you. You can now begin.');
+      else {setCheckChoice('');setCheckFeedback('That answer does not match the task. Please reread the instructions above. You have one attempt remaining.');}
     } catch(e){setError(e.message);} finally{setBusy(false);}
   };
   const withdraw=async()=>{
@@ -138,7 +140,7 @@ export default function Original100Task() {
     <div className={`source-page-wrap ${wide?'source-wide-wrap':'source-narrow-wrap'}`}>
       <header className="source-study-header">
         <div><p className="source-institution">Northwestern University Research Study</p><h1>Study About Online Opinions</h1></div>
-        <div className="source-session-card"><strong>{identity.preview?'Researcher preview':'Research session'}</strong><span>{screen==='task'?`Post ${index+1} of 3`:screen==='complete'?'Responses submitted':'Three-post response task'}</span></div>
+        <div className="source-session-card"><strong>{identity.preview?'Researcher preview':'Research session'}</strong><span>{screen==='task'?`Situation ${index+1} of 3`:screen==='complete'?'Responses submitted':'Three-situation response task'}</span></div>
       </header>
       {identity.preview&&<div className="original100-preview">Preview · Responses are saved as test data and do not use recruitment places. Consent duration and payment will be finalized before launch.
         <details className="original100-preview-tools"><summary>Preview controls</summary><label>Assignment <select value={identity.slot} disabled={busy} onChange={e=>{location.href=`?preview=1&slot=${e.target.value}`;}}>{Array.from({length:100},(_,i)=>`S${String(i+1).padStart(3,'0')}`).map(slot=><option key={slot}>{slot}</option>)}</select></label> <button type="button" disabled={busy} onClick={()=>{location.href=`?preview=1&slot=${identity.slot}&PROLIFIC_PID=preview-${crypto.randomUUID()}`;}}>Start a fresh preview</button><p>100 fixed assignments · 3 posts per assignment · each post appears in 3 assignments.</p></details>
@@ -147,32 +149,33 @@ export default function Original100Task() {
       {recovered.length>0&&<details className="original100-error"><summary>A newer version was saved in another tab. The saved version is shown; your local draft is preserved here for review.</summary>{recovered.map(d=><div key={d.position}><h3>Local draft for post {d.position}</h3><pre>{d.answer}</pre></div>)}</details>}
       {screen==='loading'&&<section className="source-panel source-intro-panel"><h2>Restoring your session…</h2></section>}
       {screen==='overview'&&<section className="source-panel source-intro-panel">
-        <p className="source-eyebrow">Study overview</p><h2>Read three online posts and give your opinion</h2>
-        <p className="source-intro-copy">In this task, you will read three public online posts from Reddit. The posts describe social dilemmas and ask for people’s opinions. For each post, you will read the instructions and write one comment.</p>
-        <div className="source-overview-grid"><div><span>Task</span><strong>Three posts, one comment per post</strong></div><div><span>Progress</span><strong>Responses save as you write</strong></div></div>
+        <p className="source-eyebrow">Study overview</p><h2>Read three situations and give your judgment</h2>
+        <p className="source-intro-copy">In this task, you will read three descriptions of interpersonal situations. For each situation, you will give your own judgment and explain the reasons for it. You will choose a judgment label and write an explanation.</p>
+        <div className="source-overview-grid"><div><span>Task</span><strong>Three situations, one response per situation</strong></div><div><span>Progress</span><strong>Responses save as you write</strong></div></div>
         <div className="source-intro-action"><h3>Ready to review the consent form?</h3><Primary onClick={()=>setScreen('consent')}>Review consent</Primary></div>
       </section>}
       {screen==='consent'&&<div className="source-consent-layout">
         <section className="source-panel source-consent-panel"><p className="source-eyebrow">Participant information</p><h2>Informed Consent</h2><div className="source-consent-text">{consentText}</div></section>
         <aside className="source-panel source-consent-confirmation"><h3>Consent Confirmation</h3><label className="source-consent-checkbox"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} /><span>I am at least 18 years old, I have read the consent information, and I voluntarily agree to participate.</span></label><div className="source-button-row"><Secondary disabled={busy} onClick={()=>setScreen('declined')}>I Disagree</Secondary><Secondary disabled={busy} onClick={()=>setScreen('overview')}>Back</Secondary><Primary disabled={!agreed||busy} onClick={()=>{remember();openSession('claim');}}>{busy?'Preparing…':'I Agree'}</Primary></div></aside>
       </div>}
-      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Write one comment for each post</h2><div className="source-intro-copy"><p>You will see three posts, one at a time. Read the instructions accompanying each post and enter your response in the comment box.</p><p>Your responses are saved automatically. Use Continue to move to the next post. You can review and edit all three comments before the final submission.</p></div>
-        <fieldset className="original100-attention" disabled={busy||session?.attentionCheck?.passed}><legend>Attention check</legend><p>To confirm that you are reading carefully, please select <strong>Blue</strong> for this question.</p><div className="original100-attention-options">{['Green','Blue','Yellow'].map(color=><label key={color}><input type="radio" name="attention-check" value={color.toLowerCase()} checked={session?.attentionCheck?.passed?color==='Blue':attentionChoice===color.toLowerCase()} onChange={e=>setAttentionChoice(e.target.value)} />{color}</label>)}</div></fieldset>
-        <p role="status" className="original100-check-feedback">{session?.attentionCheck?.passed?'Attention check completed. You can begin.':attentionFeedback}</p>
-        {session?.attentionCheck?.passed?<Primary disabled={busy} onClick={()=>move(1)}>Begin</Primary>:<Primary disabled={busy||!attentionChoice} onClick={checkAttention}>{busy?'Saving…':'Check answer'}</Primary>}
+      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Give your judgment and explain your reasoning</h2><div className="source-intro-copy"><p>You will read three descriptions of interpersonal situations, one at a time. For each situation, choose a judgment label and explain the reasons for your own judgment. Enter the label on the first line and your reasoning on the next line.</p><p>{PRIVATE_STUDY_INFORMATION}</p><p>Please complete the task independently, without using AI tools or looking up other people’s responses.</p><p>Your responses are saved automatically. You can review and edit all three responses before the final submission.</p></div>
+        <fieldset className="original100-attention original100-comprehension" disabled={busy||session?.comprehensionCheck?.passed}><legend>Task understanding check</legend><p>{CHECK_QUESTION}</p><p className="original100-check-help">You can refer to the instructions above. You have two attempts to answer this question.</p><div className="original100-attention-options">{CHECK_OPTIONS.map((option,i)=><label key={option.value}><input type="radio" name="task-understanding" value={option.value} checked={session?.comprehensionCheck?.passed?option.value==='judgment_reasons':checkChoice===option.value} onChange={e=>setCheckChoice(e.target.value)} /><span><strong>{String.fromCharCode(65+i)}.</strong> {option.text}</span></label>)}</div></fieldset>
+        <p role="status" className="original100-check-feedback">{session?.comprehensionCheck?.passed?'Task understanding check completed. You can begin.':checkFeedback}</p>
+        {session?.comprehensionCheck?.passed?<Primary disabled={busy} onClick={()=>move(1)}>Begin</Primary>:<Primary disabled={busy||!checkChoice} onClick={checkTaskUnderstanding}>{busy?'Saving…':'Check answer'}</Primary>}
       </section>}
       {screen==='task'&&post&&<>
-        <div className="source-task-heading"><h2>Read the post and write your comment</h2><span>Post {index+1} of 3</span></div>
+        <div className="source-task-heading"><h2>Read the situation and write your response</h2><span>Situation {index+1} of 3</span></div>
         <div className="original100-task-grid">
-          <article className="source-panel source-post-panel"><div className="source-panel-heading"><h3>Instructions and post</h3></div><div className="source-post-text original100-prompt" data-testid="exact-prompt">{post.prompt}</div></article>
-          <section className="source-panel original100-response"><label htmlFor="original100-answer">Your comment</label><textarea id="original100-answer" value={answers[index]} readOnly={busy} onChange={e=>edit(index,e.target.value)} placeholder="Write your response here." spellCheck="true" aria-describedby="comment-save" /><p id="comment-save" className="original100-save" role="status">{saveState}</p><div className="source-button-row"><Secondary disabled={busy} onClick={()=>index===0?setScreen('instructions'):move(index)}>{index===0?'Instructions':'Back'}</Secondary><Primary disabled={busy||!validComment(answers[index])} onClick={()=>move(index+2)}>{busy?'Saving…':index===2?'Review answers':'Continue'}</Primary></div><p className="original100-help">Follow the format in the instructions. A judgment abbreviation and reasoning on the next line are required.</p></section>
+          <article className="source-panel source-post-panel"><div className="source-panel-heading"><h3>Instructions and situation</h3></div><div className="source-post-text original100-prompt" data-testid="exact-prompt">{post.prompt}</div></article>
+          <section className="source-panel original100-response"><label htmlFor="original100-answer">Your response</label><textarea id="original100-answer" value={answers[index]} readOnly={busy} onChange={e=>edit(index,e.target.value)} placeholder="Write your response here." spellCheck="true" aria-describedby="comment-save" /><p id="comment-save" className="original100-save" role="status">{saveState}</p><div className="source-button-row"><Secondary disabled={busy} onClick={()=>index===0?setScreen('instructions'):move(index)}>{index===0?'Instructions':'Back'}</Secondary><Primary disabled={busy||!validComment(answers[index])} onClick={()=>move(index+2)}>{busy?'Saving…':index===2?'Review answers':'Continue'}</Primary></div><p className="original100-help">Follow the format in the instructions. A judgment abbreviation and reasoning on the next line are required.</p></section>
         </div>
       </>}
-      {screen==='review'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Final review</p><h2>Review your three comments</h2><p className="source-intro-copy">You can return to any post to make changes. After submission, your responses will be locked.</p>{session.posts.map((p,i)=><article className="original100-review" key={p.stimulusId}><div><h3>Post {i+1}</h3><Secondary disabled={busy} onClick={()=>move(i+1)}>Review post {i+1}</Secondary></div><p>{answers[i]}</p></article>)}<div className="source-button-row"><Secondary disabled={busy} onClick={()=>move(3)}>Back</Secondary><Primary disabled={busy||!answers.every(validComment)} onClick={submit}>{busy?'Submitting…':'Submit all three comments'}</Primary></div></section>}
-      {screen==='complete'&&<section className="source-panel source-completion-panel"><div className="source-completion-mark" aria-hidden="true">✓</div><p className="source-eyebrow">Submission complete</p><h2>Thank you for participating</h2><p>All three comments have been saved.</p><p>This study examines how people respond to social dilemmas. The responses will be used for research on written opinions and comparisons with language-model responses.</p>{identity.preview?<p className="original100-preview">Preview completed. These responses are recorded only as test data. No Prolific completion is issued.</p>:session?.completionCode?<a className="source-primary-button" href={`https://app.prolific.com/submissions/complete?cc=${encodeURIComponent(session.completionCode)}`}>Return to Prolific</a>:null}</section>}
+      {screen==='review'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Final review</p><h2>Review your three responses</h2><p className="source-intro-copy">You can return to any situation to make changes. After submission, your responses will be locked.</p>{session.posts.map((p,i)=><article className="original100-review" key={p.stimulusId}><div><h3>Situation {i+1}</h3><Secondary disabled={busy} onClick={()=>move(i+1)}>Review situation {i+1}</Secondary></div><p>{answers[i]}</p></article>)}<div className="source-button-row"><Secondary disabled={busy} onClick={()=>move(3)}>Back</Secondary><Primary disabled={busy||!answers.every(validComment)} onClick={submit}>{busy?'Submitting…':'Submit all three responses'}</Primary></div></section>}
+      {screen==='complete'&&<section className="source-panel source-completion-panel"><div className="source-completion-mark" aria-hidden="true">✓</div><p className="source-eyebrow">Submission complete</p><h2>Thank you for participating</h2><p>All three responses have been saved.</p><p>This study examines how people respond to social dilemmas. The responses will be used for research on written opinions and comparisons with language-model responses.</p>{identity.preview?<p className="original100-preview">Preview completed. These responses are recorded only as test data. No Prolific completion is issued.</p>:session?.completionCode?<a className="source-primary-button" href={`https://app.prolific.com/submissions/complete?cc=${encodeURIComponent(session.completionCode)}`}>Return to Prolific</a>:null}</section>}
+      {screen==='screened-out'&&<section className="source-panel source-completion-panel"><p className="source-eyebrow">Session ended</p><h2>The task understanding check was not completed successfully</h2><p>After two incorrect answers, this session has ended. No completed response has been submitted.</p>{identity.preview?<><p>This is a preview session. You can start a fresh preview to review the task again.</p><Primary onClick={()=>{location.href='?preview=1';}}>Start a fresh preview</Primary></>:<p>Please return to Prolific and select “Cancel participation” to return this study.</p>}</section>}
       {screen==='declined'&&<section className="source-panel source-completion-panel"><h2>Your participation has ended</h2><p>No completed response was submitted. You may close this page.</p></section>}
-      {screen==='error'&&<section className="source-panel source-error-panel"><h2>This session could not be opened</h2><p>Check your connection and reopen the same study link in this browser.</p><Primary disabled={busy} onClick={()=>openSession('claim')}>Try again</Primary></section>}
-      {session?.status==='active'&&!['declined','complete','error'].includes(screen)&&<footer className="original100-footer">{showWithdraw?<div><p>End this session and withdraw from the study? Your comments will not count as a completed response.</p><Secondary disabled={busy} onClick={()=>setShowWithdraw(false)}>Keep participating</Secondary> <Secondary disabled={busy} onClick={withdraw}>Confirm withdrawal</Secondary></div>:<button type="button" onClick={()=>setShowWithdraw(true)}>Withdraw from this study</button>}</footer>}
+      {screen==='error'&&<section className="source-panel source-error-panel"><h2>This session could not be opened</h2><p>Check your connection and reopen the same study link in this browser.</p>{identity.preview&&<Secondary onClick={()=>{location.href="?preview=1";}}>Start a fresh preview</Secondary>}<Primary disabled={busy} onClick={()=>openSession('claim')}>Try again</Primary></section>}
+      {session?.status==='active'&&!['declined','complete','error','screened-out'].includes(screen)&&<footer className="original100-footer">{showWithdraw?<div><p>End this session and withdraw from the study? Your responses will not count as a completed response.</p><Secondary disabled={busy} onClick={()=>setShowWithdraw(false)}>Keep participating</Secondary> <Secondary disabled={busy} onClick={withdraw}>Confirm withdrawal</Secondary></div>:<button type="button" onClick={()=>setShowWithdraw(true)}>Withdraw from this study</button>}</footer>}
     </div>
   </main>;
 }

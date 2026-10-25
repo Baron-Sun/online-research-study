@@ -10,6 +10,11 @@
 .original100-attention-options label { display: flex; align-items: center; gap: 8px; padding: 10px 16px; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; }
 .original100-attention-options input { width: 18px; height: 18px; accent-color: #2563eb; }
 .original100-check-feedback { min-height: 24px; color: #475569; line-height: 1.6; }
+.original100-comprehension .original100-attention-options { display: grid; gap: 10px; }
+.original100-comprehension .original100-attention-options label { align-items: flex-start; padding: 14px 16px; line-height: 1.6; }
+.original100-comprehension .original100-attention-options input { flex: 0 0 18px; margin-top: 3px; }
+.original100-comprehension .original100-attention-options label:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+.original100-check-help { font-size: 14px; color: #475569; }
 .original100-task-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(360px,.85fr); gap: 20px; align-items: start; }
 .original100-prompt { white-space: pre-wrap; overflow-wrap: anywhere; color: #0f172a; font-size: 15px; line-height: 1.8; }
 .original100-response { padding: 26px; position: sticky; top: 22px; }
