@@ -17,15 +17,15 @@ deployment has not been changed.
 - Source: the reviewed `prolific_original_100_20261024` CSV/JSONL package.
 - 100 posts, 100 fixed participant slots, three distinct posts per slot.
 - Each post occurs in exactly three different slots and once at each position.
-- Current condition: `private100-20261024-v2`. The neutral prompt asks for the
+- Current condition: `private100-wordlimit-20261024-v3`. The neutral prompt asks for the
   participant's own judgment and reasons, with a label followed by an explanation.
 - The original **body only** is preserved exactly, including embedded line endings;
   no title, previous comments, votes, or ratings are shown.
 - Participants are told their responses are for research, will not be posted on a
   public forum or shown/rated by other participants, and payment does not depend on
   their judgment. The diversity hypothesis is not mentioned.
-- `private100_prompt_template.txt` and the parent directory's
-  `participant_stimuli_private_100.jsonl` contain the shared core prompt for this
+- `private100_wordlimit_prompt_template.txt` and the parent directory's
+  `participant_stimuli_private_wordlimit_100.jsonl` contain the shared core prompt for this
   condition. No new LLM responses have been generated.
 - The original LLM prompts remain archived as `original100-20261024-v1`, with
   existing sessions pinned to their own material version. Old preview links offer
@@ -41,7 +41,8 @@ The existing Supabase project `kkfyoztlpjuvipqaoyig` contains the new isolated
 2026-10-24 (Chicago). Existing study tables and RPCs were not modified.
 
 Formal recruitment remains **closed**. The database contains 100 current prompts,
-100 archived Original prompts, and 300 assignment rows, with zero formal
+100 archived private prompts without a word limit, 100 archived Original prompts,
+and 300 assignment rows, with zero formal
 participants/comments at verification.
 All retained test sessions use `mode='preview'` and explicit preview/QA IDs.
 
@@ -62,12 +63,38 @@ Its fixed slot becomes available for a replacement; the same identity cannot
 restart. No payment rejection or Prolific account action is automated.
 
 The additive migration `supabase_private100_migration.sql` installs this condition
-on the connected database. For a fresh database, apply the current
+without a word limit; `supabase_private100_wordlimit.sql` installs the current
+61-word condition. For a fresh database, apply the current
 `supabase_original100_setup.sql`, then `supabase_original100_seed.sql`, then
-`supabase_private100_migration.sql`. The earlier
+`supabase_private100_migration.sql`, then `supabase_private100_wordlimit.sql`. The earlier
 `supabase_original100_attention.sql` is historical and must not be applied after
 the private-condition migration. The migration requires recruitment closed and
-zero formal participants. Regenerate it with `python3 scripts/build_private100_materials.py`.
+zero formal participants. The previous private migration and template are retained
+as version 2. Build the current version with `python3 scripts/build_private100_word_limit.py`.
+
+## Response word limit
+
+The user selected **all Study 1 original human comments** as the reference. The
+three human columns in `aita_unified_153k.parquet` contain 459,801 comments from
+153,267 posts, with 27,977,852 whitespace-separated words in total: a mean of
+60.847740653 words. Rounded to the nearest whole word, each response has a maximum
+of **61 words, including the judgment label**. Participants do not need to fill
+the allowance. This is a maximum, not an exact-length requirement.
+
+`private100-word-limit-evidence.json` records the source hash, columns, denominator,
+rank-specific totals, count definition and deterministic sample of counts.
+`python3 scripts/measure_study1_word_limit.py` reproduces the measurement. There
+were no missing/deleted placeholders to exclude, and no model columns or
+length-based exclusions are used. The entire original comment is counted; verdict
+labels are not stripped. Spaces/newlines separate words; contractions and
+hyphenated words without spaces count as one. Browser and SQL use the same
+explicit Unicode whitespace separators (`whitespace-total-v1`).
+
+Instructions, each versioned prompt and the response panel show the limit. A live
+counter turns red above 61. Oversize drafts are retained, but the browser and
+database block advancing or submitting them. Historical sessions keep their old
+material and limit. The export includes `response_word_limit` and
+`response_word_count`. No LLM generation has been run for this updated condition.
 
 The allocator serializes claims/releases, prevents duplicate formal Prolific
 IDs, and permits at most one active/completed formal participant per fixed slot.
@@ -88,7 +115,8 @@ For a de-identified completed dataset, use:
 ```sql
 select participant_id, slot_id, position, stimulus_id, submission_id,
        prompt_version, prompt_sha256, comment, completed_at,
-       comprehension_attempts, comprehension_passed_at
+       comprehension_attempts, comprehension_passed_at,
+       response_word_limit, response_word_count
 from public.original100_completed_comments
 order by stimulus_id, participant_id;
 ```
@@ -105,7 +133,7 @@ group by p.stimulus_id order by p.stimulus_id;
 
 ## Verification
 
-- Existing site's 67 tests pass; three material/integrity tests pass.
+- Existing site's 67 tests pass; six material/integrity/word-count tests pass.
 - Production build passes, including the GitHub Pages repository base path.
 - SQL transaction rehearsal completes 100 people / 300 comments and checks
   three distinct people per post; duplicate identity, 101st arrival, wrong
@@ -119,13 +147,19 @@ group by p.stimulus_id order by p.stimulus_id;
   table denial pass. Comprehension gating, retry counting, a successful second
   attempt, persistent failure and rejection of the old color-check shortcut pass.
   Synthetic comments are explicitly labeled as tests.
+- The updated live API test saves/restores a 62-word draft, rejects navigation and
+  final submission, then accepts the corrected 61-word response. The SQL rehearsal
+  checks Unicode counting and that old material versions retain no length limit.
 - The earlier full browser run covered consent → three assigned posts → final
   review → completion. The updated private-condition preview verifies the actual
   new instructions, distractors, one incorrect answer, persistent feedback after
   refresh, successful correction, neutral prompts, saving and restoration on
   situation 2. The new comprehension layout was visually inspected at narrow width.
+  The current word-limit preview verifies the visible limit, a red 62/61 counter
+  with Continue disabled, and 61/61 with Continue enabled. Test text was cleared
+  from the user-facing preview after verification.
 
-Scripts: `tests/original100.test.mjs`, `tests/private100.test.mjs`,
+Scripts: `tests/original100.test.mjs`, `tests/private100.test.mjs`, `tests/private100-word-limit.test.mjs`,
 `tests/original100-rehearsal.sql`, and `tests/original100-live.mjs`.
 Local test evidence is in ignored `verification/`.
 `.env.local` contains only the old site's existing public browser configuration

@@ -86,3 +86,11 @@ dist/
 !supabase_private100_migration.sql
 !scripts/build_private100_materials.py
 !tests/private100.test.mjs
+!src/private100-word-limit.mjs
+!private100-word-limit-evidence.json
+!private100_wordlimit_prompt_template.txt
+!private100-wordlimit-material-manifest.json
+!supabase_private100_wordlimit.sql
+!scripts/measure_study1_word_limit.py
+!scripts/build_private100_word_limit.py
+!tests/private100-word-limit.test.mjs

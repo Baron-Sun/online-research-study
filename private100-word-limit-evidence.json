@@ -1,0 +1,65 @@
+{
+  "source": "aita_unified_153k.parquet",
+  "source_sha256": "d3b0aa92058de4af0daddf6516aeb4a92bb2b8b4496fc5f8dbe9322699332557",
+  "scope": "All Study 1 human top-3 comments",
+  "columns": [
+    "comment_1_body",
+    "comment_2_body",
+    "comment_3_body"
+  ],
+  "post_count": 153267,
+  "comment_count": 459801,
+  "total_words": 27977852,
+  "mean_words": 60.84774065302163,
+  "word_limit": 61,
+  "rounding": "nearest whole word (half up)",
+  "count_version": "whitespace-total-v1",
+  "definition": "Whitespace-separated words in the entire original human comment, including any verdict label. Hyphenated words and contractions without spaces count as one.",
+  "exclusions": "Only missing/blank and exact [deleted]/[removed] placeholders; none were present. No model columns, trimming of tails, or length-based exclusions.",
+  "per_column": {
+    "comment_1_body": {
+      "comments": 153267,
+      "words": 9072601,
+      "missing": 0,
+      "removed": 0
+    },
+    "comment_2_body": {
+      "comments": 153267,
+      "words": 9430510,
+      "missing": 0,
+      "removed": 0
+    },
+    "comment_3_body": {
+      "comments": 153267,
+      "words": 9474741,
+      "missing": 0,
+      "removed": 0
+    }
+  },
+  "source_preview": [
+    {
+      "submission_id": "eizcvf",
+      "word_counts": {
+        "comment_1_body": 41,
+        "comment_2_body": 101,
+        "comment_3_body": 140
+      }
+    },
+    {
+      "submission_id": "elc7z5",
+      "word_counts": {
+        "comment_1_body": 33,
+        "comment_2_body": 18,
+        "comment_3_body": 74
+      }
+    },
+    {
+      "submission_id": "ejycvt",
+      "word_counts": {
+        "comment_1_body": 265,
+        "comment_2_body": 25,
+        "comment_3_body": 83
+      }
+    }
+  ]
+}

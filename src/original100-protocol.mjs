@@ -1,11 +1,13 @@
 import {MATERIAL_VERSION} from './private100-content.mjs';
+import {countWords,RESPONSE_WORD_LIMIT,WORD_COUNT_VERSION} from './private100-word-limit.mjs';
 export const VERSION = MATERIAL_VERSION;
 export function validComment(answer) {
   const lines = String(answer).replace(/\r\n/g, '\n').split('\n');
-  return /^(YTA|NTA|ESH|NAH|INFO)$/.test(lines[0].trim()) && lines.slice(1).join('\n').trim().length > 0;
+  return /^(YTA|NTA|ESH|NAH|INFO)$/.test(lines[0].trim()) && lines.slice(1).join('\n').trim().length > 0 && countWords(answer) <= RESPONSE_WORD_LIMIT;
 }
 export async function verifyMaterial(session) {
   if (session.version !== VERSION) throw new Error('This preview uses an earlier version of the task. Please start a fresh preview.');
+  if (session.responseWordLimit !== RESPONSE_WORD_LIMIT || session.wordCountVersion !== WORD_COUNT_VERSION) throw new Error('The response length settings do not match this task. Please reload.');
   if (session.posts?.length !== 3 || new Set(session.posts.map(p=>p.stimulusId)).size !== 3) {
     throw new Error('The assigned study material is incomplete. Please contact the researcher.');
   }

@@ -14,6 +14,7 @@ create table if not exists public.original100_materials (
  body_sha256 text not null check(length(body_sha256)=64),
  primary key(version,stimulus_id)
 );
+alter table public.original100_materials add column if not exists word_limit integer check(word_limit>0);
 alter table public.original100_materials enable row level security;
 revoke all on public.original100_materials from anon,authenticated;
 alter table public.original100_participants add column if not exists material_version text not null default 'original100-20261024-v1';
@@ -58,6 +59,12 @@ do $$ begin
 end $$;
 update public.original100_settings set version='private100-20261024-v2',
  consent_version='private100-preview-v2',consent_approved=false where id;
+create or replace function public.original100_word_count(a text) returns integer
+language sql immutable set search_path=public,pg_temp as $$
+ select case when normalized='' then 0 else cardinality(string_to_array(normalized,' ')) end
+ from (select btrim(regexp_replace(coalesce(a,''),U&'[\0009-\000D\001C-\0020\0085\00A0\1680\2000-\200A\2028\2029\202F\205F\3000\FEFF]+',' ','g')) as normalized) as words;
+$$;
+
 create or replace function public.original100_session(
  p_action text, p_pid text, p_study_id text, p_session_id text,
  p_token text, p_preview boolean, p_payload jsonb default '{}'
@@ -67,7 +74,7 @@ declare
  person public.original100_participants%rowtype;
  response public.original100_responses%rowtype;
  study_mode text := case when p_preview then 'preview' else 'formal' end;
- selected_slot text; token_digest text; pos integer; answer_text text; result jsonb;
+ selected_slot text; token_digest text; pos integer; answer_text text; result jsonb; answer_word_limit integer;
  check_event text; check_choice text; previous_check jsonb;
 begin
  if p_preview is null or p_pid is null or p_token is null or p_study_id is null or p_session_id is null
@@ -108,12 +115,13 @@ begin
  end if;
  if person.token_hash<>token_digest or person.study_id<>p_study_id or person.session_id<>p_session_id
    then raise exception 'This participant already has a session. Reopen the original browser and study link.'; end if;
+ select max(word_limit) into answer_word_limit from public.original100_materials where version=person.material_version;
  if person.comprehension_failed_at is not null then p_action:='resume';
  elsif person.status in ('withdrawn','excluded') then raise exception 'This session has ended. Please contact the researcher.'; end if;
  if p_action in ('save','navigate','withdraw') and person.status<>'active' then raise exception 'Your submitted responses are locked.'; end if;
  if p_action in ('save','navigate','complete') and person.status='active' then
    if person.material_version='original100-20261024-v1' and person.attention_passed_at is null then raise exception 'Please complete the attention check before beginning the posts.'; end if;
-   if person.material_version='private100-20261024-v2' and person.comprehension_passed_at is null then raise exception 'Please complete the task understanding check before beginning the situations.'; end if;
+   if person.material_version in ('private100-20261024-v2','private100-wordlimit-20261024-v3') and person.comprehension_passed_at is null then raise exception 'Please complete the task understanding check before beginning the situations.'; end if;
  end if;
  if p_action='attention_check' then
    if person.material_version<>'original100-20261024-v1' then raise exception 'This check belongs to an earlier task version.'; end if;
@@ -130,7 +138,7 @@ begin
        attention_passed_at=case when check_choice='blue' then now() else null end,updated_at=now() where id=person.id;
    end if;
  elsif p_action='comprehension_check' then
-   if person.material_version<>'private100-20261024-v2' then raise exception 'Please start a new preview for the updated task.'; end if;
+   if person.material_version not in ('private100-20261024-v2','private100-wordlimit-20261024-v3') then raise exception 'Please start a new preview for the updated task.'; end if;
    check_event:=p_payload->>'event_id'; check_choice:=p_payload->>'choice';
    if check_event is null or check_event !~ '^[a-f0-9-]{36}$' or check_choice is null
      or check_choice not in ('summarize','judgment_reasons','advice','label_only')
@@ -165,10 +173,14 @@ begin
  elsif p_action='navigate' then
    pos:=(p_payload->>'position')::integer;
    if pos is null or pos not between 1 and 4 then raise exception 'Invalid page.'; end if;
+   if pos>1 and answer_word_limit is not null and exists(select 1 from public.original100_responses where participant_id=person.id
+      and position<pos and public.original100_word_count(answer)>answer_word_limit) then raise exception 'Each response must be % words or fewer, including the judgment label. Your draft is saved; please shorten it before continuing.',answer_word_limit; end if;
    if pos>1 and exists(select 1 from public.original100_responses where participant_id=person.id
       and position<pos and not public.original100_valid_answer(answer)) then raise exception 'Please complete each earlier comment before continuing.'; end if;
    update public.original100_participants set current_position=pos,updated_at=now() where id=person.id;
  elsif p_action='complete' and person.status='active' then
+   if answer_word_limit is not null and exists(select 1 from public.original100_responses where participant_id=person.id
+      and public.original100_word_count(answer)>answer_word_limit) then raise exception 'Each response must be % words or fewer, including the judgment label. Your draft is saved; please shorten it before submitting.',answer_word_limit; end if;
    if (select count(*) from public.original100_responses where participant_id=person.id and public.original100_valid_answer(answer))<>3
      then raise exception 'Please finish all three comments before submitting.'; end if;
    if (select jsonb_agg(revision order by position) from public.original100_responses where participant_id=person.id)
@@ -182,6 +194,7 @@ begin
  end if;
  select jsonb_build_object('id',p.id,'mode',p.mode,'slot',p.slot_id,'status',case when p.comprehension_failed_at is not null then 'screened_out' else p.status end,
    'position',p.current_position,'completedAt',p.completed_at,'version',p.material_version,
+   'responseWordLimit',answer_word_limit,'wordCountVersion','whitespace-total-v1',
    'attentionCheck',jsonb_build_object('version','attention-v1-blue','attempts',p.attention_attempts,'passed',p.attention_passed_at is not null),
    'comprehensionCheck',jsonb_build_object('version','task-comprehension-v1','attempts',p.comprehension_attempts,'passed',p.comprehension_passed_at is not null,'failed',p.comprehension_failed_at is not null,'remainingAttempts',greatest(0,2-p.comprehension_attempts)),
    'completionCode',case when p.mode='formal' and p.status='completed' then cfg.completion_code else null end,
@@ -195,12 +208,15 @@ end $$;
 create or replace view public.original100_completed_comments as
  select p.id as participant_id,p.prolific_pid,p.study_id,p.session_id,p.slot_id,r.position,r.stimulus_id,
    s.submission_id,m.prompt_sha256,r.answer as comment,p.completed_at,
-   p.material_version as prompt_version,p.comprehension_attempts,p.comprehension_passed_at
+   p.material_version as prompt_version,p.comprehension_attempts,p.comprehension_passed_at,
+   m.word_limit as response_word_limit,public.original100_word_count(r.answer) as response_word_count
  from public.original100_participants p join public.original100_responses r on r.participant_id=p.id
  join public.original100_posts s using(stimulus_id)
  join public.original100_materials m on m.stimulus_id=r.stimulus_id and m.version=p.material_version where p.mode='formal' and p.status='completed';
 revoke all on public.original100_completed_comments from anon,authenticated;
 revoke all on function public.original100_valid_answer(text) from public,anon,authenticated;
+revoke all on function public.original100_word_count(text) from public,anon,authenticated;
+grant execute on function public.original100_word_count(text) to service_role;
 revoke all on function public.original100_session(text,text,text,text,text,boolean,jsonb) from public;
 grant execute on function public.original100_session(text,text,text,text,text,boolean,jsonb) to anon,authenticated;
 revoke all on function public.original100_release(uuid,text) from public,anon,authenticated;

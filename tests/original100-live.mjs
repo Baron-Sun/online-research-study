@@ -48,6 +48,20 @@ assert.equal((await call('resume',{})).position,2);
 const completed=await Promise.all([call('complete',{revisions:[1,1,1]}),call('complete',{revisions:[1,1,1]})]);
 assert.ok(completed.every(r=>r.status==='completed'&&r.completionCode===null));
 await assert.rejects(call('save',{position:1,revision:1,answer:'NTA\nForbidden edit'}));
+const limitedIdentity={...identity,pid:pid+'-words',sessionId:pid+'-words',token:randomBytes(32).toString('hex')};
+const limitCall=(action,payload)=>requestSession(config,limitedIdentity,action,payload);
+const limited=await limitCall('claim',{consent:true,slot:'S001'});
+assert.equal(limited.responseWordLimit,61);assert.equal(limited.wordCountVersion,'whitespace-total-v1');
+await limitCall('comprehension_check',{event_id:randomUUID(),choice:'judgment_reasons',version:'task-comprehension-v1'});
+const makeWords=n=>'INFO\nSYNTHETIC WORD LIMIT TEST '+Array(n-5).fill('word').join(' ');
+await limitCall('save',{position:1,revision:0,answer:makeWords(62)});
+assert.equal((await limitCall('resume',{})).posts[0].answer,makeWords(62));
+await assert.rejects(limitCall('navigate',{position:2}),/61 words or fewer/);
+for(const position of [2,3]) await limitCall('save',{position,revision:0,answer:'INFO\nSYNTHETIC WORD LIMIT TEST ONLY.'});
+await assert.rejects(limitCall('complete',{revisions:[1,1,1]}),/61 words or fewer/);
+await limitCall('save',{position:1,revision:1,answer:makeWords(61)});
+assert.equal((await limitCall('navigate',{position:4})).position,4);
+assert.equal((await limitCall('complete',{revisions:[2,1,1]})).status,'completed');
 await assert.rejects(requestSession(config,{...identity,pid:'a'.repeat(24),studyId:'not-launched',sessionId:'b'.repeat(24),preview:false},'claim',{consent:true}));
 const privacy=[];
 for(const table of ['original100_participants','original100_responses','original100_completed_comments','original100_materials']) {
@@ -58,7 +72,8 @@ const result={timestamp:new Date().toISOString(),project:'kkfyoztlpjuvipqaoyig',
   concurrentIdenticalClaims:16,uniqueAssignments:1,competingSaves:8,acceptedCompetingSaves:1,
   wrongTokenRejected:true,staleWriteRejected:true,idempotentRetry:true,incompleteSubmitRejected:true,
   comprehensionGateEnforced:true,comprehensionFailurePersisted:true,comprehensionRetryIdempotent:true,comprehensionPassedAfterCorrection:true,twoFailuresEndSession:true,originalColorCheckRejected:true,
-  positionRestored:true,concurrentFinalSubmissionsIdempotent:true,completedAnswersLocked:true,formalEntryClosed:true,privacy};
+  positionRestored:true,concurrentFinalSubmissionsIdempotent:true,completedAnswersLocked:true,formalEntryClosed:true,
+  responseWordLimit:61,overLimitDraftRetained:true,overLimitNavigationBlocked:true,overLimitFinalBlocked:true,exactLimitAccepted:true,privacy};
 await mkdir(new URL('../verification/',import.meta.url),{recursive:true});
 await writeFile(new URL('../verification/live-api.json',import.meta.url),JSON.stringify(result,null,2));
 console.log(JSON.stringify(result,null,2));

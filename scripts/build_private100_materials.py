@@ -33,6 +33,7 @@ plan = json.loads((root / 'original100-material-manifest.json').read_text())['pl
 
 setup = (root / 'supabase_original100_setup.sql').read_text()
 columns = setup[setup.index('-- Material versions are immutable;'):setup.index('alter table public.original100_settings enable')]
+counter = setup[setup.index('create or replace function public.original100_word_count('):setup.index('-- All participant operations')]
 rpc = setup[setup.index('create or replace function public.original100_session('):setup.index('-- Researcher-only release:')]
 view = setup[setup.index('create or replace view public.original100_completed_comments as'):setup.index("notify pgrst,'reload schema';")]
 payload = json.dumps(posts, ensure_ascii=False)
@@ -89,5 +90,5 @@ select version,recruitment_open,(select count(*) from public.original100_materia
  (select count(*) from public.original100_materials where version='original100-20261024-v1') as retained_original_prompts,
  (select count(*) from public.original100_plan) as assignments from public.original100_settings where id;
 '''
-(root / 'supabase_private100_migration.sql').write_text(preflight+columns+seed+rpc+view+suffix)
+(root / 'supabase_private100_migration.sql').write_text(preflight+columns+seed+counter+rpc+view+suffix)
 print('Prepared 100 private-task prompts; all bodies and 300 assignment rows unchanged; Original texts retained.')

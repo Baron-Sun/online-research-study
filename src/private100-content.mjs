@@ -1,4 +1,4 @@
-export const MATERIAL_VERSION = 'private100-20261024-v2';
+export const MATERIAL_VERSION = 'private100-wordlimit-20261024-v3';
 export const CHECK_VERSION = 'task-comprehension-v1';
 export const CHECK_QUESTION = 'Which response best matches what you are asked to do for each situation?';
 export const CHECK_OPTIONS = [

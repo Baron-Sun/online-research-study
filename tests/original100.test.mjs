@@ -21,7 +21,7 @@ test('client rejects missing reasoning, malformed format, duplicate or altered s
  assert.ok(validComment('INFO\nI would need more information.'));
  for(const answer of ['NTA','NTA\n  ','Some thoughts\nNTA','NTA because...', 'YTA NTA\nreason']) assert.equal(validComment(answer),false);
  const text='Exact instruction\nPost'; const sha256=createHash('sha256').update(text).digest('hex');
- const session={version:VERSION,posts:[1,2,3].map(i=>({position:i,stimulusId:`P${i}`,prompt:text,sha256}))};
+ const session={version:VERSION,responseWordLimit:61,wordCountVersion:'whitespace-total-v1',posts:[1,2,3].map(i=>({position:i,stimulusId:`P${i}`,prompt:text,sha256}))};
  await verifyMaterial(session);
  await assert.rejects(verifyMaterial({...session,posts:session.posts.map((p,i)=>i===0?{...p,prompt:p.prompt+' '}:p)}));
  await assert.rejects(verifyMaterial({...session,posts:[session.posts[0],session.posts[0],session.posts[2]]}));

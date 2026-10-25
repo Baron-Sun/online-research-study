@@ -9,6 +9,8 @@ begin
  select count(*) into old_count from public.advice_transfer_assignments;
  if (select recruitment_open from public.original100_settings where id) then raise exception 'Preflight requires recruitment closed'; end if;
  if (select count(*) from public.original100_participants where mode='formal')<>0 then raise exception 'Formal study already has records'; end if;
+ if public.original100_word_count(U&'\00A0\FEFF')<>0 or public.original100_word_count(E'NTA\nwell-known can''t')<>3
+   or public.original100_word_count(U&'NTA\000Aone\00A0two\2009three')<>4 then raise exception 'Word-count parity failed'; end if;
  if has_table_privilege('anon','public.original100_responses','select') or has_table_privilege('anon','public.original100_participants','select')
    or has_table_privilege('anon','public.original100_completed_comments','select')
    or has_function_privilege('anon','public.original100_release(uuid,text)','execute')
@@ -17,9 +19,10 @@ begin
  if (select count(*) from public.original100_participants where mode='formal')<>0 then raise exception 'Preview consumed formal quota'; end if;
  update public.original100_settings set version='original100-20261024-v1' where id;
  legacy_item:=public.original100_session('claim','qa-legacy-material-version','qa-study','qa-session',repeat('c',64),true,'{"consent":true,"slot":"S001"}');
- update public.original100_settings set version='private100-20261024-v2' where id;
+ update public.original100_settings set version='private100-wordlimit-20261024-v3' where id;
  if public.original100_session('resume','qa-legacy-material-version','qa-study','qa-session',repeat('c',64),true,'{}')->>'version'<>'original100-20261024-v1' then raise exception 'An existing session changed material version'; end if;
  if public.original100_session('resume','qa-legacy-material-version','qa-study','qa-session',repeat('c',64),true,'{}')->'posts'<>legacy_item->'posts' then raise exception 'Historical prompts changed'; end if;
+ if legacy_item->'responseWordLimit'<>'null'::jsonb then raise exception 'Legacy session acquired a word limit'; end if;
  update public.original100_settings set recruitment_open=true,study_id='qa-sql-study',completion_code='QA_ROLLBACK',consent_approved=true where id;
  failed_item:=public.original100_session('claim',repeat('d',24),'qa-sql-study',repeat('d',24),repeat('d',64),false,'{"consent":true}');
  failed_slot:=failed_item->>'slot';check_event:=gen_random_uuid()::text;
@@ -32,6 +35,7 @@ begin
  for i in 1..100 loop
    pid:=lpad(to_hex(i),24,'0'); token:=repeat(md5('original100-qa-'||i),2);
    item:=public.original100_session('claim',pid,'qa-sql-study',pid,token,false,'{"consent":true}');
+   if item->>'responseWordLimit'<>'61' then raise exception 'Wrong word limit'; end if;
    if i=1 then
      if item->>'slot'<>failed_slot then raise exception 'Screened slot was not reopened'; end if;
      first_id:=(item->>'id')::uuid; original_slot:=item->>'slot';
@@ -86,5 +90,5 @@ begin
  if not blocked then raise exception 'Excluded identity returned as a new participant'; end if;
  if (select count(*) from public.advice_transfer_assignments)<>old_count then raise exception 'Historical assignments changed'; end if;
 end $$;
-select 'PASS: 100 completed people, 300 comments, 3 distinct people per post; version preservation, two-attempt check, slot refill, duplicate/capacity/token/stale/lock/privacy checks passed. All synthetic changes rolled back.' as rehearsal_result;
+select 'PASS: 100 completed people, 300 comments, 3 distinct people per post; 61-word setting, Unicode word counts, legacy preservation, two-attempt check, slot refill and privacy checks passed. All synthetic changes rolled back.' as rehearsal_result;
 rollback;
