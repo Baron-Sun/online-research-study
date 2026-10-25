@@ -40,6 +40,8 @@ export default function Original100Task() {
   const [saveState,setSaveState]=useState('');
   const [recovered,setRecovered]=useState([]);
   const [showWithdraw,setShowWithdraw]=useState(false);
+  const [attentionChoice,setAttentionChoice]=useState(()=>readJson(identity.key+':attention-pending')?.choice||'');
+  const [attentionFeedback,setAttentionFeedback]=useState('');
   const remote=useRef(null), latest=useRef(answers), queue=useRef(Promise.resolve());
   const config={url:import.meta.env.VITE_SUPABASE_URL,anonKey:import.meta.env.VITE_SUPABASE_ANON_KEY};
   const remember=(consented=true)=>localStorage.setItem(identity.key,JSON.stringify({...identity,consented}));
@@ -64,7 +66,8 @@ export default function Original100Task() {
         return p.answer;
       });
       setRecovered(conflicts);latest.current=restored;setAnswers(restored);
-      setScreen(value.status==='completed'?'complete':action==='claim'?'instructions':value.position===4?'review':'task');
+      setScreen(value.status==='completed'?'complete':!value.attentionCheck?.passed||action==='claim'?'instructions':value.position===4?'review':'task');
+      if(value.attentionCheck?.attempts>0&&!value.attentionCheck.passed) setAttentionFeedback('Please reread the question below and try again.');
       setSaveState(restored.some((a,i)=>a!==value.posts[i].answer)?'Draft restored on this device':'All changes saved');
     } catch(e) { setError(e.message);setScreen('error'); } finally {setBusy(false);}
   };
@@ -112,6 +115,17 @@ export default function Original100Task() {
     try {await saveAll();const result=await rpc('complete',{revisions:remote.current.posts.map(p=>p.revision)});adopt(result);setScreen('complete');localStorage.removeItem(identity.key+':draft');window.scrollTo(0,0);}
     catch(e){setError(e.message);}finally{setBusy(false);}
   };
+  const checkAttention=async()=>{
+    setBusy(true);setError('');setAttentionFeedback('');
+    try {
+      const pending=readJson(identity.key+':attention-pending') || {event_id:crypto.randomUUID(),choice:attentionChoice,version:'attention-v1-blue'};
+      localStorage.setItem(identity.key+':attention-pending',JSON.stringify(pending));
+      const result=await rpc('attention_check',pending);adopt(result);
+      localStorage.removeItem(identity.key+':attention-pending');
+      if(result.attentionCheck.passed) setAttentionFeedback('Thank you. You can now begin.');
+      else {setAttentionChoice('');setAttentionFeedback('Please reread the question below and try again.');}
+    } catch(e){setError(e.message);} finally{setBusy(false);}
+  };
   const withdraw=async()=>{
     setBusy(true);setError('');
     try {await queue.current.catch(()=>{});await rpc('withdraw');adopt({...remote.current,status:'withdrawn'});setScreen('declined');setShowWithdraw(false);}
@@ -142,7 +156,11 @@ export default function Original100Task() {
         <section className="source-panel source-consent-panel"><p className="source-eyebrow">Participant information</p><h2>Informed Consent</h2><div className="source-consent-text">{consentText}</div></section>
         <aside className="source-panel source-consent-confirmation"><h3>Consent Confirmation</h3><label className="source-consent-checkbox"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} /><span>I am at least 18 years old, I have read the consent information, and I voluntarily agree to participate.</span></label><div className="source-button-row"><Secondary disabled={busy} onClick={()=>setScreen('declined')}>I Disagree</Secondary><Secondary disabled={busy} onClick={()=>setScreen('overview')}>Back</Secondary><Primary disabled={!agreed||busy} onClick={()=>{remember();openSession('claim');}}>{busy?'Preparing…':'I Agree'}</Primary></div></aside>
       </div>}
-      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Write one comment for each post</h2><div className="source-intro-copy"><p>You will see three posts, one at a time. Read the instructions accompanying each post and enter your response in the comment box.</p><p>Your responses are saved automatically. Use Continue to move to the next post. You can review and edit all three comments before the final submission.</p></div><Primary disabled={busy} onClick={()=>move(1)}>Begin</Primary></section>}
+      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Write one comment for each post</h2><div className="source-intro-copy"><p>You will see three posts, one at a time. Read the instructions accompanying each post and enter your response in the comment box.</p><p>Your responses are saved automatically. Use Continue to move to the next post. You can review and edit all three comments before the final submission.</p></div>
+        <fieldset className="original100-attention" disabled={busy||session?.attentionCheck?.passed}><legend>Attention check</legend><p>To confirm that you are reading carefully, please select <strong>Blue</strong> for this question.</p><div className="original100-attention-options">{['Green','Blue','Yellow'].map(color=><label key={color}><input type="radio" name="attention-check" value={color.toLowerCase()} checked={session?.attentionCheck?.passed?color==='Blue':attentionChoice===color.toLowerCase()} onChange={e=>setAttentionChoice(e.target.value)} />{color}</label>)}</div></fieldset>
+        <p role="status" className="original100-check-feedback">{session?.attentionCheck?.passed?'Attention check completed. You can begin.':attentionFeedback}</p>
+        {session?.attentionCheck?.passed?<Primary disabled={busy} onClick={()=>move(1)}>Begin</Primary>:<Primary disabled={busy||!attentionChoice} onClick={checkAttention}>{busy?'Saving…':'Check answer'}</Primary>}
+      </section>}
       {screen==='task'&&post&&<>
         <div className="source-task-heading"><h2>Read the post and write your comment</h2><span>Post {index+1} of 3</span></div>
         <div className="original100-task-grid">

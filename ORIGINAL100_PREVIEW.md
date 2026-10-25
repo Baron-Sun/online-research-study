@@ -38,6 +38,20 @@ token. The stored token is hashed. Raw tables and the researcher export view
 are inaccessible to anonymous/authenticated browser clients. Only the
 participant's three assigned prompts and own responses are returned.
 
+An explicit attention check now appears on the instructions page before the
+first post: “To confirm that you are reading carefully, please select Blue for
+this question.” Green, Blue and Yellow are the response options. The server
+records each answer, correctness, version and timestamp. Retries of the same
+request do not count twice. An incorrect answer prompts rereading and retry;
+refresh preserves the recorded result. Task writes cannot begin until the
+check is passed. This single check does not automatically exclude participants
+or trigger payment rejection. It is unrelated to the moral judgments under
+study. Apply `supabase_original100_attention.sql` to the already-connected
+database, or use the updated full setup for a new database.
+
+The user is reviewing a proposed neutral/private-response framing. No proposed
+replacement prompt has been applied yet; stored Original prompts remain intact.
+
 The allocator serializes claims/releases, prevents duplicate formal Prolific
 IDs, and permits at most one active/completed formal participant per fixed slot.
 Draft writes have revision checks. Final submission requires three correctly

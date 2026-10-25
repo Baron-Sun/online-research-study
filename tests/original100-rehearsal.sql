@@ -29,6 +29,8 @@ begin
      begin perform public.original100_session('resume',pid,'qa-sql-study',pid,repeat('f',64),false,'{}'); exception when others then blocked:=true; end;
      if not blocked then raise exception 'Wrong capability accepted'; end if;
    end if;
+   perform public.original100_session('attention_check',pid,'qa-sql-study',pid,token,false,
+     jsonb_build_object('event_id',gen_random_uuid()::text,'choice','blue','version','attention-v1-blue'));
    for j in 1..3 loop
      item:=public.original100_session('save',pid,'qa-sql-study',pid,token,false,
        jsonb_build_object('position',j,'revision',0,'answer',E'NTA\nSYNTHETIC SQL REHEARSAL ONLY. Participant '||i||', post position '||j||'.'));
@@ -57,6 +59,8 @@ begin
  pid:=lpad(to_hex(1001),24,'0'); token:=repeat('b',64);
  replacement:=public.original100_session('claim',pid,'qa-sql-study',pid,token,false,'{"consent":true}');
  if replacement->>'slot'<>original_slot then raise exception 'Replacement did not inherit released slot'; end if;
+ perform public.original100_session('attention_check',pid,'qa-sql-study',pid,token,false,
+   jsonb_build_object('event_id',gen_random_uuid()::text,'choice','blue','version','attention-v1-blue'));
  for j in 1..3 loop
    perform public.original100_session('save',pid,'qa-sql-study',pid,token,false,jsonb_build_object('position',j,'revision',0,'answer',E'INFO\nSYNTHETIC REPLACEMENT REHEARSAL ONLY.'));
  end loop;

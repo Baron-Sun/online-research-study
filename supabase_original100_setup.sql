@@ -60,6 +60,10 @@ create table if not exists public.original100_events (
   detail jsonb not null default '{}',
   created_at timestamptz not null default now()
 );
+alter table public.original100_participants add column if not exists attention_attempts integer not null default 0;
+alter table public.original100_participants add column if not exists attention_passed_at timestamptz;
+create unique index if not exists original100_attention_event_once
+ on public.original100_events(participant_id,(detail->>'event_id')) where action='attention_check';
 alter table public.original100_settings enable row level security;
 alter table public.original100_posts enable row level security;
 alter table public.original100_slots enable row level security;
@@ -88,6 +92,7 @@ declare
  response public.original100_responses%rowtype;
  study_mode text := case when p_preview then 'preview' else 'formal' end;
  selected_slot text; token_digest text; pos integer; answer_text text; result jsonb;
+ check_event text; check_choice text; previous_check jsonb;
 begin
  if p_preview is null or p_pid is null or p_token is null or p_study_id is null or p_session_id is null
    or length(p_pid)>100 or length(p_study_id)>100 or length(p_session_id)>100
@@ -95,7 +100,7 @@ begin
  if (p_preview and p_pid !~ '^(preview|test|qa)-[A-Za-z0-9_-]+$')
    or (not p_preview and (p_pid !~ '^[a-f0-9]{24}$' or p_session_id !~ '^[a-f0-9]{24}$'))
    then raise exception 'Please open the study using your Prolific link.'; end if;
- if p_action not in ('claim','resume','save','navigate','complete','withdraw') then raise exception 'Unknown action.'; end if;
+ if p_action is null or p_action not in ('claim','resume','save','navigate','complete','withdraw','attention_check') then raise exception 'Unknown action.'; end if;
  token_digest := encode(digest(p_token,'sha256'),'hex');
  -- One lock order for every action; protects claim/release/complete against each other.
  perform pg_advisory_xact_lock(10020261024);
@@ -128,7 +133,22 @@ begin
    then raise exception 'This participant already has a session. Reopen the original browser and study link.'; end if;
  if person.status in ('withdrawn','excluded') then raise exception 'This session has ended. Please contact the researcher.'; end if;
  if p_action in ('save','navigate','withdraw') and person.status<>'active' then raise exception 'Your submitted responses are locked.'; end if;
- if p_action='save' then
+ if p_action in ('save','navigate','complete') and person.status='active' and person.attention_passed_at is null
+   then raise exception 'Please complete the attention check before beginning the posts.'; end if;
+ if p_action='attention_check' then
+   check_event:=p_payload->>'event_id'; check_choice:=p_payload->>'choice';
+   if check_event is null or check_event !~ '^[a-f0-9-]{36}$' or check_choice is null or check_choice not in ('green','blue','yellow')
+     or p_payload->>'version' is distinct from 'attention-v1-blue' then raise exception 'Invalid attention-check response.'; end if;
+   select detail into previous_check from public.original100_events where participant_id=person.id and action='attention_check' and detail->>'event_id'=check_event;
+   if previous_check is not null then
+     if previous_check->>'choice'<>check_choice then raise exception 'This check response was already recorded.'; end if;
+   elsif person.attention_passed_at is null and person.status='active' then
+     insert into public.original100_events(participant_id,action,detail) values(person.id,'attention_check',
+       jsonb_build_object('event_id',check_event,'choice',check_choice,'correct',check_choice='blue','version','attention-v1-blue'));
+     update public.original100_participants set attention_attempts=attention_attempts+1,
+       attention_passed_at=case when check_choice='blue' then now() else null end,updated_at=now() where id=person.id;
+   end if;
+ elsif p_action='save' then
    pos:=(p_payload->>'position')::integer; answer_text:=p_payload->>'answer';
    if pos is null or pos not between 1 and 3 or answer_text is null or octet_length(answer_text)>250000 then raise exception 'Invalid response.'; end if;
    select * into response from public.original100_responses where participant_id=person.id and position=pos for update;
@@ -159,6 +179,7 @@ begin
  end if;
  select jsonb_build_object('id',p.id,'mode',p.mode,'slot',p.slot_id,'status',p.status,
    'position',p.current_position,'completedAt',p.completed_at,'version',cfg.version,
+   'attentionCheck',jsonb_build_object('version','attention-v1-blue','attempts',p.attention_attempts,'passed',p.attention_passed_at is not null),
    'completionCode',case when p.mode='formal' and p.status='completed' then cfg.completion_code else null end,
    'posts',(select jsonb_agg(jsonb_build_object('position',r.position,'stimulusId',r.stimulus_id,
      'prompt',s.prompt_text,'sha256',s.prompt_sha256,'answer',r.answer,'revision',r.revision) order by r.position)

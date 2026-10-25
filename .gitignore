@@ -72,6 +72,7 @@ dist/
 !src/original100.css
 !src/original100-protocol.mjs
 !supabase_original100_setup.sql
+!supabase_original100_attention.sql
 !supabase_original100_seed.sql
 !original100-material-manifest.json
 !ORIGINAL100_PREVIEW.md

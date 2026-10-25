@@ -2,7 +2,7 @@
 // Never opens recruitment or writes formal participant records.
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import assert from 'node:assert/strict';
-import {randomBytes} from 'node:crypto';
+import {randomBytes,randomUUID} from 'node:crypto';
 import {requestSession,verifyMaterial} from '../src/original100-protocol.mjs';
 const env=Object.fromEntries((await readFile(new URL('../.env.local',import.meta.url),'utf8')).trim().split('\n').map(line=>{const i=line.indexOf('=');return [line.slice(0,i),line.slice(i+1)];}));
 const config={url:env.VITE_SUPABASE_URL,anonKey:env.VITE_SUPABASE_ANON_KEY};
@@ -14,6 +14,16 @@ const claimed=await Promise.all(Array.from({length:16},()=>call('claim',{consent
 assert.equal(new Set(claimed.map(p=>p.id)).size,1);
 await verifyMaterial(claimed[0]);
 await assert.rejects(requestSession(config,{...identity,token:randomBytes(32).toString('hex')},'resume',{}));
+await assert.rejects(call('navigate',{position:1}),/attention check/);
+await assert.rejects(call('save',{position:1,revision:0,answer:'NTA\nCannot save before the check.'}),/attention check/);
+const wrongCheck={event_id:randomUUID(),choice:'green',version:'attention-v1-blue'};
+const attempts=await Promise.all(Array.from({length:8},()=>call('attention_check',wrongCheck)));
+assert.ok(attempts.every(r=>r.attentionCheck.attempts===1&&!r.attentionCheck.passed));
+assert.equal((await call('resume',{})).attentionCheck.attempts,1);
+await assert.rejects(call('attention_check',{...wrongCheck,choice:'blue'}),/already recorded/);
+const passed=await call('attention_check',{event_id:randomUUID(),choice:'blue',version:'attention-v1-blue'});
+assert.deepEqual(passed.attentionCheck,{version:'attention-v1-blue',attempts:2,passed:true});
+assert.equal((await call('resume',{})).attentionCheck.passed,true);
 const raced=await Promise.allSettled(Array.from({length:8},(_,i)=>call('save',{position:1,revision:0,answer:`NTA\nSYNTHETIC API CONCURRENCY TEST ONLY. Writer ${i}.`})));
 assert.equal(raced.filter(r=>r.status==='fulfilled').length,1);
 let current=await call('resume',{});
@@ -35,6 +45,7 @@ for(const table of ['original100_participants','original100_responses','original
 const result={timestamp:new Date().toISOString(),project:'kkfyoztlpjuvipqaoyig',syntheticPid:pid,previewId:claimed[0].id,
   concurrentIdenticalClaims:16,uniqueAssignments:1,competingSaves:8,acceptedCompetingSaves:1,
   wrongTokenRejected:true,staleWriteRejected:true,idempotentRetry:true,incompleteSubmitRejected:true,
+  attentionGateEnforced:true,attentionFailurePersisted:true,attentionRetryIdempotent:true,attentionPassedAfterCorrection:true,
   positionRestored:true,concurrentFinalSubmissionsIdempotent:true,completedAnswersLocked:true,formalEntryClosed:true,privacy};
 await mkdir(new URL('../verification/',import.meta.url),{recursive:true});
 await writeFile(new URL('../verification/live-api.json',import.meta.url),JSON.stringify(result,null,2));
