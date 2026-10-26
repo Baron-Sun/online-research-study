@@ -1,6 +1,6 @@
-export const MATERIAL_VERSION = 'private100-study1matched-20261026-v4';
-export const SESSION_NAMESPACE = 'matched100-v4';
-export const SESSION_RPC = 'matched100_session';
+export const MATERIAL_VERSION = 'private100-study1matched-min60-20261026-v5';
+export const SESSION_NAMESPACE = 'matched100-v5';
+export const SESSION_RPC = 'matched100v5_session';
 export const CHECK_VERSION = 'task-comprehension-v1';
 export const CHECK_QUESTION = 'Which response best matches what you are asked to do for each situation?';
 export const CHECK_OPTIONS = [
@@ -10,3 +10,5 @@ export const CHECK_OPTIONS = [
   {value:'label_only', text:'Choose the judgment label that best fits the situation, without writing an explanation.'},
 ];
 export const PRIVATE_STUDY_INFORMATION = 'Your responses are being collected for a research study. They will not be posted as comments on a public forum, and other participants in this study will not see or rate them. Your payment does not depend on which judgment you choose.';
+export const INDEPENDENCE_INSTRUCTION = 'Please complete the task independently, without using AI tools or looking up other people’s responses.';
+export const ORIGINAL_THOUGHTS_INSTRUCTION = 'You will not be able to copy and paste. We are interested in your original thoughts, and there are no right or wrong answers!';

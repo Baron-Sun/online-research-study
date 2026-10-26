@@ -18,10 +18,10 @@ test('all 100 exact Original prompts and fixed assignment rows match the reviewe
  for(const slot of new Set(manifest.plan.map(p=>p.slot_id))) assert.equal(new Set(manifest.plan.filter(p=>p.slot_id===slot).map(p=>p.stimulus_id)).size,3);
 });
 test('client rejects missing reasoning, malformed format, duplicate or altered stimuli',async()=>{
- assert.ok(validComment('INFO\nI would need more information.'));
+ assert.ok(validComment('INFO\n'+Array(59).fill('word').join(' ')));
  for(const answer of ['NTA','NTA\n  ','Some thoughts\nNTA','NTA because...', 'YTA NTA\nreason']) assert.equal(validComment(answer),false);
  const text='Exact instruction\nPost'; const sha256=createHash('sha256').update(text).digest('hex');
- const session={version:VERSION,responseWordLimit:61,wordCountVersion:'whitespace-total-v1',posts:[1,2,3].map(i=>({position:i,stimulusId:`P${i}`,prompt:text,sha256}))};
+ const session={version:VERSION,responseWordMinimum:60,responseWordLimit:null,wordCountVersion:'whitespace-total-v1',posts:[1,2,3].map(i=>({position:i,stimulusId:`P${i}`,prompt:text,sha256}))};
  await verifyMaterial(session);
  await assert.rejects(verifyMaterial({...session,posts:session.posts.map((p,i)=>i===0?{...p,prompt:p.prompt+' '}:p)}));
  await assert.rejects(verifyMaterial({...session,posts:[session.posts[0],session.posts[0],session.posts[2]]}));

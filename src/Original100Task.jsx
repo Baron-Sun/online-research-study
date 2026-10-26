@@ -1,8 +1,8 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {ADVICE_TRANSFER_CONSENT_TEXT} from './advice-transfer-consent';
 import {requestSession,verifyMaterial,validComment} from './original100-protocol.mjs';
-import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION,SESSION_NAMESPACE} from './private100-content.mjs';
-import {countWords,RESPONSE_WORD_LIMIT,WORD_LIMIT_INSTRUCTION} from './private100-word-limit.mjs';
+import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION,INDEPENDENCE_INSTRUCTION,ORIGINAL_THOUGHTS_INSTRUCTION,SESSION_NAMESPACE} from './private100-content.mjs';
+import {countWords,RESPONSE_MIN_WORDS,WORD_LENGTH_INSTRUCTION} from './private100-word-minimum.mjs';
 
 const consentText = ADVICE_TRANSFER_CONSENT_TEXT
   .replace('We expect that you will be in this research study for around 10–12 minutes.', 'You will read three interpersonal situations and write your judgment and reasoning for each. Please refer to the Prolific study description for the estimated duration.')
@@ -21,7 +21,7 @@ function getIdentity() {
     q.set('PROLIFIC_PID',pid);
     history.replaceState(null,'',`${location.pathname}?${q.toString()}`);
   }
-  const studyId=q.get('STUDY_ID') || (preview ? 'matched100-preview' : '');
+  const studyId=q.get('STUDY_ID') || (preview ? 'matched100v5-preview' : '');
   const sessionId=q.get('SESSION_ID') || (preview ? pid : '');
   const key=`${SESSION_NAMESPACE}:${preview?'preview':'formal'}:${pid}:${studyId}:${sessionId}`;
   const saved=readJson(key);
@@ -40,6 +40,7 @@ export default function Original100Task() {
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [saveState,setSaveState]=useState('');
+  const [inputNotice,setInputNotice]=useState('');
   const [recovered,setRecovered]=useState([]);
   const [showWithdraw,setShowWithdraw]=useState(false);
   const [checkChoice,setCheckChoice]=useState(()=>readJson(identity.key+':comprehension-pending-v1')?.choice||'');
@@ -105,8 +106,9 @@ export default function Original100Task() {
     return ()=>window.removeEventListener('beforeunload',warn);
   },[]);
   const edit=(index,text)=>{
-    const next=[...latest.current];next[index]=text;latest.current=next;setAnswers(next);cache();setSaveState('Unsaved changes');setError('');
+    const next=[...latest.current];next[index]=text;latest.current=next;setAnswers(next);cache();setSaveState('Unsaved changes');setError('');setInputNotice('');
   };
+  const blockPastedText=e=>{e.preventDefault();setInputNotice('Please type your response directly. Pasting and dropping text are disabled.');};
   const move=async(position)=>{
     setBusy(true);setError('');
     try {await saveAll();adopt(await rpc('navigate',{position}));setScreen(position===4?'review':'task');window.scrollTo(0,0);}
@@ -137,7 +139,7 @@ export default function Original100Task() {
   const index=(session?.position || 1)-1;
   const post=session?.posts[Math.min(index,2)];
   const wordCount=countWords(answers[index] || '');
-  const overLimit=wordCount>RESPONSE_WORD_LIMIT;
+  const belowMinimum=wordCount<RESPONSE_MIN_WORDS;
   const wide=['task','consent'].includes(screen);
   return <main className="source-study-page transfer-study-page original100-page">
     <div className={`source-page-wrap ${wide?'source-wide-wrap':'source-narrow-wrap'}`}>
@@ -151,6 +153,7 @@ export default function Original100Task() {
       {screen==='overview'&&<section className="source-panel source-intro-panel">
         <p className="source-eyebrow">Study overview</p><h2>Read three situations and give your judgment</h2>
         <p className="source-intro-copy">In this task, you will read three descriptions of interpersonal situations. For each situation, you will give your own judgment and explain the reasons for it. You will choose a judgment label and write an explanation.</p>
+        <p className="source-intro-copy">{WORD_LENGTH_INSTRUCTION}</p>
         <div className="source-overview-grid"><div><span>Task</span><strong>Three situations, one response per situation</strong></div><div><span>Progress</span><strong>Responses save as you write</strong></div></div>
         <div className="source-intro-action"><h3>Ready to review the consent form?</h3><Primary onClick={()=>setScreen('consent')}>Review consent</Primary></div>
       </section>}
@@ -158,7 +161,7 @@ export default function Original100Task() {
         <section className="source-panel source-consent-panel"><p className="source-eyebrow">Participant information</p><h2>Informed Consent</h2><div className="source-consent-text">{consentText}</div></section>
         <aside className="source-panel source-consent-confirmation"><h3>Consent Confirmation</h3><label className="source-consent-checkbox"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} /><span>I am at least 18 years old, I have read the consent information, and I voluntarily agree to participate.</span></label><div className="source-button-row"><Secondary disabled={busy} onClick={()=>setScreen('declined')}>I Disagree</Secondary><Secondary disabled={busy} onClick={()=>setScreen('overview')}>Back</Secondary><Primary disabled={!agreed||busy} onClick={()=>{remember();openSession('claim');}}>{busy?'Preparing…':'I Agree'}</Primary></div></aside>
       </div>}
-      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Give your judgment and explain your reasoning</h2><div className="source-intro-copy"><p>You will read three descriptions of interpersonal situations, one at a time. For each situation, choose a judgment label and explain the reasons for your own judgment. Enter the label on the first line and your reasoning on the next line.</p><p><strong>For each response: </strong>{WORD_LIMIT_INSTRUCTION}</p><p>{PRIVATE_STUDY_INFORMATION}</p><p>Please complete the task independently, without using AI tools or looking up other people’s responses.</p><p>Your responses are saved automatically. You can review and edit all three responses before the final submission.</p></div>
+      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Give your judgment and explain your reasoning</h2><div className="source-intro-copy"><p>You will read three descriptions of interpersonal situations, one at a time. For each situation, choose a judgment label and explain the reasons for your own judgment. Enter the label on the first line and your reasoning on the next line.</p><p><strong>For each response: </strong>{WORD_LENGTH_INSTRUCTION}</p><p>{PRIVATE_STUDY_INFORMATION}</p><p><strong>{INDEPENDENCE_INSTRUCTION}</strong></p><p>{ORIGINAL_THOUGHTS_INSTRUCTION}</p><p>Your responses are saved automatically. You can review and edit all three responses before the final submission.</p></div>
         <fieldset className="original100-attention original100-comprehension" disabled={busy||session?.comprehensionCheck?.passed}><legend>Task understanding check</legend><p>{CHECK_QUESTION}</p><p className="original100-check-help">You can refer to the instructions above. You have two attempts to answer this question.</p><div className="original100-attention-options">{CHECK_OPTIONS.map((option,i)=><label key={option.value}><input type="radio" name="task-understanding" value={option.value} checked={session?.comprehensionCheck?.passed?option.value==='judgment_reasons':checkChoice===option.value} onChange={e=>setCheckChoice(e.target.value)} /><span><strong>{String.fromCharCode(65+i)}.</strong> {option.text}</span></label>)}</div></fieldset>
         <p role="status" className="original100-check-feedback">{session?.comprehensionCheck?.passed?'Task understanding check completed. You can begin.':checkFeedback}</p>
         {session?.comprehensionCheck?.passed?<Primary disabled={busy} onClick={()=>move(1)}>Begin</Primary>:<Primary disabled={busy||!checkChoice} onClick={checkTaskUnderstanding}>{busy?'Saving…':'Check answer'}</Primary>}
@@ -167,7 +170,7 @@ export default function Original100Task() {
         <div className="source-task-heading"><h2>Read the situation and write your response</h2><span>Situation {index+1} of 3</span></div>
         <div className="original100-task-grid">
           <article className="source-panel source-post-panel"><div className="source-panel-heading"><h3>Instructions and situation</h3></div><div className="source-post-text original100-prompt" data-testid="exact-prompt">{post.prompt}</div></article>
-          <section className="source-panel original100-response"><label htmlFor="original100-answer">Your response</label><p className="original100-help">{WORD_LIMIT_INSTRUCTION}</p><textarea id="original100-answer" value={answers[index]} readOnly={busy} onChange={e=>edit(index,e.target.value)} placeholder="Write your response here." spellCheck="true" aria-describedby="comment-word-count comment-save" aria-invalid={overLimit||undefined} /><p id="comment-word-count" className={`original100-word-count${overLimit?' is-over-limit':''}`} role="status">{wordCount} / {RESPONSE_WORD_LIMIT} words · includes the judgment label{overLimit&&<span>Remove at least {wordCount-RESPONSE_WORD_LIMIT} {wordCount-RESPONSE_WORD_LIMIT===1?'word':'words'} to continue.</span>}</p><p id="comment-save" className="original100-save" role="status">{saveState}</p><div className="source-button-row"><Secondary disabled={busy} onClick={()=>index===0?setScreen('instructions'):move(index)}>{index===0?'Instructions':'Back'}</Secondary><Primary disabled={busy||!validComment(answers[index])} onClick={()=>move(index+2)}>{busy?'Saving…':index===2?'Review answers':'Continue'}</Primary></div><p className="original100-help">Follow the format in the instructions. A judgment abbreviation and reasoning on the next line are required.</p></section>
+          <section className="source-panel original100-response"><label htmlFor="original100-answer">Your response</label><p className="original100-help">{WORD_LENGTH_INSTRUCTION}</p><p className="original100-help"><strong>{INDEPENDENCE_INSTRUCTION}</strong></p><p className="original100-help">{ORIGINAL_THOUGHTS_INSTRUCTION}</p><textarea id="original100-answer" value={answers[index]} readOnly={busy} onChange={e=>edit(index,e.target.value)} onPaste={blockPastedText} onDrop={blockPastedText} placeholder="Write your response here." spellCheck="true" aria-describedby="comment-word-count comment-save" aria-invalid={belowMinimum&&wordCount>0||undefined} /><p id="comment-word-count" className={`original100-word-count${belowMinimum&&wordCount>0?' is-below-minimum':''}`} role="status">{wordCount} / {RESPONSE_MIN_WORDS} words minimum · includes the judgment label{belowMinimum&&<span>Write at least {RESPONSE_MIN_WORDS-wordCount} more {RESPONSE_MIN_WORDS-wordCount===1?'word':'words'} to continue.</span>}</p>{inputNotice&&<p className="original100-help" role="status">{inputNotice}</p>}<p id="comment-save" className="original100-save" role="status">{saveState}</p><div className="source-button-row"><Secondary disabled={busy} onClick={()=>index===0?setScreen('instructions'):move(index)}>{index===0?'Instructions':'Back'}</Secondary><Primary disabled={busy||!validComment(answers[index])} onClick={()=>move(index+2)}>{busy?'Saving…':index===2?'Review answers':'Continue'}</Primary></div><p className="original100-help">Follow the format in the instructions. A judgment abbreviation and reasoning on the next line are required.</p></section>
         </div>
       </>}
       {screen==='review'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Final review</p><h2>Review your three responses</h2><p className="source-intro-copy">You can return to any situation to make changes. After submission, your responses will be locked.</p>{session.posts.map((p,i)=><article className="original100-review" key={p.stimulusId}><div><h3>Situation {i+1}</h3><Secondary disabled={busy} onClick={()=>move(i+1)}>Review situation {i+1}</Secondary></div><p>{answers[i]}</p></article>)}<div className="source-button-row"><Secondary disabled={busy} onClick={()=>move(3)}>Back</Secondary><Primary disabled={busy||!answers.every(validComment)} onClick={submit}>{busy?'Submitting…':'Submit all three responses'}</Primary></div></section>}

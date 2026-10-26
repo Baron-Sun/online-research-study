@@ -32,6 +32,6 @@
 @media(max-width:850px) { .original100-task-grid { grid-template-columns: 1fr; } .original100-response { position: static; } .original100-response textarea { min-height: 280px; } }
 @media(max-width:480px) { .original100-response { padding: 20px; } .original100-page .source-study-header h1 { font-size: 30px; } .original100-page .source-session-card { min-width: auto; } }
 .original100-word-count { color: #475569; font-size: .875rem; margin: .75rem 0 0; }
-.original100-word-count.is-over-limit { color: #b91c1c; font-weight: 600; }
+.original100-word-count.is-below-minimum { color: #b91c1c; font-weight: 600; }
 .original100-word-count span { display: block; margin-top: .25rem; }
 .original100-response textarea[aria-invalid="true"] { border-color: #b91c1c; }

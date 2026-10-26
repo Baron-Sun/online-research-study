@@ -101,3 +101,13 @@ dist/
 !tests/matched100.test.mjs
 !tests/matched100-rehearsal.sql
 !tests/matched100-live.mjs
+
+!src/private100-word-minimum.mjs
+!private100_min60_prompt_template.txt
+!scripts/build_matched100v5_materials.py
+!supabase_matched100v5_setup.sql
+!supabase_matched100v5_seed.sql
+!matched100v5-material-manifest.json
+!tests/matched100v5-rehearsal.sql
+!tests/matched100v5-live.mjs
+!tests/private100-word-minimum.test.mjs
