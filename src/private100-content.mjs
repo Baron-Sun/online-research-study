@@ -11,4 +11,5 @@ export const CHECK_OPTIONS = [
 ];
 export const PRIVATE_STUDY_INFORMATION = 'Your responses are being collected for a research study. They will not be posted as comments on a public forum, and other participants in this study will not see or rate them. Your payment does not depend on which judgment you choose.';
 export const INDEPENDENCE_INSTRUCTION = 'Please complete the task independently, without using AI tools or looking up other people’s responses.';
-export const ORIGINAL_THOUGHTS_INSTRUCTION = 'You will not be able to copy and paste. We are interested in your original thoughts, and there are no right or wrong answers!';
+export const PASTE_INSTRUCTION = 'You will not be able to copy and paste.';
+export const ORIGINAL_THOUGHTS_INSTRUCTION = 'We are interested in your original thoughts and there are no wrong or right answers!';
