@@ -106,6 +106,7 @@ dist/
 !private100_min60_prompt_template.txt
 !scripts/build_matched100v5_materials.py
 !supabase_matched100v5_setup.sql
+!supabase_matched100v5_case_insensitive_labels.sql
 !supabase_matched100v5_seed.sql
 !matched100v5-material-manifest.json
 !tests/matched100v5-rehearsal.sql

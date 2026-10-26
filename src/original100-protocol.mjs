@@ -1,9 +1,18 @@
 import {MATERIAL_VERSION,SESSION_RPC} from './private100-content.mjs';
 import {countWords,RESPONSE_MIN_WORDS,RESPONSE_MAX_WORDS,WORD_COUNT_VERSION} from './private100-word-minimum.mjs';
 export const VERSION = MATERIAL_VERSION;
-export function validComment(answer) {
+export function commentFormatError(answer) {
   const lines = String(answer).replace(/\r\n/g, '\n').split('\n');
-  return /^(YTA|NTA|ESH|NAH|INFO)$/.test(lines[0].trim()) && lines.slice(1).join('\n').trim().length > 0 && countWords(answer) >= RESPONSE_MIN_WORDS;
+  if (!/^(YTA|NTA|ESH|NAH|INFO)$/i.test(lines[0].trim())) {
+    return 'Put one judgment label on the first line: YTA, NTA, ESH, NAH, or INFO (uppercase or lowercase). Press Enter and write your reasoning on the next line.';
+  }
+  if (!lines.slice(1).join('\n').trim()) {
+    return 'Write your reasoning on the line after your judgment label. Press Enter after the label to start a new line.';
+  }
+  return '';
+}
+export function validComment(answer) {
+  return !commentFormatError(answer) && countWords(answer) >= RESPONSE_MIN_WORDS;
 }
 export async function verifyMaterial(session) {
   if (session.version !== VERSION) throw new Error('This link uses an earlier version of the task. Please reopen the current study link.');

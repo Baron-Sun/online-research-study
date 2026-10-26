@@ -86,6 +86,13 @@ changing only the reward and sample size as needed for this study: $3.00 and
 No AI or response-diversity hypothesis is stated to participants before they
 complete the task.
 
+Judgment labels are case-insensitive in both the browser and database. Responses
+still require a judgment label alone on the first line, reasoning on the next
+line, and at least 60 words in total. The response box shows a specific format
+message when the word minimum is met but the label or reasoning is missing.
+Apply `supabase_matched100v5_case_insensitive_labels.sql` to an existing database;
+the setup script includes the same validator for a fresh installation.
+
 ## Collection and replacement
 
 The RPC `matched100v5_session` serializes claims, checks the configured study ID,

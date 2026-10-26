@@ -96,7 +96,7 @@ revoke all on public.matched100v5_settings, public.matched100v5_posts, public.ma
 
 create or replace function public.matched100v5_valid_answer(a text) returns boolean
 language sql immutable set search_path=public,pg_temp as $$
- select coalesce(btrim(split_part(replace(a,E'\r\n',E'\n'),E'\n',1)) in ('YTA','NTA','ESH','NAH','INFO')
+ select coalesce(upper(btrim(split_part(replace(a,E'\r\n',E'\n'),E'\n',1))) in ('YTA','NTA','ESH','NAH','INFO')
    and strpos(a,E'\n')>0 and length(btrim(substring(a from strpos(a,E'\n')+1), E' \t\r\n'))>0,false);
 $$;
 

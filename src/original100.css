@@ -35,3 +35,5 @@
 .original100-word-count.is-below-minimum { color: #b91c1c; font-weight: 600; }
 .original100-word-count span { display: block; margin-top: .25rem; }
 .original100-response textarea[aria-invalid="true"] { border-color: #b91c1c; }
+.original100-format-help { margin: 20px 0 12px; color: #475569; font-size: 13px; line-height: 1.6; }
+.original100-format-error { margin: 12px 0 0; padding: 12px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: 13px; line-height: 1.6; }
