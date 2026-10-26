@@ -1,193 +1,122 @@
-# Private judgment three-post study — deployed, awaiting recruitment settings
+# Study 1 matched 100-post questionnaire
 
-This is an additive route in the existing **Baron-Sun/online-research-study**
-React/Vite/GitHub Pages application. It reuses the previous study's neutral
-title, layout, CSS, blue controls, consent structure, and Supabase project.
-Base: remote `main`, commit `bd200c8`. Local branch: `codex/original-100-preview`.
+Public route: https://baron-sun.github.io/online-research-study/original-comments/
 
-Online preview: https://baron-sun.github.io/online-research-study/original-comments/?preview=1
+Researcher preview: https://baron-sun.github.io/online-research-study/original-comments/?preview=1
 
-Local development preview: http://127.0.0.1:5188/original-comments/?preview=1
+This route remains in the existing Baron-Sun/online-research-study site. It uses
+material version `private100-study1matched-20261026-v4`, Supabase project
+`kkfyoztlpjuvipqaoyig`, and the isolated `matched100_*` tables/RPCs. Earlier
+`original100_*` preview records and all other studies are retained unchanged.
+Browser session storage uses `matched100-v4`, preventing old drafts from being
+reused with different posts.
 
-`Preview controls` selects any of the 100 assignment slots or starts a fresh
-test session. A normal preview refresh resumes the same slot and draft.
-The reviewed frontend was published to the existing GitHub Pages site on
-2026-10-25 (Chicago), from commit `fe833a8000a33a51794b582b8a55297d6288e77f`.
-The deployment succeeded in [Actions run 40269705452](https://github.com/Baron-Sun/online-research-study/actions/runs/40269705452).
-Formal recruitment remains closed until the new Prolific study ID and completion
-code are supplied and the study settings are activated.
+## Current materials
 
-## Materials and allocation
+The source is the validated `prolific_study1matched_100_20261025` package. Its
+100 posts were matched to full Study 1 on historical semantic and moral-profile
+diversity, six moral-theme patterns, dispersion, marginal distributions, lengths,
+years and verdict agreement. The original 21 verdict-by-controversy stratum
+quotas were retained. This is a deliberately matched stimulus set, not a random
+sample or independent replication; future participant outcomes were not used.
+The source package contains the frozen selection specification, code, complete
+old/new comparisons and verification that all 600 historical response texts
+match canonical Study 1. Historical responses are not included in the website
+seed or participant interface.
 
-- Source: the reviewed `prolific_original_100_20261024` CSV/JSONL package.
-- 100 posts, 100 fixed participant slots, three distinct posts per slot.
-- Each post occurs in exactly three different slots and once at each position.
-- Current condition: `private100-wordlimit-20261024-v3`. The neutral prompt asks for the
-  participant's own judgment and reasons, with a label followed by an explanation.
-- The original **body only** is preserved exactly, including embedded line endings;
-  no title, previous comments, votes, or ratings are shown.
-- Participants are told their responses are for research, will not be posted on a
-  public forum or shown/rated by other participants, and payment does not depend on
-  their judgment. The diversity hypothesis is not mentioned.
-- `private100_wordlimit_prompt_template.txt` and the parent directory's
-  `participant_stimuli_private_wordlimit_100.jsonl` contain the shared core prompt for this
-  condition. No new LLM responses have been generated.
-- The original LLM prompts remain archived as `original100-20261024-v1`, with
-  existing sessions pinned to their own material version. Old preview links offer
-  a fresh preview rather than silently changing the task midway.
-- Database and browser check SHA-256 for every assigned prompt.
-- `supabase_original100_seed.sql` includes only stimuli and allocation, never
-  historical participant comments, model responses, or judgment labels.
+`matched100-material-manifest.json` records the selected post IDs, exact prompt
+and body hashes, source specification hash and all 300 assignments. Each of 100
+slots contains three distinct posts. Every post occurs in three different slots,
+once at each position. No pair of posts is repeated across participant slots.
 
-## Connected database
+The participant instructions retain the reviewed neutral private-response
+framing, task-understanding question and 61-word maximum, including the judgment
+label. The full source body is preserved, including its original line endings.
+The instruction does not ask participants to act as Reddit users. Responses are
+not shown/rated by other participants or posted to a public discussion forum.
 
-The existing Supabase project `kkfyoztlpjuvipqaoyig` contains the new isolated
-`original100_*` tables and RPCs. Setup and seed were applied and verified on
-2026-10-24 (Chicago). Existing study tables and RPCs were not modified.
+The limit remains the rounded mean of all 459,801 original human comments in
+Study 1: 27,977,852 whitespace-separated words / 459,801 = 60.847740653, rounded
+to 61. `private100-word-limit-evidence.json` preserves its provenance. It is a
+maximum, not a required response length or a match of length distributions.
 
-Formal recruitment remains **closed**. The database contains 100 current prompts,
-100 archived private prompts without a word limit, 100 archived Original prompts,
-and 300 assignment rows, with zero formal
-participants/comments at verification.
-All retained test sessions use `mode='preview'` and explicit preview/QA IDs.
+## Database and configuration
 
-Participant writes go through `original100_session`, using a session capability
-token. The stored token is hashed. Raw tables and the researcher export view
-are inaccessible to anonymous/authenticated browser clients. Only the
-participant's three assigned prompts and own responses are returned.
+For a new matched cohort, apply `supabase_matched100_setup.sql`, then
+`supabase_matched100_seed.sql`. `python3 scripts/build_matched100_materials.py`
+rebuilds these files from the validated source package and checks source hashes.
+The seed refuses to run with recruitment open or formal participant records.
+Existing materials must exactly match; it does not overwrite another cohort.
 
-A task comprehension check appears before the first situation. It asks which
-response matches the task, with four plausible alternatives: summarize the
-events, give one's own judgment and reasons (correct), recommend practical
-solutions, or give only a judgment label. Instructions remain visible above it.
-The server records each answer, correctness, version and timestamp. Repeated
-delivery of one request counts once; refreshing retains the result. Participants
-have two attempts. After the first error they are asked to reread the instructions.
-After the second, the session ends and asks them to return the study on Prolific.
-Its fixed slot becomes available for a replacement; the same identity cannot
-restart. No payment rejection or Prolific account action is automated.
+The new Prolific study is `6adedc85cdd8f2835bd60f5a`. Its study ID and completion
+code are configured privately in `matched100_settings`, not in public source.
+Completion codes are returned only for completed formal sessions. Preview
+sessions never return a Prolific completion code and do not consume formal slots.
+Recruitment must stay closed until backend checks and deployment are verified.
+Enabling the website does not publish the Prolific study or spend its budget.
 
-The additive migration `supabase_private100_migration.sql` installs this condition
-without a word limit; `supabase_private100_wordlimit.sql` installs the current
-61-word condition. For a fresh database, apply the current
-`supabase_original100_setup.sql`, then `supabase_original100_seed.sql`, then
-`supabase_private100_migration.sql`, then `supabase_private100_wordlimit.sql`. The earlier
-`supabase_original100_attention.sql` is historical and must not be applied after
-the private-condition migration. The migration requires recruitment closed and
-zero formal participants. The previous private migration and template are retained
-as version 2. Build the current version with `python3 scripts/build_private100_word_limit.py`.
+Use this URL in the Prolific external-study field:
 
-## Response word limit
+```text
+https://baron-sun.github.io/online-research-study/original-comments/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+```
 
-The user selected **all Study 1 original human comments** as the reference. The
-three human columns in `aita_unified_153k.parquet` contain 459,801 comments from
-153,267 posts, with 27,977,852 whitespace-separated words in total: a mean of
-60.847740653 words. Rounded to the nearest whole word, each response has a maximum
-of **61 words, including the judgment label**. Participants do not need to fill
-the allowance. This is a maximum, not an exact-length requirement.
+The consent page refers to Prolific for duration and compensation, avoiding stale
+values from earlier studies. The user's Prolific draft currently supplies those
+settings. No AI or response-diversity hypothesis is stated to participants before
+they complete the task.
 
-`private100-word-limit-evidence.json` records the source hash, columns, denominator,
-rank-specific totals, count definition and deterministic sample of counts.
-`python3 scripts/measure_study1_word_limit.py` reproduces the measurement. There
-were no missing/deleted placeholders to exclude, and no model columns or
-length-based exclusions are used. The entire original comment is counted; verdict
-labels are not stripped. Spaces/newlines separate words; contractions and
-hyphenated words without spaces count as one. Browser and SQL use the same
-explicit Unicode whitespace separators (`whitespace-total-v1`).
+## Collection and replacement
 
-Instructions, each versioned prompt and the response panel show the limit. A live
-counter turns red above 61. Oversize drafts are retained, but the browser and
-database block advancing or submitting them. Historical sessions keep their old
-material and limit. The export includes `response_word_limit` and
-`response_word_count`. No LLM generation has been run for this updated condition.
+The RPC `matched100_session` serializes claims, checks the configured study ID,
+prevents duplicate formal Prolific IDs, and binds each session to its own hashed
+capability token. It exposes only the participant's assigned prompts and own
+responses. Anonymous clients cannot read raw tables or researcher exports.
 
-The allocator serializes claims/releases, prevents duplicate formal Prolific
-IDs, and permits at most one active/completed formal participant per fixed slot.
-Draft writes have revision checks. Final submission requires three correctly
-formatted comments and the exact reviewed revisions; completion locks editing.
+The task-understanding question permits two attempts. Its answer and version are
+recorded, retries are idempotent, and refresh preserves the outcome. Two failures
+end the session and reopen its slot; that identity cannot restart. No Prolific
+payment rejection or account action is automated.
 
-For other exclusions or abandonment, replacement requires a researcher decision.
-In the Supabase SQL editor, call
-`original100_release(participant_uuid, documented_reason)` for an excluded or
-abandoned participant. This retains their raw responses and audit history,
-excludes them from completed coverage, and reopens their exact slot. That
-Prolific ID cannot claim a new slot. The next participant receives the same
-three posts. There is no automatic time-based release while somebody may
-still be writing.
+Over-limit drafts are saved, but both browser and database reject advancing or
+submitting over 61 words. Final responses are locked. For an abandoned or excluded
+formal participant, call the researcher-only `matched100_release(uuid, reason)`.
+It preserves raw responses and the audit trail, excludes that participant from
+completed coverage, and reopens exactly the same three-post slot.
 
-For a de-identified completed dataset, use:
+For the de-identified completed dataset:
 
 ```sql
 select participant_id, slot_id, position, stimulus_id, submission_id,
        prompt_version, prompt_sha256, comment, completed_at,
        comprehension_attempts, comprehension_passed_at,
        response_word_limit, response_word_count
-from public.original100_completed_comments
+from public.matched100_completed_comments
 order by stimulus_id, participant_id;
 ```
 
-For coverage:
+Check collection coverage with:
 
 ```sql
 select p.stimulus_id, count(c.participant_id) as completed_comments,
-       count(distinct c.participant_id) as distinct_participants
-from public.original100_posts p
-left join public.original100_completed_comments c using(stimulus_id)
+       count(distinct c.participant_id) as distinct_people
+from public.matched100_posts p
+left join public.matched100_completed_comments c using(stimulus_id)
 group by p.stimulus_id order by p.stimulus_id;
 ```
 
 ## Verification
 
-- On the deployed GitHub Pages route, a fresh preview completed consent → task
-  comprehension → three distinct situations → review → submission. The live
-  62/61-word counter disabled Continue. Only preview data were submitted.
-- Existing site's 67 tests pass; six material/integrity/word-count tests pass.
-- Production build passes, including the GitHub Pages repository base path.
-- SQL transaction rehearsal completes 100 people / 300 comments and checks
-  three distinct people per post; duplicate identity, 101st arrival, wrong
-  token, incomplete submit, stale draft, completed edit, and exclusion/refill
-  assertions pass. The updated rehearsal also checks material-version retention,
-  two incorrect comprehension answers, duplicate attempt delivery and slot reuse.
-  **All formal rehearsal data/settings were rolled back.**
-- Live public-API test: 16 concurrent claims for one QA identity produce one
-  assignment; eight conflicting saves accept exactly one. Lost-receipt retries,
-  duplicate final submission, page restoration, closed formal entry, and raw
-  table denial pass. Comprehension gating, retry counting, a successful second
-  attempt, persistent failure and rejection of the old color-check shortcut pass.
-  Synthetic comments are explicitly labeled as tests.
-- The updated live API test saves/restores a 62-word draft, rejects navigation and
-  final submission, then accepts the corrected 61-word response. The SQL rehearsal
-  checks Unicode counting and that old material versions retain no length limit.
-- The earlier full browser run covered consent → three assigned posts → final
-  review → completion. The updated private-condition preview verifies the actual
-  new instructions, distractors, one incorrect answer, persistent feedback after
-  refresh, successful correction, neutral prompts, saving and restoration on
-  situation 2. The new comprehension layout was visually inspected at narrow width.
-  The current word-limit preview verifies the visible limit, a red 62/61 counter
-  with Continue disabled, and 61/61 with Continue enabled. Test text was cleared
-  from the user-facing preview after verification.
+`npm test` passes 75 tests, including the new source-to-prompt and assignment
+checks. The production build uses the GitHub Pages repository base path.
+`tests/matched100-rehearsal.sql` exercises 100 formal completions, 300 comments,
+three distinct people per post, duplicate identity/capability protection,
+comprehension failure and refill, stale writes, completion-code return, capacity,
+completed locks and exclusion/replacement. All formal test data and settings are
+rolled back. `tests/matched100-live.mjs` uses only labeled preview sessions for
+network/concurrency checks, 61/62-word boundaries and raw-table access denial.
+Private configuration and execution receipts are in ignored `verification/`.
 
-Scripts: `tests/original100.test.mjs`, `tests/private100.test.mjs`, `tests/private100-word-limit.test.mjs`,
-`tests/original100-rehearsal.sql`, and `tests/original100-live.mjs`.
-Local test evidence is in ignored `verification/`.
-`.env.local` contains only the old site's existing public browser configuration
-and is ignored. No privileged database credential is used in the frontend.
-
-## Before recruitment
-
-The user approved the preview and requested deployment on 2026-10-25. Finalize
-the study duration and reward in Prolific, and supply the new Prolific study ID
-and completion code. The preview consent deliberately
-does not reuse the old study's $1.50 reward or 10–12-minute duration.
-Configure the new study's settings before opening recruitment. No Prolific study
-has been launched.
-
-Formal URL template (deployed, but participation is gated until configuration):
-
-```text
-https://baron-sun.github.io/online-research-study/original-comments/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
-```
-
-The consent text is adapted from the prior website. The database approval and
-recruitment flags remain false pending final activation with the new study's
-configuration; the blank study ID and completion code must not be bypassed.
+Earlier setup/migration files and material manifests are retained for historical
+`original100_*` sessions. They must not be used to initialize the current matched
+cohort; the current frontend intentionally rejects older material versions.

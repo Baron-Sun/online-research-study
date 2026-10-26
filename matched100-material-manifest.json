@@ -1,0 +1,2214 @@
+{
+  "version": "private100-study1matched-20261026-v4",
+  "source_candidate_version": "private100-study1matched-candidate-20261025-v1",
+  "database_namespace": "matched100",
+  "source_package": "prolific_study1matched_100_20261025",
+  "selection_spec_sha256": "2a83275ff41d8a54d35332629149d15a084827b7da4d3a1239b6bfd85eee9689",
+  "selection_method": "Historically matched stimulus set, not a probability sample or independent replication.",
+  "template_sha256": "3c54f913319a6dcdba999e03a55d9b4a455503568a9f6e02326d2a6ea8ec82c0",
+  "word_limit": 61,
+  "posts": [
+    {
+      "stimulus_id": "P001",
+      "submission_id": "kwpddr",
+      "prompt_sha256": "078f06922c7b69d1fbeed663105fa52195bf7dc7cb8c433a42750e46d5a61f04",
+      "body_sha256": "7a0e1b3b99a233f474478afbdf5d40a5ead7abf7bc85336f208909a0840e0322",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P002",
+      "submission_id": "18i7ozr",
+      "prompt_sha256": "57f992577373d092a4b845012004f33393bece1247295bbf902c8add471c1a8e",
+      "body_sha256": "1605d7ecfd7efd0ec8f1470f1aefe40714c22229704becb6ac4e33f6058c4b39",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P003",
+      "submission_id": "15xr0t0",
+      "prompt_sha256": "aa9f0a4e29d184b6926eae7c447ca6124056f33aa4dde4846509ee2e9890ffc7",
+      "body_sha256": "fdfe06e2d0c0725801908d0cad0f9f8916c9ce0605323b17e17bf2325790e656",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P004",
+      "submission_id": "lxr5ho",
+      "prompt_sha256": "79619cd01c2128fc9143a31f51fd830f896ca5b57b924bc68d07f89debeaf822",
+      "body_sha256": "35d85d2b342870b40834ebff4bafc3d93709ce12ad9da04161ca35ead6bdccdc",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P005",
+      "submission_id": "1dtnddf",
+      "prompt_sha256": "cc9aaa975d3600a639e593392fa997442ab8354db685af52fb67b1552172ffd2",
+      "body_sha256": "dcd921f7fd37883d98fdd4950e8aa6ea9aa7194bafb86d0070f41593fa5834ed",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P006",
+      "submission_id": "1g6ndfn",
+      "prompt_sha256": "3e4f49c16b923fb68f30def1be8b5e9995779aef717f0c722317a00f12816a04",
+      "body_sha256": "335fb3fa4f3b3f657a974987e19b57d4e4611394e6693e3d4dca109fc59e5281",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P007",
+      "submission_id": "zkewhl",
+      "prompt_sha256": "4464bafefecdb83a0562c898517c393f29cc1782683198538dcd5f6c502d0bbb",
+      "body_sha256": "00bfd90b994766c7b0b174c05fcaee015f7e6c3f8adcfc1cb9617bbafba39dea",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P008",
+      "submission_id": "go7u8k",
+      "prompt_sha256": "0f97fc0bfd453031e088fba1ebcb09f3284b30f5b57f6d8397e59b29f887de0d",
+      "body_sha256": "34289988f160c0abd9614cf7634a1262a6ca38f16f3afdabd7d3af84bf45e0cb",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P009",
+      "submission_id": "npuxdd",
+      "prompt_sha256": "9b4f27c7791c6b76a48f7e469222270829a819826fc0275fe75d72c1190e884c",
+      "body_sha256": "d023adcaf398bc0eadd6cd28e7e021c088bda431a36e254487d83f3a85d60412",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P010",
+      "submission_id": "ufafmx",
+      "prompt_sha256": "6cb638cf4c05ca3116e05ce8bf2cead790ac9e0e15f2a751596bc09757207c8f",
+      "body_sha256": "e457b92282d79decc90c9805a8dff5ae4cecb98deb5fa593c4f93d57070f7e3f",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P011",
+      "submission_id": "ptqxea",
+      "prompt_sha256": "31826cb9f93936c78fdf6fd8c4e043a514cae0f0fb23438cd12858ab24a8e092",
+      "body_sha256": "e66b9af19dcb2fe3537894c8781fa9223829fc7d5df3f0c13c9940e5bfdccb89",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P012",
+      "submission_id": "w32gs1",
+      "prompt_sha256": "59fb8de1ebe2cc31d833dae6a6a39e53bbafff2a70b16e535cc5f0818a057ba0",
+      "body_sha256": "0d1d68296910ab4f0bb510708fc11bb9146ec769d180379cce51620e2589073a",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P013",
+      "submission_id": "re5n23",
+      "prompt_sha256": "adf581ca6a052be177208ae97cf9099264a012bcd398601670ae14282b21dcb1",
+      "body_sha256": "62705f15810839d0dbc7b47bf2de4978aab21748e4d2d01159e71d4bf33b0519",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P014",
+      "submission_id": "oheeim",
+      "prompt_sha256": "ccd8a1adb62dfd37f817a1d4a58e56c48a7855c657cc6d7d1760023a2b5ccb0a",
+      "body_sha256": "6d71394b0796f973d27cd3e1f1aa5cf6a8f4e3419da60108542eac9943c52849",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P015",
+      "submission_id": "f4s1kv",
+      "prompt_sha256": "77f4da06d5e3f6f39f37ee71fff18b74cb6b80a7e89a21f54003c612603a9e29",
+      "body_sha256": "acb30af54bcb2b15148483412f3f06fc05434f1511c04a4ec71311778bee8746",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P016",
+      "submission_id": "15p8o1j",
+      "prompt_sha256": "0c6394e2544d3ab4a7ff741d5cbd3c1d3e4c1aa96d03830fb299a3dec619629c",
+      "body_sha256": "75551329cb9be0350bb1965e5c58c7a5d3c3fd8d9131169405eed2a2d55d24ca",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P017",
+      "submission_id": "10ukzpr",
+      "prompt_sha256": "ad755988f3bd40370d157bcd91c71b968141334c3de8840ed6443c05b5002d2f",
+      "body_sha256": "2296ff16cac8cef4dbbcfdfba6de523c2e27631f7b320cf1b68da69601f06c18",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P018",
+      "submission_id": "1ehrxfr",
+      "prompt_sha256": "083b800e6c57532361d959d4bf7095767da04f4ebe879bc30d67d8dfe175745a",
+      "body_sha256": "3d921510ee5b51a07b1b4bb123f767fc7b425603df0ddcdc8f780bbba7102036",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P019",
+      "submission_id": "16cn4cy",
+      "prompt_sha256": "62e05dc364af9749e4134be9d0d175e4f5fbb5d3fe8dcbffbc89e45ae4cf671d",
+      "body_sha256": "17af7c002786469617433e2e4261d109ab77ed4d571c519c2bb02d14dc286409",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P020",
+      "submission_id": "156vlun",
+      "prompt_sha256": "b4afa29f849dcaaa62e01e7239d3ddb8066412a4d40eb113ce7185406ce5c190",
+      "body_sha256": "f1fa23fa949b97a2ec03938683aaceea7df6b8002731b963e66d44e24cf50563",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P021",
+      "submission_id": "hs2g2e",
+      "prompt_sha256": "2ada6a20dd3251263236b4ad40a405d2e262c723cc1d2c6b408d897d979c3f24",
+      "body_sha256": "ec2edab50e98bd36025f0c11be0d775a324f32c7e583cf46d9ce43daddb42fc0",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P022",
+      "submission_id": "1eafp0i",
+      "prompt_sha256": "4356633c32b7a862ac53eef42cf1d54d7039076dfff505d00dacf83480cb597e",
+      "body_sha256": "0e988621ec6e6fc0a2b3133950e2938b36d940224f25576868d902c4c147ec61",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P023",
+      "submission_id": "12eivy7",
+      "prompt_sha256": "41e8933584dd7c1bb3049c806a027de0b6f38c3f9ee57f8979bf04b1340b2dc5",
+      "body_sha256": "e32c9b8e88c96d837ee87cb9369ad76fee76a04569dd046c67b9fa9bc7ada6f5",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P024",
+      "submission_id": "1i4658l",
+      "prompt_sha256": "189f260dd4d54af67483fd81cb8c7ca5f32944c43a9a9a1bc5741d2a789ad0ee",
+      "body_sha256": "0e329a021a8a72c1cb24a35d4f641c5efbc178e27844a8277339795174508d45",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P025",
+      "submission_id": "vca6z1",
+      "prompt_sha256": "2c39f4b27d3b5ffad72e5770b0497f9e133d0fac8a0472ad20e87bf0eb53177d",
+      "body_sha256": "865a4b40f731d98f33397934f235d6b9777b4ff8774f71ec59e3cb2c4d0e255f",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P026",
+      "submission_id": "y68ihz",
+      "prompt_sha256": "c74dc3b7fc3f49b036f1a96830a31657876a3d44e3d80dca67a2f14352cf46ae",
+      "body_sha256": "bd3dd25723a5fd293798db3257f7a02d4cf0044dabe881d30e5e0faf1d96541e",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P027",
+      "submission_id": "otucse",
+      "prompt_sha256": "c78cc90e75a599398a34f3e7af443b97c271f9765765313345af280fb41d80f9",
+      "body_sha256": "d0f7e4587fdedde6f0b600f57825277a43c50c2ff68cca9113c2ff7bf9ecde6a",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P028",
+      "submission_id": "zvit1x",
+      "prompt_sha256": "21547184bb9ad53e3ed36cd8c90808eaaa8dd613bcd4ab1658362f5df7218ae0",
+      "body_sha256": "804e95b996371c1beeb1bff1579178a6b3cbde217b3e869663fb099a80611796",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P029",
+      "submission_id": "var92b",
+      "prompt_sha256": "ea475cc10edf5cdce8bb5231b78164c00fada820f1fb3001a09998b047348f81",
+      "body_sha256": "3f1fd74ae01ea30094e73b0687f95fe54c523d188d43c636bdbe7630beee5087",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P030",
+      "submission_id": "1bcwtqo",
+      "prompt_sha256": "2e5a228b144fbefaae42c6e28d8972074386d03f8c16664aa04628955d9fb6f8",
+      "body_sha256": "ea039d3c50791e98293992599566c1a356a1ffe3732cca7ee468bd88bdfba0ff",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P031",
+      "submission_id": "u2ime0",
+      "prompt_sha256": "3ecac1c12b71cbbed84a6fe9fe9709103967f3315636a94bae1d432d98b706fa",
+      "body_sha256": "4f97a60d8b098a117224c2214a09840cd4d662bd87dc089ec3931196964a9ce4",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P032",
+      "submission_id": "my9quq",
+      "prompt_sha256": "604577e407f48df48dd00fe96a77d137e0ec56b3584501e4fba0e46e35de22b1",
+      "body_sha256": "8d985fb28612eb2bcabf4e36d66e9f92f277e4684c469e3ff68f8167740b106b",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P033",
+      "submission_id": "euttsz",
+      "prompt_sha256": "4493aa753e830401c155ddf6cd34c6b8878637339c80c8eccf114e6cacf15e77",
+      "body_sha256": "8109a3dd120d23cd7c6a831dd494c6d7a32041c098dda7fedcf361db8e88751e",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P034",
+      "submission_id": "fw2htu",
+      "prompt_sha256": "fef381d65d4311acc2e115d96ea05ddde2b42861ba16aa527fdf4f2616b737a3",
+      "body_sha256": "478e5c0fc5b17c43509742766465c39483a2e8507b5d363c1e81b62cbba6d6ef",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P035",
+      "submission_id": "ye8mp6",
+      "prompt_sha256": "5697496028f53e86b1d872e158515b58e227f5a99a01bb77dfe8bfd8a003b710",
+      "body_sha256": "26af2233b82f6ff9b5313143970652e31d8fdbaf492795d9d40b3c7cdd8ec965",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P036",
+      "submission_id": "g2hyoe",
+      "prompt_sha256": "fb3e52b23461a36259ac4c0751c971583c84bf558f7ad7350407c29fea2486e0",
+      "body_sha256": "298faf536d09ffa4a1a5c44493f74b06401349ff204214a31adbe5aeab0a64d8",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P037",
+      "submission_id": "12zgnif",
+      "prompt_sha256": "8273e224776c3c724fc09dc465b56bed0608fc6b05d48d27a2cb94b2a32518b2",
+      "body_sha256": "0e4c260511b72d6048bd2df708eb6923df7a7c2f9bdde2d52cf8d29064cacdb8",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P038",
+      "submission_id": "inu97u",
+      "prompt_sha256": "8853053f8f42dd97f2cbbe911e25692b377e664ed3242ed088acadfbe2c87063",
+      "body_sha256": "2f5ebbaf990f1bb7b17ae6473effad876c3f615945183dbe28c6482044975668",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P039",
+      "submission_id": "1czsk5w",
+      "prompt_sha256": "20f6ef642e24d53eca3c7a53608976fef0ecd7ff565733c40b380d63769fb1b4",
+      "body_sha256": "54e66ab6f9ae18c9f02f30c4c6a77f7f03bcb96967dfd5b364847f53de07c28a",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P040",
+      "submission_id": "1k4a6ob",
+      "prompt_sha256": "ea2b1b8b01cdd02de9ede94ccbdda04986ce1b8b9b8f0551a1c74ac6d744f328",
+      "body_sha256": "e36ec1e6b56b7a60e098455fde6e7205edd79bd0fe0d897ba753486798a42779",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P041",
+      "submission_id": "k7uuwb",
+      "prompt_sha256": "b19684557da4b2273976c7f641036c6b244ffb18ea37e2d820db1f56e20a0803",
+      "body_sha256": "ff544f2df46c41f620f9c246acf7392a46e687997015b1114f1cbd0bd111fcfe",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P042",
+      "submission_id": "1hc29d8",
+      "prompt_sha256": "b42da62e7fdb26e426c8ecc9a63a485482a61fa47e2f67e95e95b1f285ee099c",
+      "body_sha256": "9030d8ff3120f6978a83851b76414277315deead421a6f47cad404df13e90ac8",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P043",
+      "submission_id": "f6n1b1",
+      "prompt_sha256": "f7648849bb18ea47543adfc3504cf91eacf59506652450a901b4b35009b8a232",
+      "body_sha256": "9b44db6137abaac4944b9cd82bd76f62f7e8e3dc5526339601b1ef14c59c465a",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P044",
+      "submission_id": "emch4u",
+      "prompt_sha256": "d3375693365e4ffc5dac54be1401e06dd93d087803bb2db9dc1752a9ced6a6f0",
+      "body_sha256": "607acec4fd12dd6f635de6d96a57b1b9a7cdc8c5b5285f7a59b7a7e9fdb9d222",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P045",
+      "submission_id": "1d9o2ie",
+      "prompt_sha256": "52dea5de8fd280ebd79a62180d994bc8d8445f187a6b25c831cb5fffafc9511d",
+      "body_sha256": "76915093750187cc77f94b0ee46febaceb7c3bc0175592d959f5a84ce0eb7a96",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P046",
+      "submission_id": "16a1sd1",
+      "prompt_sha256": "a175ee2bf9e4dd4d8a8b65b0a24e8ea5c049ca8de4fc8b3db85848327f75642a",
+      "body_sha256": "2aed00c48ce93f37a2a2acb7382f71e8d225f624f51990657f37935c0476e4db",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P047",
+      "submission_id": "1884xbf",
+      "prompt_sha256": "9694169dc2c08e41ee738b788e311adb7c9509c5c140a1bb12603142a7d29b3a",
+      "body_sha256": "ce669e74abee76f11236ff0fc0322be751881cdb8a28e8bb952e4a079f3542dd",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P048",
+      "submission_id": "1k6749o",
+      "prompt_sha256": "3967b968fecdafa11ca29b5a90a1e642a5186e62acc088e33b68cc0ffdae2f9d",
+      "body_sha256": "367524ef6264eeaab5fa6d437813509ce4d5095f920074c28a1554e2c88dd53d",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P049",
+      "submission_id": "17uj65r",
+      "prompt_sha256": "8950a4fec325ae2b962fcab63cd7f0570507bab2483cc4075f2a6ea8d0d6ce01",
+      "body_sha256": "0fd5c12b2d5d2b8860642f0d237c9151fd9b9fe9b34d550b72ceb2c551cbb739",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P050",
+      "submission_id": "1gbj8i8",
+      "prompt_sha256": "420a65da0fdb44b156e7e0693c372868ac2c6790f443b34cb5b20e0a6728ebf6",
+      "body_sha256": "150a50cbd8ec58d12a06f7f0c6c2331fce8bbc62203aa7e1c225d65cb25a4880",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P051",
+      "submission_id": "1anhrtb",
+      "prompt_sha256": "2bdd335af3f8db85b931e6d2b43eda91c62207d88a2e83e5bf05230fbe26818d",
+      "body_sha256": "705546e19a7e14ad17e69fa55561e52b3a2db13434b7ebd70437a5533b85bbcd",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P052",
+      "submission_id": "x5z3rr",
+      "prompt_sha256": "1fe3a3d6ac10630bca878e89e684a827db1fa0ebe41185af3f5c3dce2b846610",
+      "body_sha256": "3b6b93f7c068680ae0d20cbecf9a49113311ee7c6462f876d9b6f5ffc99eda39",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P053",
+      "submission_id": "15sbold",
+      "prompt_sha256": "ab156d78a0ed8a7746ab41d709053c07830acb72bbb5d63a7aa9f21ca2b5e426",
+      "body_sha256": "8db0d22cb7ebebfef55460ba0476dd0679541c5261fc3b6d1ee8708fbb996dca",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P054",
+      "submission_id": "13mdzxw",
+      "prompt_sha256": "6bf1277d16f2d9e8abb5c8d0b49a258eda65ded95d9c1b23e5f09c570c20b1a2",
+      "body_sha256": "c079e0bd9d9bdc749a0ccd4715b7378552fcf27b599a0e21f4c1347414968d49",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P055",
+      "submission_id": "upn4ht",
+      "prompt_sha256": "77da95c766cca6668cac74f1413bb191444580775797b9d0c8f3e7282d225476",
+      "body_sha256": "07e7bd254d79ed472cf826c8fcab9f88662b25fab35290feac0e0ccea17cc9d7",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P056",
+      "submission_id": "vivygh",
+      "prompt_sha256": "98b6ce9c718967f7e67a1d1b4812b57d577eed4ffd381781de1954aa78bf2995",
+      "body_sha256": "734dff2ecb45806dcc40fa4795e67f0fa0ba3742c47750c1b64050f73ffb4ba0",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P057",
+      "submission_id": "1ititx6",
+      "prompt_sha256": "1eeb7726a553278802e77b19f16f2b7967e9942bdd910711cb6ca9a2688b81c2",
+      "body_sha256": "aa5d7387394642d5e1daed30b0ca48ba83ff24e437f2a921fe2e17f3a327a421",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P058",
+      "submission_id": "g4u5t7",
+      "prompt_sha256": "c492768585990545448e1fe2a2665383dd1b553731dc09c8dd498a84acbc9d14",
+      "body_sha256": "afc504e4c0ba03f8c365065ae2cda3f38181cc55c83dadf7f702e82279aac25b",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P059",
+      "submission_id": "16rbiwm",
+      "prompt_sha256": "254af74bca6a57cd30fecd4cd2cb5cc47a62db81550fea37cc95a86855bf0317",
+      "body_sha256": "4c14e579486b77160f79070a9223565090d4c1aea8877a590628e4848220155f",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P060",
+      "submission_id": "ghfs1j",
+      "prompt_sha256": "048a1859f4e048decc08ab0d48063bed8f2a62b8ce45e6c9378ae0d2efdd0408",
+      "body_sha256": "5d5ee0ca6c33dc3e51e0a18d26089dd66c933f2fd30c9fc0a4c1c4f32f65dff0",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P061",
+      "submission_id": "k5x6ub",
+      "prompt_sha256": "ef63dcc0707ce5b3209c13d237bb4733ac7876fd5289d0262ef6991abcfad78f",
+      "body_sha256": "cc377738942bdb56bcc0ba84d49b33c18360ea566e75eef315c0bef6c79e37cb",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P062",
+      "submission_id": "kqf3ro",
+      "prompt_sha256": "f0daf543661cadd3a2b28c6c8c59e97ba501522d690deb323a02d4d6d90d61e6",
+      "body_sha256": "c8d568e4abade37bcb9c98adceb7e1a1bdafb2d71e15fee1797c58abc979d2f2",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P063",
+      "submission_id": "rgaowv",
+      "prompt_sha256": "2488812e9238c4b7ef757db7fff4921776768a59a5f28c53b824a4dc42a33cd7",
+      "body_sha256": "95853fc53f0c6ca4b1231516d562d3470299bebdb83c8951bb4eaf9c3cee3b93",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P064",
+      "submission_id": "157n0o2",
+      "prompt_sha256": "8c2fe33d86552527b6815ccf6ad2d56d4b7867125e8c099ebc509b7794ad69c6",
+      "body_sha256": "a4896a877e1a737ddc873cc09fd8d4e0ec4daf2856ce9d78768e402f4d2b47ac",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P065",
+      "submission_id": "xyy8zd",
+      "prompt_sha256": "20954f1a284b4191fd2dd09d387fa16f2b889ef640555418d70bb3e6d4d669f0",
+      "body_sha256": "d443d160b784c7323ea9a168839a1e731df49db468ee105140168d986ce683f0",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P066",
+      "submission_id": "nj91d3",
+      "prompt_sha256": "f6a260ebf6cf4728f557650dc622ad716b61ed3e1d58a52c24a9b56a7d8b98e6",
+      "body_sha256": "80564b5a63acd36887f9c27b904798d48198c216f38a3381d1dc65d2f2871e85",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P067",
+      "submission_id": "y2ghqw",
+      "prompt_sha256": "c2953872413df9687894cc5b6aa07da473adbeecd11527bb80e8bbfb725d776e",
+      "body_sha256": "dade5a2fa948c929efd24b891c94fbc02698ab14cdb1fbdfd770bbd6cc02e8a6",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P068",
+      "submission_id": "1ekz9un",
+      "prompt_sha256": "25bc0fe29df2458fca3a5e2a28996135b154354001d07c29deec8a1ec374e987",
+      "body_sha256": "b6be12475b11a34cac3bc968c6fc027add58626c2759c65848895ad47a37ec55",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P069",
+      "submission_id": "z2qr00",
+      "prompt_sha256": "0a8bd87a6b26b377e87cecf3a6e4d50d62a34d7179374f9b799855462acc64eb",
+      "body_sha256": "5637e5451c6d8c7195c6151cd42b50eeb72b007a5991b67444f705f273e5aab6",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P070",
+      "submission_id": "1l0r032",
+      "prompt_sha256": "585c534fe4bef9776f6f8e56101d7a3b9a1a9713ed1b12e8dcb3827d20c15f65",
+      "body_sha256": "56edea7e1605fe094ca477c7b1e88e3c450dd92d606047059176b2c4d4b59512",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P071",
+      "submission_id": "ozvkfe",
+      "prompt_sha256": "2c1ded37f13c6c9b3e3792d60dc396d786bba0310be09a25c86634838510d32a",
+      "body_sha256": "e03330d8cfffd8d589cd13a6ce768aa23d3c240fbe0472942c0be1e790b883f5",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P072",
+      "submission_id": "18ambm6",
+      "prompt_sha256": "9294c106d4de41727f844220d24bc0948de6918d68f5202f8848431f0fca328e",
+      "body_sha256": "e3834636b8ee20a66b8660209a76feed8732d4614fd619b2bca10697233e5d60",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P073",
+      "submission_id": "g8tpaz",
+      "prompt_sha256": "d4a4e9df2c11ed0c300aeb5e1f56b2a2ff666e91e253070f8acb48586d509927",
+      "body_sha256": "5b30def54ccd4c2eb3b04a1add9b5d1a5c4961909302abba3ad621bae8c3cee1",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P074",
+      "submission_id": "spsoup",
+      "prompt_sha256": "9396bff22c5d2e08c2a1d1ce5037277cd0b0d42eae16a8c39759cb583bcb1878",
+      "body_sha256": "65307c7a6b6318cd6e04df3622fd69fbc888db9705a94624e26e78386e26ec9b",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P075",
+      "submission_id": "1f5nue9",
+      "prompt_sha256": "476cb18bc2ced3b6b1faca271831c82b91c300dc756ad34dbb5a450973feea4d",
+      "body_sha256": "0882bb407042e8882849f777fe41e4d16c5244c7a18f67e183494cb4e310a786",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P076",
+      "submission_id": "ght2rr",
+      "prompt_sha256": "36321adfd8ef17bd5fa87824bffc9823b1cf15b7fe14f46080885ae3ba93f3de",
+      "body_sha256": "485e665168163c81c779b63a743716c2ea4f677a007bea2d0ad109d5aaaca4ab",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P077",
+      "submission_id": "kqnb7g",
+      "prompt_sha256": "413bd676380c227e9a8652475ae9e63f063c945d0722dbfa8e0de759bc46a71a",
+      "body_sha256": "8a24a1db1f8b75185d53602a532130d08148a20051d718fb6b32b0ced5cf8ede",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P078",
+      "submission_id": "f9c5ig",
+      "prompt_sha256": "0b20c534076d3cee9413415bfceeb09c145a2afe19a4ab301590495fffd6611b",
+      "body_sha256": "6e0ae1055499caae81ef959109db12d3a8bb530271fd9c1e38ca83bed296610e",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P079",
+      "submission_id": "iywr5a",
+      "prompt_sha256": "584162feef2f2d48d09940845f538808049d51c8efc79c17bb3b06dfb5c5ccb6",
+      "body_sha256": "bff25dd7cf85e69e977173cfffe294e53ececeb50b7304434a3937157efdb4bb",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P080",
+      "submission_id": "r2t157",
+      "prompt_sha256": "9dce99e4bfb9cffd5965a220ff67f19709f724a266a62fda373a6f39bcd61895",
+      "body_sha256": "0ee60a6eabe7bf7e2faa3bdeaaa59d874e9a725c5b50c901c755988594646e2a",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P081",
+      "submission_id": "zf3v7b",
+      "prompt_sha256": "bd4705543a567fca901cee9aa9f9f4a43f970c5ffa51ddf71603f1eb5cfd22d5",
+      "body_sha256": "d3b269e9a268cb33226e1955d2c892f7ff5fbb81cdd4e86853f8e1c03b7f67a5",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P082",
+      "submission_id": "14c6rfw",
+      "prompt_sha256": "cef18d4046d03ff48058235424af81cb99dabb4e2bfc24491a0639db1002baa9",
+      "body_sha256": "4a78b34545e1f935851c35291a58c222083e9288220dd96486c0e0fee76e9a0b",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P083",
+      "submission_id": "ovuiv6",
+      "prompt_sha256": "e57d3f983e13c6d1096f28911c03b519c03ee49e68364ac265e7a10079c5d6de",
+      "body_sha256": "f1d371f169a1ecc2c7aae6f40acf4bee7714aeb02c4f8c240d208c4422616e26",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P084",
+      "submission_id": "16vb87j",
+      "prompt_sha256": "d140fd540bb00da9fbe69e3261ac2698bbf6d3abe4ebe808fab6ff84470ddba9",
+      "body_sha256": "c849ddbeb1ca053a92e0d914699331a1a59ef3f2f607ff4e1844f107639ccf4f",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P085",
+      "submission_id": "nop1bs",
+      "prompt_sha256": "5d386beb5dc5b92529f003d96ad880a812c9418d98ae79fc09bdfd5c195f4347",
+      "body_sha256": "a62697ce3ecc693e9c2ad5714175e08b24a81d2d9ca7f70f33b9b797e9f6483f",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P086",
+      "submission_id": "yallza",
+      "prompt_sha256": "f21dd4cd0ede759e9f480c948787225363ec362f554b19697819cbb3ec1e9a32",
+      "body_sha256": "59f2219b1fec2327880c837e185c317abfcc70f8a680600cd4dfbad9b9f8dc06",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P087",
+      "submission_id": "1d7mb89",
+      "prompt_sha256": "3ab93a31376da1dbf0f0c2a0c12048c7ff01bc2ca4ec3b36754569eb563318a6",
+      "body_sha256": "431d18d87f1df522b4ec3d7db34872cd03a9d8db08f07d8ec0f1596807f428d7",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P088",
+      "submission_id": "117itt5",
+      "prompt_sha256": "212a611e3cd9f79688a6f76555d7aca37f6a8c1713dcfa252ca296c9dadf405d",
+      "body_sha256": "b6e09ec01a62f4f427d8c97de557849998a2c08e71a4528912eef75f9de7ab46",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P089",
+      "submission_id": "1c57zbi",
+      "prompt_sha256": "2678084bd59ad231c026a08d5d44431af0492fa93cb74e3214fa1f52a8439216",
+      "body_sha256": "fe5b44776647296231135e9f274113d512ecdf7045fe2fb903ebf806d5ef17e5",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P090",
+      "submission_id": "1d3rzl7",
+      "prompt_sha256": "9a412b8410dc71a96a67ef4799e794059beee4948a53dcba1644855175586177",
+      "body_sha256": "d9c753b2b91bb9a119cac3b54861f53540e4e52255de667d60828400256364f1",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P091",
+      "submission_id": "rtxvog",
+      "prompt_sha256": "3a60530f418240bf6b1650ac259942f992114ed3fde18c021e4c685ea0cd8531",
+      "body_sha256": "925f177c904cf745e892cebff8bb0ee08462da0c486b803a7522a043028cd213",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P092",
+      "submission_id": "ga4c3v",
+      "prompt_sha256": "1c79f83a3e7df4aa34efd8bf8058a06aab1489a42fa557187aa9ff25e8b38f6d",
+      "body_sha256": "19143bc8706b48660f2af6ef776a595f34c5a642d41f43bca2d9ef5168b209fc",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P093",
+      "submission_id": "13ma0r8",
+      "prompt_sha256": "cc55a0f73bfc8018f536d7feefe2f8b554b384d38585f3325b530da57a13728d",
+      "body_sha256": "f0be3d37a90737d09d1b1258c0869edf84bacdde90eb9f418af7afd380230609",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P094",
+      "submission_id": "ltni3p",
+      "prompt_sha256": "6db663d6599fbe97efe7165f03e53c82f8571beb61f5f8efd16bbab33a84ea76",
+      "body_sha256": "34009406268f74d95df58a9080c8ed410d1d26758c97958702146389d8da5d33",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P095",
+      "submission_id": "w9ug1r",
+      "prompt_sha256": "e243245e2d7038caf3dc435ad3e624321e2c0e97214fdbbbc7817822dbdc14d0",
+      "body_sha256": "bcbc2e18eb983d3042ba8bd5a28bdfbf234084a70196ffed90a14743c0902779",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P096",
+      "submission_id": "ivo3bb",
+      "prompt_sha256": "bd28dc761517712c4318f8119980ba0aa477ba280b6c8109874a7856d603d767",
+      "body_sha256": "9157d8e70037a355eddb25e171cd35e3b79042b789ea8e0781ca4d9c57d63531",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P097",
+      "submission_id": "126u3no",
+      "prompt_sha256": "6f45dc4d05276c36d2b5cc9e77e08e6a49c4b4365e00f64166a3c6f5028e8455",
+      "body_sha256": "a9ccd9055317a7bc3ec26205a3600d8816011f692fd06e50d0219716c16024a1",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P098",
+      "submission_id": "10pbrjt",
+      "prompt_sha256": "10cfb08c4d7b60e55528c51308ef5cd12c227743828de2e2a7d445cdebfbe3a4",
+      "body_sha256": "371ac2957f56d687bdbb18a300825e4967143a7a6b77ec2e3784c98da2fa99ce",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P099",
+      "submission_id": "qfe7tp",
+      "prompt_sha256": "a2b2b094d3d1bb940b9c9a6d5bad4a4bf8a9c81c4a20a4641f7a90e691da3f02",
+      "body_sha256": "d9f6567dcf37cab137636d77258aaa960a3d214efd14b19b63ad4c29c378c717",
+      "word_limit": 61
+    },
+    {
+      "stimulus_id": "P100",
+      "submission_id": "jiuksd",
+      "prompt_sha256": "f140729485d90aac8ba7308d5c0ae9fd8b7b76b077bcc13c42fe286ebe8b193a",
+      "body_sha256": "587120eec2a375cf3c00fa1b87db517011666ee2c047b268f27d00c5955fdbcd",
+      "word_limit": 61
+    }
+  ],
+  "plan": [
+    {
+      "slot_id": "S001",
+      "position": 1,
+      "stimulus_id": "P021"
+    },
+    {
+      "slot_id": "S001",
+      "position": 2,
+      "stimulus_id": "P013"
+    },
+    {
+      "slot_id": "S001",
+      "position": 3,
+      "stimulus_id": "P019"
+    },
+    {
+      "slot_id": "S002",
+      "position": 1,
+      "stimulus_id": "P068"
+    },
+    {
+      "slot_id": "S002",
+      "position": 2,
+      "stimulus_id": "P041"
+    },
+    {
+      "slot_id": "S002",
+      "position": 3,
+      "stimulus_id": "P037"
+    },
+    {
+      "slot_id": "S003",
+      "position": 1,
+      "stimulus_id": "P097"
+    },
+    {
+      "slot_id": "S003",
+      "position": 2,
+      "stimulus_id": "P023"
+    },
+    {
+      "slot_id": "S003",
+      "position": 3,
+      "stimulus_id": "P087"
+    },
+    {
+      "slot_id": "S004",
+      "position": 1,
+      "stimulus_id": "P072"
+    },
+    {
+      "slot_id": "S004",
+      "position": 2,
+      "stimulus_id": "P077"
+    },
+    {
+      "slot_id": "S004",
+      "position": 3,
+      "stimulus_id": "P092"
+    },
+    {
+      "slot_id": "S005",
+      "position": 1,
+      "stimulus_id": "P062"
+    },
+    {
+      "slot_id": "S005",
+      "position": 2,
+      "stimulus_id": "P064"
+    },
+    {
+      "slot_id": "S005",
+      "position": 3,
+      "stimulus_id": "P017"
+    },
+    {
+      "slot_id": "S006",
+      "position": 1,
+      "stimulus_id": "P001"
+    },
+    {
+      "slot_id": "S006",
+      "position": 2,
+      "stimulus_id": "P074"
+    },
+    {
+      "slot_id": "S006",
+      "position": 3,
+      "stimulus_id": "P063"
+    },
+    {
+      "slot_id": "S007",
+      "position": 1,
+      "stimulus_id": "P038"
+    },
+    {
+      "slot_id": "S007",
+      "position": 2,
+      "stimulus_id": "P054"
+    },
+    {
+      "slot_id": "S007",
+      "position": 3,
+      "stimulus_id": "P065"
+    },
+    {
+      "slot_id": "S008",
+      "position": 1,
+      "stimulus_id": "P070"
+    },
+    {
+      "slot_id": "S008",
+      "position": 2,
+      "stimulus_id": "P072"
+    },
+    {
+      "slot_id": "S008",
+      "position": 3,
+      "stimulus_id": "P005"
+    },
+    {
+      "slot_id": "S009",
+      "position": 1,
+      "stimulus_id": "P043"
+    },
+    {
+      "slot_id": "S009",
+      "position": 2,
+      "stimulus_id": "P095"
+    },
+    {
+      "slot_id": "S009",
+      "position": 3,
+      "stimulus_id": "P064"
+    },
+    {
+      "slot_id": "S010",
+      "position": 1,
+      "stimulus_id": "P071"
+    },
+    {
+      "slot_id": "S010",
+      "position": 2,
+      "stimulus_id": "P006"
+    },
+    {
+      "slot_id": "S010",
+      "position": 3,
+      "stimulus_id": "P042"
+    },
+    {
+      "slot_id": "S011",
+      "position": 1,
+      "stimulus_id": "P090"
+    },
+    {
+      "slot_id": "S011",
+      "position": 2,
+      "stimulus_id": "P042"
+    },
+    {
+      "slot_id": "S011",
+      "position": 3,
+      "stimulus_id": "P078"
+    },
+    {
+      "slot_id": "S012",
+      "position": 1,
+      "stimulus_id": "P098"
+    },
+    {
+      "slot_id": "S012",
+      "position": 2,
+      "stimulus_id": "P047"
+    },
+    {
+      "slot_id": "S012",
+      "position": 3,
+      "stimulus_id": "P076"
+    },
+    {
+      "slot_id": "S013",
+      "position": 1,
+      "stimulus_id": "P075"
+    },
+    {
+      "slot_id": "S013",
+      "position": 2,
+      "stimulus_id": "P097"
+    },
+    {
+      "slot_id": "S013",
+      "position": 3,
+      "stimulus_id": "P056"
+    },
+    {
+      "slot_id": "S014",
+      "position": 1,
+      "stimulus_id": "P052"
+    },
+    {
+      "slot_id": "S014",
+      "position": 2,
+      "stimulus_id": "P089"
+    },
+    {
+      "slot_id": "S014",
+      "position": 3,
+      "stimulus_id": "P100"
+    },
+    {
+      "slot_id": "S015",
+      "position": 1,
+      "stimulus_id": "P031"
+    },
+    {
+      "slot_id": "S015",
+      "position": 2,
+      "stimulus_id": "P035"
+    },
+    {
+      "slot_id": "S015",
+      "position": 3,
+      "stimulus_id": "P030"
+    },
+    {
+      "slot_id": "S016",
+      "position": 1,
+      "stimulus_id": "P045"
+    },
+    {
+      "slot_id": "S016",
+      "position": 2,
+      "stimulus_id": "P084"
+    },
+    {
+      "slot_id": "S016",
+      "position": 3,
+      "stimulus_id": "P049"
+    },
+    {
+      "slot_id": "S017",
+      "position": 1,
+      "stimulus_id": "P091"
+    },
+    {
+      "slot_id": "S017",
+      "position": 2,
+      "stimulus_id": "P039"
+    },
+    {
+      "slot_id": "S017",
+      "position": 3,
+      "stimulus_id": "P093"
+    },
+    {
+      "slot_id": "S018",
+      "position": 1,
+      "stimulus_id": "P057"
+    },
+    {
+      "slot_id": "S018",
+      "position": 2,
+      "stimulus_id": "P099"
+    },
+    {
+      "slot_id": "S018",
+      "position": 3,
+      "stimulus_id": "P047"
+    },
+    {
+      "slot_id": "S019",
+      "position": 1,
+      "stimulus_id": "P077"
+    },
+    {
+      "slot_id": "S019",
+      "position": 2,
+      "stimulus_id": "P005"
+    },
+    {
+      "slot_id": "S019",
+      "position": 3,
+      "stimulus_id": "P088"
+    },
+    {
+      "slot_id": "S020",
+      "position": 1,
+      "stimulus_id": "P074"
+    },
+    {
+      "slot_id": "S020",
+      "position": 2,
+      "stimulus_id": "P027"
+    },
+    {
+      "slot_id": "S020",
+      "position": 3,
+      "stimulus_id": "P058"
+    },
+    {
+      "slot_id": "S021",
+      "position": 1,
+      "stimulus_id": "P088"
+    },
+    {
+      "slot_id": "S021",
+      "position": 2,
+      "stimulus_id": "P057"
+    },
+    {
+      "slot_id": "S021",
+      "position": 3,
+      "stimulus_id": "P098"
+    },
+    {
+      "slot_id": "S022",
+      "position": 1,
+      "stimulus_id": "P061"
+    },
+    {
+      "slot_id": "S022",
+      "position": 2,
+      "stimulus_id": "P075"
+    },
+    {
+      "slot_id": "S022",
+      "position": 3,
+      "stimulus_id": "P023"
+    },
+    {
+      "slot_id": "S023",
+      "position": 1,
+      "stimulus_id": "P100"
+    },
+    {
+      "slot_id": "S023",
+      "position": 2,
+      "stimulus_id": "P001"
+    },
+    {
+      "slot_id": "S023",
+      "position": 3,
+      "stimulus_id": "P027"
+    },
+    {
+      "slot_id": "S024",
+      "position": 1,
+      "stimulus_id": "P051"
+    },
+    {
+      "slot_id": "S024",
+      "position": 2,
+      "stimulus_id": "P078"
+    },
+    {
+      "slot_id": "S024",
+      "position": 3,
+      "stimulus_id": "P067"
+    },
+    {
+      "slot_id": "S025",
+      "position": 1,
+      "stimulus_id": "P006"
+    },
+    {
+      "slot_id": "S025",
+      "position": 2,
+      "stimulus_id": "P090"
+    },
+    {
+      "slot_id": "S025",
+      "position": 3,
+      "stimulus_id": "P051"
+    },
+    {
+      "slot_id": "S026",
+      "position": 1,
+      "stimulus_id": "P022"
+    },
+    {
+      "slot_id": "S026",
+      "position": 2,
+      "stimulus_id": "P059"
+    },
+    {
+      "slot_id": "S026",
+      "position": 3,
+      "stimulus_id": "P039"
+    },
+    {
+      "slot_id": "S027",
+      "position": 1,
+      "stimulus_id": "P041"
+    },
+    {
+      "slot_id": "S027",
+      "position": 2,
+      "stimulus_id": "P083"
+    },
+    {
+      "slot_id": "S027",
+      "position": 3,
+      "stimulus_id": "P070"
+    },
+    {
+      "slot_id": "S028",
+      "position": 1,
+      "stimulus_id": "P064"
+    },
+    {
+      "slot_id": "S028",
+      "position": 2,
+      "stimulus_id": "P069"
+    },
+    {
+      "slot_id": "S028",
+      "position": 3,
+      "stimulus_id": "P028"
+    },
+    {
+      "slot_id": "S029",
+      "position": 1,
+      "stimulus_id": "P004"
+    },
+    {
+      "slot_id": "S029",
+      "position": 2,
+      "stimulus_id": "P022"
+    },
+    {
+      "slot_id": "S029",
+      "position": 3,
+      "stimulus_id": "P091"
+    },
+    {
+      "slot_id": "S030",
+      "position": 1,
+      "stimulus_id": "P025"
+    },
+    {
+      "slot_id": "S030",
+      "position": 2,
+      "stimulus_id": "P018"
+    },
+    {
+      "slot_id": "S030",
+      "position": 3,
+      "stimulus_id": "P015"
+    },
+    {
+      "slot_id": "S031",
+      "position": 1,
+      "stimulus_id": "P008"
+    },
+    {
+      "slot_id": "S031",
+      "position": 2,
+      "stimulus_id": "P011"
+    },
+    {
+      "slot_id": "S031",
+      "position": 3,
+      "stimulus_id": "P095"
+    },
+    {
+      "slot_id": "S032",
+      "position": 1,
+      "stimulus_id": "P040"
+    },
+    {
+      "slot_id": "S032",
+      "position": 2,
+      "stimulus_id": "P093"
+    },
+    {
+      "slot_id": "S032",
+      "position": 3,
+      "stimulus_id": "P007"
+    },
+    {
+      "slot_id": "S033",
+      "position": 1,
+      "stimulus_id": "P093"
+    },
+    {
+      "slot_id": "S033",
+      "position": 2,
+      "stimulus_id": "P094"
+    },
+    {
+      "slot_id": "S033",
+      "position": 3,
+      "stimulus_id": "P055"
+    },
+    {
+      "slot_id": "S034",
+      "position": 1,
+      "stimulus_id": "P065"
+    },
+    {
+      "slot_id": "S034",
+      "position": 2,
+      "stimulus_id": "P004"
+    },
+    {
+      "slot_id": "S034",
+      "position": 3,
+      "stimulus_id": "P059"
+    },
+    {
+      "slot_id": "S035",
+      "position": 1,
+      "stimulus_id": "P094"
+    },
+    {
+      "slot_id": "S035",
+      "position": 2,
+      "stimulus_id": "P007"
+    },
+    {
+      "slot_id": "S035",
+      "position": 3,
+      "stimulus_id": "P061"
+    },
+    {
+      "slot_id": "S036",
+      "position": 1,
+      "stimulus_id": "P033"
+    },
+    {
+      "slot_id": "S036",
+      "position": 2,
+      "stimulus_id": "P082"
+    },
+    {
+      "slot_id": "S036",
+      "position": 3,
+      "stimulus_id": "P014"
+    },
+    {
+      "slot_id": "S037",
+      "position": 1,
+      "stimulus_id": "P080"
+    },
+    {
+      "slot_id": "S037",
+      "position": 2,
+      "stimulus_id": "P009"
+    },
+    {
+      "slot_id": "S037",
+      "position": 3,
+      "stimulus_id": "P035"
+    },
+    {
+      "slot_id": "S038",
+      "position": 1,
+      "stimulus_id": "P050"
+    },
+    {
+      "slot_id": "S038",
+      "position": 2,
+      "stimulus_id": "P019"
+    },
+    {
+      "slot_id": "S038",
+      "position": 3,
+      "stimulus_id": "P011"
+    },
+    {
+      "slot_id": "S039",
+      "position": 1,
+      "stimulus_id": "P073"
+    },
+    {
+      "slot_id": "S039",
+      "position": 2,
+      "stimulus_id": "P014"
+    },
+    {
+      "slot_id": "S039",
+      "position": 3,
+      "stimulus_id": "P009"
+    },
+    {
+      "slot_id": "S040",
+      "position": 1,
+      "stimulus_id": "P081"
+    },
+    {
+      "slot_id": "S040",
+      "position": 2,
+      "stimulus_id": "P021"
+    },
+    {
+      "slot_id": "S040",
+      "position": 3,
+      "stimulus_id": "P050"
+    },
+    {
+      "slot_id": "S041",
+      "position": 1,
+      "stimulus_id": "P078"
+    },
+    {
+      "slot_id": "S041",
+      "position": 2,
+      "stimulus_id": "P048"
+    },
+    {
+      "slot_id": "S041",
+      "position": 3,
+      "stimulus_id": "P025"
+    },
+    {
+      "slot_id": "S042",
+      "position": 1,
+      "stimulus_id": "P030"
+    },
+    {
+      "slot_id": "S042",
+      "position": 2,
+      "stimulus_id": "P045"
+    },
+    {
+      "slot_id": "S042",
+      "position": 3,
+      "stimulus_id": "P026"
+    },
+    {
+      "slot_id": "S043",
+      "position": 1,
+      "stimulus_id": "P095"
+    },
+    {
+      "slot_id": "S043",
+      "position": 2,
+      "stimulus_id": "P062"
+    },
+    {
+      "slot_id": "S043",
+      "position": 3,
+      "stimulus_id": "P069"
+    },
+    {
+      "slot_id": "S044",
+      "position": 1,
+      "stimulus_id": "P099"
+    },
+    {
+      "slot_id": "S044",
+      "position": 2,
+      "stimulus_id": "P098"
+    },
+    {
+      "slot_id": "S044",
+      "position": 3,
+      "stimulus_id": "P046"
+    },
+    {
+      "slot_id": "S045",
+      "position": 1,
+      "stimulus_id": "P096"
+    },
+    {
+      "slot_id": "S045",
+      "position": 2,
+      "stimulus_id": "P030"
+    },
+    {
+      "slot_id": "S045",
+      "position": 3,
+      "stimulus_id": "P084"
+    },
+    {
+      "slot_id": "S046",
+      "position": 1,
+      "stimulus_id": "P058"
+    },
+    {
+      "slot_id": "S046",
+      "position": 2,
+      "stimulus_id": "P081"
+    },
+    {
+      "slot_id": "S046",
+      "position": 3,
+      "stimulus_id": "P013"
+    },
+    {
+      "slot_id": "S047",
+      "position": 1,
+      "stimulus_id": "P002"
+    },
+    {
+      "slot_id": "S047",
+      "position": 2,
+      "stimulus_id": "P024"
+    },
+    {
+      "slot_id": "S047",
+      "position": 3,
+      "stimulus_id": "P053"
+    },
+    {
+      "slot_id": "S048",
+      "position": 1,
+      "stimulus_id": "P049"
+    },
+    {
+      "slot_id": "S048",
+      "position": 2,
+      "stimulus_id": "P066"
+    },
+    {
+      "slot_id": "S048",
+      "position": 3,
+      "stimulus_id": "P041"
+    },
+    {
+      "slot_id": "S049",
+      "position": 1,
+      "stimulus_id": "P063"
+    },
+    {
+      "slot_id": "S049",
+      "position": 2,
+      "stimulus_id": "P058"
+    },
+    {
+      "slot_id": "S049",
+      "position": 3,
+      "stimulus_id": "P021"
+    },
+    {
+      "slot_id": "S050",
+      "position": 1,
+      "stimulus_id": "P016"
+    },
+    {
+      "slot_id": "S050",
+      "position": 2,
+      "stimulus_id": "P100"
+    },
+    {
+      "slot_id": "S050",
+      "position": 3,
+      "stimulus_id": "P074"
+    },
+    {
+      "slot_id": "S051",
+      "position": 1,
+      "stimulus_id": "P048"
+    },
+    {
+      "slot_id": "S051",
+      "position": 2,
+      "stimulus_id": "P067"
+    },
+    {
+      "slot_id": "S051",
+      "position": 3,
+      "stimulus_id": "P018"
+    },
+    {
+      "slot_id": "S052",
+      "position": 1,
+      "stimulus_id": "P056"
+    },
+    {
+      "slot_id": "S052",
+      "position": 2,
+      "stimulus_id": "P087"
+    },
+    {
+      "slot_id": "S052",
+      "position": 3,
+      "stimulus_id": "P079"
+    },
+    {
+      "slot_id": "S053",
+      "position": 1,
+      "stimulus_id": "P035"
+    },
+    {
+      "slot_id": "S053",
+      "position": 2,
+      "stimulus_id": "P096"
+    },
+    {
+      "slot_id": "S053",
+      "position": 3,
+      "stimulus_id": "P045"
+    },
+    {
+      "slot_id": "S054",
+      "position": 1,
+      "stimulus_id": "P076"
+    },
+    {
+      "slot_id": "S054",
+      "position": 2,
+      "stimulus_id": "P029"
+    },
+    {
+      "slot_id": "S054",
+      "position": 3,
+      "stimulus_id": "P002"
+    },
+    {
+      "slot_id": "S055",
+      "position": 1,
+      "stimulus_id": "P019"
+    },
+    {
+      "slot_id": "S055",
+      "position": 2,
+      "stimulus_id": "P008"
+    },
+    {
+      "slot_id": "S055",
+      "position": 3,
+      "stimulus_id": "P043"
+    },
+    {
+      "slot_id": "S056",
+      "position": 1,
+      "stimulus_id": "P009"
+    },
+    {
+      "slot_id": "S056",
+      "position": 2,
+      "stimulus_id": "P031"
+    },
+    {
+      "slot_id": "S056",
+      "position": 3,
+      "stimulus_id": "P096"
+    },
+    {
+      "slot_id": "S057",
+      "position": 1,
+      "stimulus_id": "P015"
+    },
+    {
+      "slot_id": "S057",
+      "position": 2,
+      "stimulus_id": "P033"
+    },
+    {
+      "slot_id": "S057",
+      "position": 3,
+      "stimulus_id": "P073"
+    },
+    {
+      "slot_id": "S058",
+      "position": 1,
+      "stimulus_id": "P059"
+    },
+    {
+      "slot_id": "S058",
+      "position": 2,
+      "stimulus_id": "P091"
+    },
+    {
+      "slot_id": "S058",
+      "position": 3,
+      "stimulus_id": "P040"
+    },
+    {
+      "slot_id": "S059",
+      "position": 1,
+      "stimulus_id": "P007"
+    },
+    {
+      "slot_id": "S059",
+      "position": 2,
+      "stimulus_id": "P055"
+    },
+    {
+      "slot_id": "S059",
+      "position": 3,
+      "stimulus_id": "P075"
+    },
+    {
+      "slot_id": "S060",
+      "position": 1,
+      "stimulus_id": "P054"
+    },
+    {
+      "slot_id": "S060",
+      "position": 2,
+      "stimulus_id": "P003"
+    },
+    {
+      "slot_id": "S060",
+      "position": 3,
+      "stimulus_id": "P004"
+    },
+    {
+      "slot_id": "S061",
+      "position": 1,
+      "stimulus_id": "P044"
+    },
+    {
+      "slot_id": "S061",
+      "position": 2,
+      "stimulus_id": "P015"
+    },
+    {
+      "slot_id": "S061",
+      "position": 3,
+      "stimulus_id": "P082"
+    },
+    {
+      "slot_id": "S062",
+      "position": 1,
+      "stimulus_id": "P066"
+    },
+    {
+      "slot_id": "S062",
+      "position": 2,
+      "stimulus_id": "P068"
+    },
+    {
+      "slot_id": "S062",
+      "position": 3,
+      "stimulus_id": "P083"
+    },
+    {
+      "slot_id": "S063",
+      "position": 1,
+      "stimulus_id": "P029"
+    },
+    {
+      "slot_id": "S063",
+      "position": 2,
+      "stimulus_id": "P036"
+    },
+    {
+      "slot_id": "S063",
+      "position": 3,
+      "stimulus_id": "P024"
+    },
+    {
+      "slot_id": "S064",
+      "position": 1,
+      "stimulus_id": "P034"
+    },
+    {
+      "slot_id": "S064",
+      "position": 2,
+      "stimulus_id": "P052"
+    },
+    {
+      "slot_id": "S064",
+      "position": 3,
+      "stimulus_id": "P016"
+    },
+    {
+      "slot_id": "S065",
+      "position": 1,
+      "stimulus_id": "P042"
+    },
+    {
+      "slot_id": "S065",
+      "position": 2,
+      "stimulus_id": "P051"
+    },
+    {
+      "slot_id": "S065",
+      "position": 3,
+      "stimulus_id": "P048"
+    },
+    {
+      "slot_id": "S066",
+      "position": 1,
+      "stimulus_id": "P027"
+    },
+    {
+      "slot_id": "S066",
+      "position": 2,
+      "stimulus_id": "P063"
+    },
+    {
+      "slot_id": "S066",
+      "position": 3,
+      "stimulus_id": "P081"
+    },
+    {
+      "slot_id": "S067",
+      "position": 1,
+      "stimulus_id": "P055"
+    },
+    {
+      "slot_id": "S067",
+      "position": 2,
+      "stimulus_id": "P061"
+    },
+    {
+      "slot_id": "S067",
+      "position": 3,
+      "stimulus_id": "P097"
+    },
+    {
+      "slot_id": "S068",
+      "position": 1,
+      "stimulus_id": "P028"
+    },
+    {
+      "slot_id": "S068",
+      "position": 2,
+      "stimulus_id": "P010"
+    },
+    {
+      "slot_id": "S068",
+      "position": 3,
+      "stimulus_id": "P006"
+    },
+    {
+      "slot_id": "S069",
+      "position": 1,
+      "stimulus_id": "P036"
+    },
+    {
+      "slot_id": "S069",
+      "position": 2,
+      "stimulus_id": "P002"
+    },
+    {
+      "slot_id": "S069",
+      "position": 3,
+      "stimulus_id": "P060"
+    },
+    {
+      "slot_id": "S070",
+      "position": 1,
+      "stimulus_id": "P005"
+    },
+    {
+      "slot_id": "S070",
+      "position": 2,
+      "stimulus_id": "P092"
+    },
+    {
+      "slot_id": "S070",
+      "position": 3,
+      "stimulus_id": "P057"
+    },
+    {
+      "slot_id": "S071",
+      "position": 1,
+      "stimulus_id": "P060"
+    },
+    {
+      "slot_id": "S071",
+      "position": 2,
+      "stimulus_id": "P053"
+    },
+    {
+      "slot_id": "S071",
+      "position": 3,
+      "stimulus_id": "P038"
+    },
+    {
+      "slot_id": "S072",
+      "position": 1,
+      "stimulus_id": "P053"
+    },
+    {
+      "slot_id": "S072",
+      "position": 2,
+      "stimulus_id": "P020"
+    },
+    {
+      "slot_id": "S072",
+      "position": 3,
+      "stimulus_id": "P054"
+    },
+    {
+      "slot_id": "S073",
+      "position": 1,
+      "stimulus_id": "P083"
+    },
+    {
+      "slot_id": "S073",
+      "position": 2,
+      "stimulus_id": "P037"
+    },
+    {
+      "slot_id": "S073",
+      "position": 3,
+      "stimulus_id": "P072"
+    },
+    {
+      "slot_id": "S074",
+      "position": 1,
+      "stimulus_id": "P024"
+    },
+    {
+      "slot_id": "S074",
+      "position": 2,
+      "stimulus_id": "P060"
+    },
+    {
+      "slot_id": "S074",
+      "position": 3,
+      "stimulus_id": "P020"
+    },
+    {
+      "slot_id": "S075",
+      "position": 1,
+      "stimulus_id": "P003"
+    },
+    {
+      "slot_id": "S075",
+      "position": 2,
+      "stimulus_id": "P065"
+    },
+    {
+      "slot_id": "S075",
+      "position": 3,
+      "stimulus_id": "P022"
+    },
+    {
+      "slot_id": "S076",
+      "position": 1,
+      "stimulus_id": "P032"
+    },
+    {
+      "slot_id": "S076",
+      "position": 2,
+      "stimulus_id": "P086"
+    },
+    {
+      "slot_id": "S076",
+      "position": 3,
+      "stimulus_id": "P052"
+    },
+    {
+      "slot_id": "S077",
+      "position": 1,
+      "stimulus_id": "P069"
+    },
+    {
+      "slot_id": "S077",
+      "position": 2,
+      "stimulus_id": "P017"
+    },
+    {
+      "slot_id": "S077",
+      "position": 3,
+      "stimulus_id": "P010"
+    },
+    {
+      "slot_id": "S078",
+      "position": 1,
+      "stimulus_id": "P087"
+    },
+    {
+      "slot_id": "S078",
+      "position": 2,
+      "stimulus_id": "P012"
+    },
+    {
+      "slot_id": "S078",
+      "position": 3,
+      "stimulus_id": "P085"
+    },
+    {
+      "slot_id": "S079",
+      "position": 1,
+      "stimulus_id": "P013"
+    },
+    {
+      "slot_id": "S079",
+      "position": 2,
+      "stimulus_id": "P050"
+    },
+    {
+      "slot_id": "S079",
+      "position": 3,
+      "stimulus_id": "P008"
+    },
+    {
+      "slot_id": "S080",
+      "position": 1,
+      "stimulus_id": "P023"
+    },
+    {
+      "slot_id": "S080",
+      "position": 2,
+      "stimulus_id": "P056"
+    },
+    {
+      "slot_id": "S080",
+      "position": 3,
+      "stimulus_id": "P012"
+    },
+    {
+      "slot_id": "S081",
+      "position": 1,
+      "stimulus_id": "P085"
+    },
+    {
+      "slot_id": "S081",
+      "position": 2,
+      "stimulus_id": "P032"
+    },
+    {
+      "slot_id": "S081",
+      "position": 3,
+      "stimulus_id": "P034"
+    },
+    {
+      "slot_id": "S082",
+      "position": 1,
+      "stimulus_id": "P017"
+    },
+    {
+      "slot_id": "S082",
+      "position": 2,
+      "stimulus_id": "P028"
+    },
+    {
+      "slot_id": "S082",
+      "position": 3,
+      "stimulus_id": "P071"
+    },
+    {
+      "slot_id": "S083",
+      "position": 1,
+      "stimulus_id": "P084"
+    },
+    {
+      "slot_id": "S083",
+      "position": 2,
+      "stimulus_id": "P026"
+    },
+    {
+      "slot_id": "S083",
+      "position": 3,
+      "stimulus_id": "P066"
+    },
+    {
+      "slot_id": "S084",
+      "position": 1,
+      "stimulus_id": "P011"
+    },
+    {
+      "slot_id": "S084",
+      "position": 2,
+      "stimulus_id": "P043"
+    },
+    {
+      "slot_id": "S084",
+      "position": 3,
+      "stimulus_id": "P062"
+    },
+    {
+      "slot_id": "S085",
+      "position": 1,
+      "stimulus_id": "P046"
+    },
+    {
+      "slot_id": "S085",
+      "position": 2,
+      "stimulus_id": "P076"
+    },
+    {
+      "slot_id": "S085",
+      "position": 3,
+      "stimulus_id": "P036"
+    },
+    {
+      "slot_id": "S086",
+      "position": 1,
+      "stimulus_id": "P012"
+    },
+    {
+      "slot_id": "S086",
+      "position": 2,
+      "stimulus_id": "P079"
+    },
+    {
+      "slot_id": "S086",
+      "position": 3,
+      "stimulus_id": "P032"
+    },
+    {
+      "slot_id": "S087",
+      "position": 1,
+      "stimulus_id": "P026"
+    },
+    {
+      "slot_id": "S087",
+      "position": 2,
+      "stimulus_id": "P049"
+    },
+    {
+      "slot_id": "S087",
+      "position": 3,
+      "stimulus_id": "P068"
+    },
+    {
+      "slot_id": "S088",
+      "position": 1,
+      "stimulus_id": "P014"
+    },
+    {
+      "slot_id": "S088",
+      "position": 2,
+      "stimulus_id": "P080"
+    },
+    {
+      "slot_id": "S088",
+      "position": 3,
+      "stimulus_id": "P031"
+    },
+    {
+      "slot_id": "S089",
+      "position": 1,
+      "stimulus_id": "P018"
+    },
+    {
+      "slot_id": "S089",
+      "position": 2,
+      "stimulus_id": "P044"
+    },
+    {
+      "slot_id": "S089",
+      "position": 3,
+      "stimulus_id": "P033"
+    },
+    {
+      "slot_id": "S090",
+      "position": 1,
+      "stimulus_id": "P089"
+    },
+    {
+      "slot_id": "S090",
+      "position": 2,
+      "stimulus_id": "P016"
+    },
+    {
+      "slot_id": "S090",
+      "position": 3,
+      "stimulus_id": "P001"
+    },
+    {
+      "slot_id": "S091",
+      "position": 1,
+      "stimulus_id": "P082"
+    },
+    {
+      "slot_id": "S091",
+      "position": 2,
+      "stimulus_id": "P073"
+    },
+    {
+      "slot_id": "S091",
+      "position": 3,
+      "stimulus_id": "P080"
+    },
+    {
+      "slot_id": "S092",
+      "position": 1,
+      "stimulus_id": "P067"
+    },
+    {
+      "slot_id": "S092",
+      "position": 2,
+      "stimulus_id": "P025"
+    },
+    {
+      "slot_id": "S092",
+      "position": 3,
+      "stimulus_id": "P044"
+    },
+    {
+      "slot_id": "S093",
+      "position": 1,
+      "stimulus_id": "P010"
+    },
+    {
+      "slot_id": "S093",
+      "position": 2,
+      "stimulus_id": "P071"
+    },
+    {
+      "slot_id": "S093",
+      "position": 3,
+      "stimulus_id": "P090"
+    },
+    {
+      "slot_id": "S094",
+      "position": 1,
+      "stimulus_id": "P086"
+    },
+    {
+      "slot_id": "S094",
+      "position": 2,
+      "stimulus_id": "P034"
+    },
+    {
+      "slot_id": "S094",
+      "position": 3,
+      "stimulus_id": "P089"
+    },
+    {
+      "slot_id": "S095",
+      "position": 1,
+      "stimulus_id": "P039"
+    },
+    {
+      "slot_id": "S095",
+      "position": 2,
+      "stimulus_id": "P040"
+    },
+    {
+      "slot_id": "S095",
+      "position": 3,
+      "stimulus_id": "P094"
+    },
+    {
+      "slot_id": "S096",
+      "position": 1,
+      "stimulus_id": "P079"
+    },
+    {
+      "slot_id": "S096",
+      "position": 2,
+      "stimulus_id": "P085"
+    },
+    {
+      "slot_id": "S096",
+      "position": 3,
+      "stimulus_id": "P086"
+    },
+    {
+      "slot_id": "S097",
+      "position": 1,
+      "stimulus_id": "P037"
+    },
+    {
+      "slot_id": "S097",
+      "position": 2,
+      "stimulus_id": "P070"
+    },
+    {
+      "slot_id": "S097",
+      "position": 3,
+      "stimulus_id": "P077"
+    },
+    {
+      "slot_id": "S098",
+      "position": 1,
+      "stimulus_id": "P092"
+    },
+    {
+      "slot_id": "S098",
+      "position": 2,
+      "stimulus_id": "P088"
+    },
+    {
+      "slot_id": "S098",
+      "position": 3,
+      "stimulus_id": "P099"
+    },
+    {
+      "slot_id": "S099",
+      "position": 1,
+      "stimulus_id": "P020"
+    },
+    {
+      "slot_id": "S099",
+      "position": 2,
+      "stimulus_id": "P038"
+    },
+    {
+      "slot_id": "S099",
+      "position": 3,
+      "stimulus_id": "P003"
+    },
+    {
+      "slot_id": "S100",
+      "position": 1,
+      "stimulus_id": "P047"
+    },
+    {
+      "slot_id": "S100",
+      "position": 2,
+      "stimulus_id": "P046"
+    },
+    {
+      "slot_id": "S100",
+      "position": 3,
+      "stimulus_id": "P029"
+    }
+  ]
+}

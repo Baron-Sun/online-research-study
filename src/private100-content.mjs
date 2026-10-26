@@ -1,4 +1,6 @@
-export const MATERIAL_VERSION = 'private100-wordlimit-20261024-v3';
+export const MATERIAL_VERSION = 'private100-study1matched-20261026-v4';
+export const SESSION_NAMESPACE = 'matched100-v4';
+export const SESSION_RPC = 'matched100_session';
 export const CHECK_VERSION = 'task-comprehension-v1';
 export const CHECK_QUESTION = 'Which response best matches what you are asked to do for each situation?';
 export const CHECK_OPTIONS = [

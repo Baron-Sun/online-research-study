@@ -1,7 +1,7 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {ADVICE_TRANSFER_CONSENT_TEXT} from './advice-transfer-consent';
 import {requestSession,verifyMaterial,validComment} from './original100-protocol.mjs';
-import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION} from './private100-content.mjs';
+import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION,SESSION_NAMESPACE} from './private100-content.mjs';
 import {countWords,RESPONSE_WORD_LIMIT,WORD_LIMIT_INSTRUCTION} from './private100-word-limit.mjs';
 
 const consentText = ADVICE_TRANSFER_CONSENT_TEXT
@@ -21,9 +21,9 @@ function getIdentity() {
     q.set('PROLIFIC_PID',pid);
     history.replaceState(null,'',`${location.pathname}?${q.toString()}`);
   }
-  const studyId=q.get('STUDY_ID') || (preview ? 'original100-preview' : '');
+  const studyId=q.get('STUDY_ID') || (preview ? 'matched100-preview' : '');
   const sessionId=q.get('SESSION_ID') || (preview ? pid : '');
-  const key=`original100:${preview?'preview':'formal'}:${pid}:${studyId}:${sessionId}`;
+  const key=`${SESSION_NAMESPACE}:${preview?'preview':'formal'}:${pid}:${studyId}:${sessionId}`;
   const saved=readJson(key);
   const token=saved?.token || [...crypto.getRandomValues(new Uint8Array(32))].map(n=>n.toString(16).padStart(2,'0')).join('');
   return {pid,preview,studyId,sessionId,slot,key,token,consented:saved?.consented || false};
@@ -145,7 +145,7 @@ export default function Original100Task() {
         <div><p className="source-institution">Northwestern University Research Study</p><h1>Study About Online Opinions</h1></div>
         <div className="source-session-card"><strong>{identity.preview?'Researcher preview':'Research session'}</strong><span>{screen==='task'?`Situation ${index+1} of 3`:screen==='complete'?'Responses submitted':'Three-situation response task'}</span></div>
       </header>
-      {identity.preview&&<div className="original100-preview">Preview · Responses are saved as test data and do not use recruitment places. Consent duration and payment will be finalized before launch.
+      {identity.preview&&<div className="original100-preview">Preview · Responses are saved as test data and do not use recruitment places. The study duration and payment are shown on Prolific.
         <details className="original100-preview-tools"><summary>Preview controls</summary><label>Assignment <select value={identity.slot} disabled={busy} onChange={e=>{location.href=`?preview=1&slot=${e.target.value}`;}}>{Array.from({length:100},(_,i)=>`S${String(i+1).padStart(3,'0')}`).map(slot=><option key={slot}>{slot}</option>)}</select></label> <button type="button" disabled={busy} onClick={()=>{location.href=`?preview=1&slot=${identity.slot}&PROLIFIC_PID=preview-${crypto.randomUUID()}`;}}>Start a fresh preview</button><p>100 fixed assignments · 3 posts per assignment · each post appears in 3 assignments.</p></details>
       </div>}
       {error&&<div className="original100-error" role="alert">{error}</div>}

@@ -1,4 +1,4 @@
-import {MATERIAL_VERSION} from './private100-content.mjs';
+import {MATERIAL_VERSION,SESSION_RPC} from './private100-content.mjs';
 import {countWords,RESPONSE_WORD_LIMIT,WORD_COUNT_VERSION} from './private100-word-limit.mjs';
 export const VERSION = MATERIAL_VERSION;
 export function validComment(answer) {
@@ -23,7 +23,7 @@ export async function requestSession(config, identity, action, payload = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(()=>controller.abort(), 15000);
     try {
-      const res = await fetch(`${config.url}/rest/v1/rpc/original100_session`, {
+      const res = await fetch(`${config.url}/rest/v1/rpc/${SESSION_RPC}`, {
         method:'POST', signal:controller.signal,
         headers:{apikey:config.anonKey, Authorization:`Bearer ${config.anonKey}`, 'Content-Type':'application/json'},
         body:JSON.stringify({p_action:action,p_pid:identity.pid,p_study_id:identity.studyId,p_session_id:identity.sessionId,

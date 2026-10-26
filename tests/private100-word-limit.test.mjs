@@ -36,7 +36,7 @@ test('all 100 limited prompts preserve the prior bodies and plan, and a mismatch
  const manifest=JSON.parse(await read('private100-wordlimit-material-manifest.json'));
  const priorManifest=JSON.parse(await read('private100-material-manifest.json'));
  const template=(await read('private100_wordlimit_prompt_template.txt')).trimEnd();
- assert.equal(current.length,100);assert.equal(manifest.version,VERSION);
+ assert.equal(current.length,100);assert.equal(manifest.version,'private100-wordlimit-20261024-v3');
  assert.equal(manifest.assignment_sha256,priorManifest.assignment_sha256);
  assert.equal(manifest.template_sha256,hash(template));
  assert.ok(template.includes(WORD_LIMIT_INSTRUCTION));
@@ -48,7 +48,8 @@ test('all 100 limited prompts preserve the prior bodies and plan, and a mismatch
    assert.equal(prompt.previous_prompt_sha256,previous.prompt_sha256);
    assert.equal(prompt.body_sha256,hash(body));assert.equal(prompt.prompt_sha256,hash(prompt.prompt_text));
  }
- const session={version:VERSION,responseWordLimit:61,wordCountVersion:'whitespace-total-v1',posts:current.slice(0,3).map((p,i)=>({position:i+1,stimulusId:p.stimulus_id,prompt:p.prompt_text,sha256:p.prompt_sha256}))};
+ const active=JSON.parse((await read('supabase_matched100_seed.sql')).split('$materials$')[1]);
+ const session={version:VERSION,responseWordLimit:61,wordCountVersion:'whitespace-total-v1',posts:active.slice(0,3).map((p,i)=>({position:i+1,stimulusId:p.stimulus_id,prompt:p.prompt_text,sha256:p.prompt_sha256}))};
  await verifyMaterial(session);
  await assert.rejects(verifyMaterial({...session,responseWordLimit:62}),/length settings/);
 });
