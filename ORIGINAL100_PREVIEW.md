@@ -80,10 +80,11 @@ Use this URL in the Prolific external-study field:
 https://baron-sun.github.io/online-research-study/original-comments/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
 ```
 
-The consent page refers to Prolific for duration and compensation, avoiding stale
-values from earlier studies. The user's Prolific draft currently supplies those
-settings. No AI or response-diversity hypothesis is stated to participants before
-they complete the task.
+At the user's request, the consent page reuses the earlier study's wording,
+changing only the reward and sample size as needed for this study: $3.00 and
+100 people. The original 10–12-minute duration and all other wording are retained.
+No AI or response-diversity hypothesis is stated to participants before they
+complete the task.
 
 ## Collection and replacement
 

@@ -4,11 +4,9 @@ import {requestSession,verifyMaterial,validComment} from './original100-protocol
 import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION,INDEPENDENCE_INSTRUCTION,PASTE_INSTRUCTION,ORIGINAL_THOUGHTS_INSTRUCTION,SESSION_NAMESPACE} from './private100-content.mjs';
 import {countWords,RESPONSE_MIN_WORDS,WORD_LENGTH_INSTRUCTION} from './private100-word-minimum.mjs';
 
+// Reuse the earlier consent verbatim, with this study's reward and existing 100-person sample size.
 const consentText = ADVICE_TRANSFER_CONSENT_TEXT
-  .replace('We expect that you will be in this research study for around 10–12 minutes.', 'You will read three interpersonal situations and write your judgment and reasoning for each. Please refer to the Prolific study description for the estimated duration.')
-  .replace('You will receive $1.50 for your participation in this 10–12-minute study.', 'Compensation and the estimated duration will be stated in the Prolific study description before recruitment begins.')
-  .replace('Data will be collected anonymously and will not be labeled with any identifying information.', 'Your Prolific participant ID will be stored separately from the response text for assignment, duplicate prevention, and study administration. Research exports will use coded participant identifiers.')
-  .replace('If you agree to participate, you will complete a research survey. The survey asks about your agreement or disagreement with various statements, along with free-response items. The topics include your attitudes and opinions about various topics, including your personal relationships and your political views. It includes some comprehension questions intended to make sure you understand information you have read.', 'If you agree to participate, you will read three descriptions of interpersonal situations. For each situation, you will read the provided instructions and write a response expressing your judgment and reasoning.');
+  .replace('You will receive $1.50', 'You will receive $3.00');
 
 function readJson(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
 function getIdentity() {
