@@ -4,6 +4,10 @@ Public route: https://baron-sun.github.io/online-research-study/original-comment
 
 Researcher preview: https://baron-sun.github.io/online-research-study/original-comments/?preview=1
 
+The interface omits preview labels and researcher controls. The `preview=1` URL
+parameter still isolates test sessions from formal recruitment and exports. To
+inspect a specific assignment, add `&slot=S001` through `&slot=S100` to the URL.
+
 This route remains in the existing Baron-Sun/online-research-study site. It uses
 material version `private100-study1matched-20261026-v4`, Supabase project
 `kkfyoztlpjuvipqaoyig`, and the isolated `matched100_*` tables/RPCs. Earlier
