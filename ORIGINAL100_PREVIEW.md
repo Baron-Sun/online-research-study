@@ -1,16 +1,21 @@
-# Private judgment three-post study — preview
+# Private judgment three-post study — deployed, awaiting recruitment settings
 
 This is an additive route in the existing **Baron-Sun/online-research-study**
 React/Vite/GitHub Pages application. It reuses the previous study's neutral
 title, layout, CSS, blue controls, consent structure, and Supabase project.
 Base: remote `main`, commit `bd200c8`. Local branch: `codex/original-100-preview`.
 
-Local preview: http://127.0.0.1:5188/original-comments/?preview=1
+Online preview: https://baron-sun.github.io/online-research-study/original-comments/?preview=1
+
+Local development preview: http://127.0.0.1:5188/original-comments/?preview=1
 
 `Preview controls` selects any of the 100 assignment slots or starts a fresh
 test session. A normal preview refresh resumes the same slot and draft.
-The new frontend is staged locally for review; the existing GitHub Pages
-deployment has not been changed.
+The reviewed frontend was published to the existing GitHub Pages site on
+2026-10-25 (Chicago), from commit `fe833a8000a33a51794b582b8a55297d6288e77f`.
+The deployment succeeded in [Actions run 40269705452](https://github.com/Baron-Sun/online-research-study/actions/runs/40269705452).
+Formal recruitment remains closed until the new Prolific study ID and completion
+code are supplied and the study settings are activated.
 
 ## Materials and allocation
 
@@ -133,6 +138,9 @@ group by p.stimulus_id order by p.stimulus_id;
 
 ## Verification
 
+- On the deployed GitHub Pages route, a fresh preview completed consent → task
+  comprehension → three distinct situations → review → submission. The live
+  62/61-word counter disabled Continue. Only preview data were submitted.
 - Existing site's 67 tests pass; six material/integrity/word-count tests pass.
 - Production build passes, including the GitHub Pages repository base path.
 - SQL transaction rehearsal completes 100 people / 300 comments and checks
@@ -167,17 +175,19 @@ and is ignored. No privileged database credential is used in the frontend.
 
 ## Before recruitment
 
-Review the preview and adapted consent text. Finalize the study duration,
-reward, Prolific study ID and completion code. The preview consent deliberately
+The user approved the preview and requested deployment on 2026-10-25. Finalize
+the study duration and reward in Prolific, and supply the new Prolific study ID
+and completion code. The preview consent deliberately
 does not reuse the old study's $1.50 reward or 10–12-minute duration.
-Then deploy this reviewed route through the existing GitHub Pages workflow and
-configure the new study's settings. No Prolific study has been launched.
+Configure the new study's settings before opening recruitment. No Prolific study
+has been launched.
 
-Future formal URL after deployment:
+Formal URL template (deployed, but participation is gated until configuration):
 
 ```text
 https://baron-sun.github.io/online-research-study/original-comments/?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
 ```
 
-The consent draft is adapted from the prior website. Its approval flag remains
-false until the research team reviews the final wording for this task.
+The consent text is adapted from the prior website. The database approval and
+recruitment flags remain false pending final activation with the new study's
+configuration; the blank study ID and completion code must not be bypassed.
