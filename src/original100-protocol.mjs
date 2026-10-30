@@ -1,21 +1,12 @@
 import {MATERIAL_VERSION,SESSION_RPC} from './private100-content.mjs';
 import {countWords,RESPONSE_MIN_WORDS,RESPONSE_MAX_WORDS,WORD_COUNT_VERSION} from './private100-word-minimum.mjs';
 export const VERSION = MATERIAL_VERSION;
-export function commentFormatError(answer) {
-  const lines = String(answer).replace(/\r\n/g, '\n').split('\n');
-  if (!/^(YTA|NTA|ESH|NAH|INFO)$/i.test(lines[0].trim())) {
-    return 'Put one judgment label on the first line: YTA, NTA, ESH, NAH, or INFO (uppercase or lowercase). Press Enter and write your reasoning on the next line.';
-  }
-  if (!lines.slice(1).join('\n').trim()) {
-    return 'Write your reasoning on the line after your judgment label. Press Enter after the label to start a new line.';
-  }
-  return '';
-}
 export function validComment(answer) {
-  return !commentFormatError(answer) && countWords(answer) >= RESPONSE_MIN_WORDS;
+  return countWords(answer) >= RESPONSE_MIN_WORDS;
 }
 export async function verifyMaterial(session) {
-  if (session.version !== VERSION) throw new Error('This link uses an earlier version of the task. Please reopen the current study link.');
+  const completedLegacy=session.status==='completed'&&session.version==='private100-study1matched-min60-20261026-v5';
+  if (session.version !== VERSION && !completedLegacy) throw new Error('This link uses an earlier version of the task. Please reopen the current study link.');
   if (session.responseWordMinimum !== RESPONSE_MIN_WORDS || session.responseWordLimit !== RESPONSE_MAX_WORDS || session.wordCountVersion !== WORD_COUNT_VERSION) throw new Error('The response length settings do not match this task. Please reload.');
   if (session.posts?.length !== 3 || new Set(session.posts.map(p=>p.stimulusId)).size !== 3) {
     throw new Error('The assigned study material is incomplete. Please contact the researcher.');

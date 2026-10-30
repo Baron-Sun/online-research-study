@@ -1,8 +1,10 @@
 import React, {useEffect,useRef,useState} from 'react';
 import {ADVICE_TRANSFER_CONSENT_TEXT} from './advice-transfer-consent';
-import {requestSession,verifyMaterial,validComment,commentFormatError} from './original100-protocol.mjs';
-import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION,INDEPENDENCE_INSTRUCTION,PASTE_INSTRUCTION,ORIGINAL_THOUGHTS_INSTRUCTION,SESSION_NAMESPACE} from './private100-content.mjs';
+import {requestSession,verifyMaterial,validComment} from './original100-protocol.mjs';
+import {CHECK_VERSION,CHECK_QUESTION,CHECK_OPTIONS,PRIVATE_STUDY_INFORMATION,INDEPENDENCE_INSTRUCTION,PASTE_INSTRUCTION,ORIGINAL_THOUGHTS_INSTRUCTION,SESSION_NAMESPACE,RESPONSE_PLACEHOLDER} from './private100-content.mjs';
 import {countWords,RESPONSE_MIN_WORDS,WORD_LENGTH_INSTRUCTION} from './private100-word-minimum.mjs';
+import Original100Demographics from './Original100Demographics';
+import {emptyDemographics,normalizeDemographics,demographicsComplete,sameDemographics,taskScreenFor} from './original100-demographics.mjs';
 
 // Reuse the earlier consent verbatim, with this study's reward and existing 100-person sample size.
 const consentText = ADVICE_TRANSFER_CONSENT_TEXT
@@ -35,18 +37,23 @@ export default function Original100Task() {
   const [agreed,setAgreed]=useState(false);
   const [session,setSession]=useState(null);
   const [answers,setAnswers]=useState(['','','']);
+  const [demographics,setDemographics]=useState(emptyDemographics);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [saveState,setSaveState]=useState('');
   const [inputNotice,setInputNotice]=useState('');
   const [recovered,setRecovered]=useState([]);
+  const [recoveredDemographics,setRecoveredDemographics]=useState(null);
   const [showWithdraw,setShowWithdraw]=useState(false);
   const [checkChoice,setCheckChoice]=useState(()=>readJson(identity.key+':comprehension-pending-v1')?.choice||'');
   const [checkFeedback,setCheckFeedback]=useState('');
-  const remote=useRef(null), latest=useRef(answers), queue=useRef(Promise.resolve());
+  const remote=useRef(null), latest=useRef(answers), latestDemographics=useRef(demographics), queue=useRef(Promise.resolve());
   const config={url:import.meta.env.VITE_SUPABASE_URL,anonKey:import.meta.env.VITE_SUPABASE_ANON_KEY};
   const remember=(consented=true)=>localStorage.setItem(identity.key,JSON.stringify({...identity,consented}));
-  const cache=()=>localStorage.setItem(identity.key+':draft',JSON.stringify(latest.current.map((answer,i)=>({answer,revision:remote.current?.posts[i].revision || 0}))));
+  const cache=()=>{
+    localStorage.setItem(identity.key+':draft',JSON.stringify(latest.current.map((answer,i)=>({answer,revision:remote.current?.posts[i].revision || 0}))));
+    localStorage.setItem(identity.key+':demographics-draft',JSON.stringify({demographics:latestDemographics.current,revision:remote.current?.demographicsRevision || 0}));
+  };
   const rpc=(action,payload)=>{
     if (!config.url || !config.anonKey) throw new Error('The database connection is not configured. Please contact the researcher.');
     return requestSession(config,identity,action,payload);
@@ -67,9 +74,17 @@ export default function Original100Task() {
         return p.answer;
       });
       setRecovered(conflicts);latest.current=restored;setAnswers(restored);
-      setScreen(value.status==='screened_out'?'screened-out':value.status==='completed'?'complete':!value.comprehensionCheck?.passed||action==='claim'?'instructions':value.position===4?'review':'task');
+      const demographicDraft=readJson(identity.key+':demographics-draft');
+      let restoredDemographics=normalizeDemographics(value.demographics);
+      setRecoveredDemographics(null);
+      if(value.status==='active'&&demographicDraft&&!sameDemographics(demographicDraft.demographics,value.demographics)) {
+        if(demographicDraft.revision===value.demographicsRevision) restoredDemographics=normalizeDemographics(demographicDraft.demographics);
+        else setRecoveredDemographics(demographicDraft.demographics);
+      }
+      latestDemographics.current=restoredDemographics;setDemographics(restoredDemographics);
+      setScreen(taskScreenFor(value));
       if(value.comprehensionCheck?.attempts>0&&!value.comprehensionCheck.passed) setCheckFeedback('That answer does not match the task. Please reread the instructions above. You have one attempt remaining.');
-      setSaveState(restored.some((a,i)=>a!==value.posts[i].answer)?'Draft restored on this device':'All changes saved');
+      setSaveState(restored.some((a,i)=>a!==value.posts[i].answer)||!sameDemographics(restoredDemographics,value.demographics)?'Draft restored on this device':'All changes saved');
     } catch(e) { setError(e.message);setScreen('error'); } finally {setBusy(false);}
   };
   useEffect(()=>{if(identity.consented) openSession('resume');},[]);
@@ -85,20 +100,24 @@ export default function Original100Task() {
           adopt(result);cache();
         }
       }
-      setSaveState(latest.current.every((a,i)=>a===remote.current.posts[i].answer)?'All changes saved':'Saving…');
+      if(!sameDemographics(latestDemographics.current,remote.current.demographics)) {
+        adopt(await rpc('save_demographics',{demographics:normalizeDemographics(latestDemographics.current),revision:remote.current.demographicsRevision}));
+        cache();
+      }
+      setSaveState(latest.current.every((a,i)=>a===remote.current.posts[i].answer)&&sameDemographics(latestDemographics.current,remote.current.demographics)?'All changes saved':'Saving…');
     });
     queue.current=work;
     return work;
   };
   useEffect(()=>{
     if(!session || session.status!=='active' || busy) return;
-    if(answers.every((a,i)=>a===remote.current.posts[i].answer)) return;
+    if(answers.every((a,i)=>a===remote.current.posts[i].answer)&&sameDemographics(demographics,remote.current.demographics)) return;
     const timer=setTimeout(()=>saveAll().catch(e=>{setError(e.message);setSaveState('Not saved — retry before continuing');}),800);
     return ()=>clearTimeout(timer);
-  },[answers,busy,session?.id]);
+  },[answers,demographics,busy,session?.id]);
   useEffect(()=>{
     const warn=e=>{
-      if(remote.current?.status==='active' && latest.current.some((a,i)=>a!==remote.current.posts[i].answer)) {e.preventDefault();e.returnValue='';}
+      if(remote.current?.status==='active' && (latest.current.some((a,i)=>a!==remote.current.posts[i].answer)||!sameDemographics(latestDemographics.current,remote.current.demographics))) {e.preventDefault();e.returnValue='';}
     };
     window.addEventListener('beforeunload',warn);
     return ()=>window.removeEventListener('beforeunload',warn);
@@ -106,15 +125,18 @@ export default function Original100Task() {
   const edit=(index,text)=>{
     const next=[...latest.current];next[index]=text;latest.current=next;setAnswers(next);cache();setSaveState('Unsaved changes');setError('');setInputNotice('');
   };
+  const updateDemographic=(key,value)=>{
+    const next={...latestDemographics.current,[key]:value};latestDemographics.current=next;setDemographics(next);cache();setSaveState('Unsaved changes');setError('');
+  };
   const blockPastedText=e=>{e.preventDefault();setInputNotice('Please type your response directly. Pasting and dropping text are disabled.');};
   const move=async(position)=>{
     setBusy(true);setError('');
-    try {await saveAll();adopt(await rpc('navigate',{position}));setScreen(position===4?'review':'task');window.scrollTo(0,0);}
+    try {await saveAll();const result=await rpc('navigate',{position});adopt(result);setScreen(taskScreenFor(result));window.scrollTo(0,0);}
     catch(e){setError(e.message);}finally{setBusy(false);}
   };
   const submit=async()=>{
     setBusy(true);setError('');
-    try {await saveAll();const result=await rpc('complete',{revisions:remote.current.posts.map(p=>p.revision)});adopt(result);setScreen('complete');localStorage.removeItem(identity.key+':draft');window.scrollTo(0,0);}
+    try {await saveAll();const result=await rpc('complete',{revisions:remote.current.posts.map(p=>p.revision),demographicsRevision:remote.current.demographicsRevision});adopt(result);setScreen('complete');localStorage.removeItem(identity.key+':draft');localStorage.removeItem(identity.key+':demographics-draft');window.scrollTo(0,0);}
     catch(e){setError(e.message);}finally{setBusy(false);}
   };
   const checkTaskUnderstanding=async()=>{
@@ -125,7 +147,7 @@ export default function Original100Task() {
       const result=await rpc('comprehension_check',pending);adopt(result);
       localStorage.removeItem(identity.key+':comprehension-pending-v1');
       if(result.status==='screened_out') {setScreen('screened-out');window.scrollTo(0,0);}
-      else if(result.comprehensionCheck.passed) setCheckFeedback('Thank you. You can now begin.');
+      else if(result.comprehensionCheck.passed) {setScreen(taskScreenFor(result));window.scrollTo(0,0);}
       else {setCheckChoice('');setCheckFeedback('That answer does not match the task. Please reread the instructions above. You have one attempt remaining.');}
     } catch(e){setError(e.message);} finally{setBusy(false);}
   };
@@ -138,7 +160,6 @@ export default function Original100Task() {
   const post=session?.posts[Math.min(index,2)];
   const wordCount=countWords(answers[index] || '');
   const belowMinimum=wordCount<RESPONSE_MIN_WORDS;
-  const formatError=wordCount>0?commentFormatError(answers[index]):'';
   const wide=['task','consent'].includes(screen);
   return <main className="source-study-page transfer-study-page original100-page">
     <div className={`source-page-wrap ${wide?'source-wide-wrap':'source-narrow-wrap'}`}>
@@ -148,6 +169,7 @@ export default function Original100Task() {
       </header>
       {error&&<div className="original100-error" role="alert">{error}</div>}
       {recovered.length>0&&<details className="original100-error"><summary>A newer version was saved in another tab. The saved version is shown; your local draft is preserved here for review.</summary>{recovered.map(d=><div key={d.position}><h3>Local draft for post {d.position}</h3><pre>{d.answer}</pre></div>)}</details>}
+      {recoveredDemographics&&<details className="original100-error"><summary>Newer demographic answers were saved in another tab. The saved answers are shown; your local draft is preserved here.</summary><pre>{JSON.stringify(recoveredDemographics,null,2)}</pre></details>}
       {screen==='loading'&&<section className="source-panel source-intro-panel"><h2>Restoring your session…</h2></section>}
       {screen==='overview'&&<section className="source-panel source-intro-panel">
         <p className="source-eyebrow">Study overview</p><h2>Read three situations and give your judgment</h2>
@@ -160,10 +182,10 @@ export default function Original100Task() {
         <section className="source-panel source-consent-panel"><p className="source-eyebrow">Participant information</p><h2>Informed Consent</h2><div className="source-consent-text">{consentText}</div></section>
         <aside className="source-panel source-consent-confirmation"><h3>Consent Confirmation</h3><label className="source-consent-checkbox"><input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} /><span>I am at least 18 years old, I have read the consent information, and I voluntarily agree to participate.</span></label><div className="source-button-row"><Secondary disabled={busy} onClick={()=>setScreen('declined')}>I Disagree</Secondary><Secondary disabled={busy} onClick={()=>setScreen('overview')}>Back</Secondary><Primary disabled={!agreed||busy} onClick={()=>{remember();openSession('claim');}}>{busy?'Preparing…':'I Agree'}</Primary></div></aside>
       </div>}
-      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Give your judgment and explain your reasoning</h2><div className="source-intro-copy"><p>You will read three descriptions of interpersonal situations, one at a time. For each situation, choose a judgment label and explain the reasons for your own judgment. Enter the label on the first line and your reasoning on the next line. Judgment labels may be uppercase or lowercase.</p><p><strong>For each response: </strong>{WORD_LENGTH_INSTRUCTION}</p><p>{PRIVATE_STUDY_INFORMATION}</p><p><strong>{INDEPENDENCE_INSTRUCTION}</strong></p><p>{PASTE_INSTRUCTION}</p><p><strong>{ORIGINAL_THOUGHTS_INSTRUCTION}</strong></p><p>Your responses are saved automatically. You can review and edit all three responses before the final submission.</p></div>
+      {screen==='instructions'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Instructions</p><h2>Give your judgment and explain your reasoning</h2><div className="source-intro-copy"><p>You will read three descriptions of interpersonal situations, one at a time. For each situation, begin with YTA, NTA, ESH, NAH, or INFO, then write your opinion and explain your reasoning. Judgment labels may be uppercase or lowercase.</p><p><strong>For each response: </strong>{WORD_LENGTH_INSTRUCTION}</p><p>{PRIVATE_STUDY_INFORMATION}</p><p><strong>{INDEPENDENCE_INSTRUCTION}</strong></p><p>{PASTE_INSTRUCTION}</p><p><strong>{ORIGINAL_THOUGHTS_INSTRUCTION}</strong></p><p>Your responses are saved automatically. You can review and edit all three responses before answering a few questions about yourself and submitting the study.</p></div>
         <fieldset className="original100-attention original100-comprehension" disabled={busy||session?.comprehensionCheck?.passed}><legend>Task understanding check</legend><p>{CHECK_QUESTION}</p><p className="original100-check-help">You can refer to the instructions above. You have two attempts to answer this question.</p><div className="original100-attention-options">{CHECK_OPTIONS.map((option,i)=><label key={option.value}><input type="radio" name="task-understanding" value={option.value} checked={session?.comprehensionCheck?.passed?option.value==='judgment_reasons':checkChoice===option.value} onChange={e=>setCheckChoice(e.target.value)} /><span><strong>{String.fromCharCode(65+i)}.</strong> {option.text}</span></label>)}</div></fieldset>
-        <p role="status" className="original100-check-feedback">{session?.comprehensionCheck?.passed?'Task understanding check completed. You can begin.':checkFeedback}</p>
-        {session?.comprehensionCheck?.passed?<Primary disabled={busy} onClick={()=>move(1)}>Begin</Primary>:<Primary disabled={busy||!checkChoice} onClick={checkTaskUnderstanding}>{busy?'Saving…':'Check answer'}</Primary>}
+        <p role="status" className="original100-check-feedback">{checkFeedback}</p>
+        {session?.comprehensionCheck?.passed?<Primary disabled={busy} onClick={()=>move(1)}>Back to responses</Primary>:<Primary disabled={busy||!checkChoice} onClick={checkTaskUnderstanding}>{busy?'Saving…':'Check answer'}</Primary>}
       </section>}
       {screen==='task'&&post&&<>
         <div className="source-task-heading"><h2>Read the situation and write your response</h2><span>Situation {index+1} of 3</span></div>
@@ -175,17 +197,19 @@ export default function Original100Task() {
             <p className="original100-help"><strong>{INDEPENDENCE_INSTRUCTION}</strong></p>
             <p className="original100-help">{PASTE_INSTRUCTION}</p>
             <p className="original100-help"><strong>{ORIGINAL_THOUGHTS_INSTRUCTION}</strong></p>
-            <p id="comment-format-help" className="original100-format-help"><strong>First line:</strong> YTA, NTA, ESH, NAH, or INFO (uppercase or lowercase).<br /><strong>Next line:</strong> Your reasoning.</p>
-            <textarea id="original100-answer" value={answers[index]} readOnly={busy} onChange={e=>edit(index,e.target.value)} onPaste={blockPastedText} onDrop={blockPastedText} placeholder={'Judgment label\nYour reasoning...'} spellCheck="true" aria-describedby={`comment-format-help comment-word-count${formatError?' comment-format-error':''} comment-save`} aria-invalid={wordCount>0&&(belowMinimum||!!formatError)||undefined} />
+            <textarea id="original100-answer" value={answers[index]} readOnly={busy} onChange={e=>edit(index,e.target.value)} onPaste={blockPastedText} onDrop={blockPastedText} placeholder={RESPONSE_PLACEHOLDER} spellCheck="true" aria-describedby="comment-word-count comment-save" aria-invalid={wordCount>0&&belowMinimum||undefined} />
             <p id="comment-word-count" className={`original100-word-count${belowMinimum&&wordCount>0?' is-below-minimum':''}`} role="status">{wordCount} / {RESPONSE_MIN_WORDS} words minimum · includes the judgment label{belowMinimum&&<span>Write at least {RESPONSE_MIN_WORDS-wordCount} more {RESPONSE_MIN_WORDS-wordCount===1?'word':'words'} to continue.</span>}</p>
-            {formatError&&<p id="comment-format-error" className="original100-format-error" role="status">{!belowMinimum?'Word minimum met. ':''}{formatError}</p>}
             {inputNotice&&<p className="original100-help" role="status">{inputNotice}</p>}
             <p id="comment-save" className="original100-save" role="status">{saveState}</p>
             <div className="source-button-row"><Secondary disabled={busy} onClick={()=>index===0?setScreen('instructions'):move(index)}>{index===0?'Instructions':'Back'}</Secondary><Primary disabled={busy||!validComment(answers[index])} onClick={()=>move(index+2)}>{busy?'Saving…':index===2?'Review answers':'Continue'}</Primary></div>
           </section>
         </div>
       </>}
-      {screen==='review'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Final review</p><h2>Review your three responses</h2><p className="source-intro-copy">You can return to any situation to make changes. After submission, your responses will be locked.</p>{session.posts.map((p,i)=><article className="original100-review" key={p.stimulusId}><div><h3>Situation {i+1}</h3><Secondary disabled={busy} onClick={()=>move(i+1)}>Review situation {i+1}</Secondary></div><p>{answers[i]}</p></article>)}<div className="source-button-row"><Secondary disabled={busy} onClick={()=>move(3)}>Back</Secondary><Primary disabled={busy||!answers.every(validComment)} onClick={submit}>{busy?'Submitting…':'Submit all three responses'}</Primary></div></section>}
+      {screen==='review'&&<section className="source-panel source-intro-panel"><p className="source-eyebrow">Final review</p><h2>Review your three responses</h2><p className="source-intro-copy">You can return to any situation to make changes. After submission, your responses will be locked.</p>{session.posts.map((p,i)=><article className="original100-review" key={p.stimulusId}><div><h3>Situation {i+1}</h3><Secondary disabled={busy} onClick={()=>move(i+1)}>Review situation {i+1}</Secondary></div><p>{answers[i]}</p></article>)}<div className="source-button-row"><Secondary disabled={busy} onClick={()=>move(3)}>Back</Secondary><Primary disabled={busy||!answers.every(validComment)} onClick={()=>move(5)}>{busy?'Saving…':'Continue'}</Primary></div></section>}
+      {screen==='demographics'&&<Original100Demographics demographics={demographics} onChange={updateDemographic} disabled={busy}>
+        <p className="original100-save" role="status">{saveState}</p>
+        <div className="transfer-action-row"><Secondary disabled={busy} onClick={()=>move(4)}>Back to previous question</Secondary><Primary disabled={busy||!demographicsComplete(demographics)||!answers.every(validComment)} onClick={submit}>{busy?'Saving…':error?'Retry submission':'Submit responses'}</Primary></div>
+      </Original100Demographics>}
       {screen==='complete'&&<section className="source-panel source-completion-panel"><div className="source-completion-mark" aria-hidden="true">✓</div><p className="source-eyebrow">Submission complete</p><h2>Thank you for participating</h2><p>All three responses have been saved.</p><p>This study examines how people respond to social dilemmas. The responses will be used for research on written opinions and comparisons with language-model responses.</p>{!identity.preview&&session?.completionCode?<a className="source-primary-button" href={`https://app.prolific.com/submissions/complete?cc=${encodeURIComponent(session.completionCode)}`}>Return to Prolific</a>:null}</section>}
       {screen==='screened-out'&&<section className="source-panel source-completion-panel"><p className="source-eyebrow">Session ended</p><h2>The task understanding check was not completed successfully</h2><p>After two incorrect answers, this session has ended. No completed response has been submitted.</p>{identity.preview?<><p>You can start again to review the task.</p><Primary onClick={()=>{location.href='?preview=1';}}>Start again</Primary></>:<p>Please return to Prolific and select “Cancel participation” to return this study.</p>}</section>}
       {screen==='declined'&&<section className="source-panel source-completion-panel"><h2>Your participation has ended</h2><p>No completed response was submitted. You may close this page.</p></section>}

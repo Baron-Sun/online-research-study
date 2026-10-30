@@ -112,3 +112,12 @@ dist/
 !tests/matched100v5-rehearsal.sql
 !tests/matched100v5-live.mjs
 !tests/private100-word-minimum.test.mjs
+!src/Original100Demographics.jsx
+!src/original100-demographics.mjs
+!private100_opinion_prompt_template.txt
+!matched100v6-material-manifest.json
+!scripts/build_original100_flow_20261030.py
+!supabase_matched100v6_flow_migration.sql
+!tests/original100-flow.test.mjs
+!tests/matched100v6-integration.sql
+!tests/matched100v6-live.mjs

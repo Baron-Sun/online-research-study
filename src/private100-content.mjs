@@ -1,4 +1,5 @@
-export const MATERIAL_VERSION = 'private100-study1matched-min60-20261026-v5';
+export const MATERIAL_VERSION = 'private100-study1matched-opinion-demographics-20261030-v6';
+export const RESPONSE_PLACEHOLDER = 'Begin with YTA, NTA, ESH, NAH, or INFO, then write your opinion...';
 export const SESSION_NAMESPACE = 'matched100-v5';
 export const SESSION_RPC = 'matched100v5_session';
 export const CHECK_VERSION = 'task-comprehension-v1';

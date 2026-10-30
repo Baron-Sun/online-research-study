@@ -8,11 +8,12 @@ const read=file=>readFile(new URL('../'+file,import.meta.url),'utf8');
 const hash=text=>createHash('sha256').update(text).digest('hex');
 
 test('the matched cohort has 100 distinct posts and balanced 100-by-3 assignments, with intact neutral minimum-60 prompts without EDIT or UPDATE',async()=>{
- const seed=await read('supabase_matched100v5_seed.sql');
+ const seed=await read('supabase_matched100v6_flow_migration.sql');
+ const priorSeed=await read('supabase_matched100v5_seed.sql');
  const posts=JSON.parse(seed.split('$materials$')[1]);
- const plan=JSON.parse(seed.split('$plan$')[1]);
- const manifest=JSON.parse(await read('matched100v5-material-manifest.json'));
- const template=(await read('private100_min60_prompt_template.txt')).trimEnd();
+ const plan=JSON.parse(priorSeed.split('$plan$')[1]);
+ const manifest=JSON.parse(await read('matched100v6-material-manifest.json'));
+ const template=(await read('private100_opinion_prompt_template.txt')).trimEnd();
  assert.equal(manifest.version,MATERIAL_VERSION);
  assert.equal(manifest.database_namespace,'matched100v5');
  assert.equal(manifest.word_minimum,60);assert.equal(manifest.word_limit,null);

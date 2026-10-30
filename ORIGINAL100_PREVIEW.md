@@ -9,7 +9,7 @@ parameter still isolates test sessions from formal recruitment and exports. To
 inspect a specific assignment, add `&slot=S001` through `&slot=S100` to the URL.
 
 This route remains in the existing Baron-Sun/online-research-study site. It uses
-material version `private100-study1matched-min60-20261026-v5`, Supabase project
+material version `private100-study1matched-opinion-demographics-20261030-v6`, Supabase project
 `kkfyoztlpjuvipqaoyig`, and the isolated `matched100v5_*` tables/RPCs. Earlier
 `original100_*` and `matched100_*` preview records and all other studies are retained unchanged.
 Browser session storage uses `matched100-v5`, preventing old drafts from being
@@ -28,7 +28,7 @@ old/new comparisons and verification that all 600 historical response texts
 match canonical Study 1. Historical responses are not included in the website
 seed or participant interface.
 
-`matched100v5-material-manifest.json` records the selected post IDs, exact prompt
+`matched100v6-material-manifest.json` records the selected post IDs, exact prompt
 and body hashes, source specification hash and all 300 assignments. Each of 100
 slots contains three distinct posts. Every post occurs in three different slots,
 once at each position. No pair of posts is repeated across participant slots.
@@ -51,8 +51,8 @@ The user requested a minimum of 60 words and no upper limit. This supersedes
 the earlier 61-word maximum; it is a protocol decision, not a recalculated
 mean. `private100-word-limit-evidence.json` and old SQL/material files remain
 historical evidence only. The current protocol is in
-`src/private100-word-minimum.mjs`, `private100_min60_prompt_template.txt`, and
-`matched100v5-material-manifest.json`.
+`src/private100-word-minimum.mjs`, `private100_opinion_prompt_template.txt`, and
+`matched100v6-material-manifest.json`.
 
 Independent work instructions are bold. Participants are told that their
 original thoughts are wanted, that there are no right or wrong answers, and
@@ -66,6 +66,14 @@ For a new matched cohort, apply `supabase_matched100v5_setup.sql`, then
 rebuilds these files from the validated source package and checks source hashes.
 The seed refuses to run with recruitment open or formal participant records.
 Existing materials must exactly match; it does not overwrite another cohort.
+
+Then apply `supabase_matched100v6_flow_migration.sql` for the current flow. It
+requires zero formal participants, retains all 100 post bodies and 300 plan rows,
+adds demographic storage, and versions the revised instruction text. Existing
+active preview sessions are upgraded; completed earlier previews remain readable.
+Recruitment is closed by the migration and must be reopened only after deployment
+verification. `scripts/build_original100_flow_20261030.py` deterministically
+rebuilds the migration, prompt template and manifest from the frozen v5 files.
 
 The new Prolific study is `6adedc85cdd8f2835bd60f5a`. Its study ID and completion
 code are configured privately in `matched100v5_settings`, not in public source.
@@ -86,12 +94,21 @@ changing only the reward and sample size as needed for this study: $3.00 and
 No AI or response-diversity hypothesis is stated to participants before they
 complete the task.
 
-Judgment labels are case-insensitive in both the browser and database. Responses
-still require a judgment label alone on the first line, reasoning on the next
-line, and at least 60 words in total. The response box shows a specific format
-message when the word minimum is met but the label or reasoning is missing.
-Apply `supabase_matched100v5_case_insensitive_labels.sql` to an existing database;
-the setup script includes the same validator for a fresh installation.
+The 30 October update makes judgment labels instructional rather than a format
+validation gate. The placeholder is “Begin with YTA, NTA, ESH, NAH, or INFO, then
+write your opinion...”. Both browser and database enforce only the 60-word
+minimum; they do not require line breaks, a separate label line, or capitalization.
+The older case-insensitive-label migration is historical and must not be applied
+after the v6 flow migration.
+
+A successful task-understanding check opens the first situation immediately.
+After reviewing the three responses, participants complete the exact five-question
+“About you” section copied from `AdviceTransferTask.jsx`: gender identity, age,
+English proficiency, education, and employment. Wording, choices, order, and field
+markup match the reference. Demographic drafts autosave and restore on refresh;
+optimistic revisions prevent conflicting tabs from overwriting newer answers.
+The final submission requires all five fields and locks responses and demographics
+together before returning the Prolific completion code.
 
 ## Collection and replacement
 
@@ -123,6 +140,11 @@ from public.matched100v5_completed_comments
 order by stimulus_id, participant_id;
 ```
 
+The private `matched100v5_completed_demographics` view contains one row per
+completed formal participant. Join to comments on `participant_id`; select only
+the demographic fields needed for analysis. Preview records are excluded from
+both exports, and neither export is readable with public client credentials.
+
 Check collection coverage with:
 
 ```sql
@@ -135,15 +157,20 @@ group by p.stimulus_id order by p.stimulus_id;
 
 ## Verification
 
-`npm test` passes 76 tests, including the new source-to-prompt and assignment
+`npm test` passes 80 tests, including the new source-to-prompt and assignment
 checks. The production build uses the GitHub Pages repository base path.
-`tests/matched100v5-rehearsal.sql` exercises 100 formal completions, 300 comments,
+The historical `tests/matched100v5-rehearsal.sql` exercised 100 formal completions, 300 comments,
 three distinct people per post, duplicate identity/capability protection,
 comprehension failure and refill, stale writes, completion-code return, capacity,
 completed locks and exclusion/replacement, short-draft preservation and blocking,
 exactly 60 words, and acceptance of a 60,001-word response. All formal test data and settings are
-rolled back. `tests/matched100v5-live.mjs` uses only labeled preview sessions for
-network/concurrency checks, 59/60-word boundaries and 1,000-word submissions and raw-table access denial.
+rolled back. For the current flow, `tests/matched100v6-integration.sql` exercises
+preview and formal completion inside a rolled-back transaction, demographic
+validation/recovery/conflicts, single-paragraph responses, word boundaries and
+private exports. `tests/matched100v6-live.mjs` uses only labeled preview sessions
+for network checks, 59/60-word boundaries, 1,000-word submissions, demographic
+save conflicts and raw-table access denial. Old v5 probes are archived and do not
+include the required demographic step.
 Private configuration and execution receipts are in ignored `verification/`.
 
 Earlier setup/migration files and material manifests are retained for historical

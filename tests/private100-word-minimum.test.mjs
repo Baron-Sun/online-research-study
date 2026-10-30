@@ -11,14 +11,14 @@ test('responses need 60 total words; 59 cannot advance, while 60, 61, 1000 and v
  assert.equal(validComment(words(59)),false);
  for(const n of [60,61,1000,60001]){assert.equal(countWords(words(n)),n);assert.equal(validComment(words(n)),true);}
  assert.equal(validComment('NTA'),false);
- assert.equal(validComment('NTA because '+Array(60).fill('word').join(' ')),false);
+ assert.equal(validComment('NTA because '+Array(60).fill('word').join(' ')),true);
  assert.equal(countWords('\n\t\u00a0\ufeff'),0);
  assert.equal(countWords("NTA\r\nwell-known can't"),3);
  assert.equal(countWords('NTA\none\u00a0two\u2009three'),4);
 });
 
 test('the client refuses an old maximum or a mismatched minimum from the server',async()=>{
- const seed=await readFile(new URL('../supabase_matched100v5_seed.sql',import.meta.url),'utf8');
+ const seed=await readFile(new URL('../supabase_matched100v6_flow_migration.sql',import.meta.url),'utf8');
  const posts=JSON.parse(seed.split('$materials$')[1]);
  const session={version:VERSION,responseWordMinimum:60,responseWordLimit:null,wordCountVersion:'whitespace-total-v1',
   posts:posts.slice(0,3).map((p,i)=>({position:i+1,stimulusId:p.stimulus_id,prompt:p.prompt_text,sha256:p.prompt_sha256}))};

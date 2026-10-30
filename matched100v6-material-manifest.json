@@ -1,0 +1,2320 @@
+{
+  "version": "private100-study1matched-opinion-demographics-20261030-v6",
+  "database_namespace": "matched100v5",
+  "source_package": "prolific_min60_noedit_100_20261026",
+  "selection_spec_sha256": "e904d1990a45988c269623e1a175557a27dd248daec2fe04ffd66672b5ed3943",
+  "selection_method": "Historical matching with all 80 unaffected posts fixed and 20 same-stratum replacements; no new participant outcomes used.",
+  "retained_posts": 80,
+  "replaced_posts": 20,
+  "edit_update_tokens": 0,
+  "word_minimum": 60,
+  "word_limit": null,
+  "template_sha256": "8fb961b55d89ed349100eeae89e138340b17bd01985824d37e50ed0025897949",
+  "posts": [
+    {
+      "stimulus_id": "P001",
+      "submission_id": "kwpddr",
+      "prompt_sha256": "da8475d52fe25c62b1dfdfeea2bf5ff178052b3ddfeaa2f7015ce059543679a7",
+      "body_sha256": "7a0e1b3b99a233f474478afbdf5d40a5ead7abf7bc85336f208909a0840e0322",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P002",
+      "submission_id": "18i7ozr",
+      "prompt_sha256": "b099ed92df0c41422c06952ca7abc1eab850b6dd2a2954646bf6f2e31d460af2",
+      "body_sha256": "1605d7ecfd7efd0ec8f1470f1aefe40714c22229704becb6ac4e33f6058c4b39",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P003",
+      "submission_id": "15xr0t0",
+      "prompt_sha256": "032138515dfede004600a7509cb448d5529bde9c466c94dd353bff890bdc341f",
+      "body_sha256": "fdfe06e2d0c0725801908d0cad0f9f8916c9ce0605323b17e17bf2325790e656",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P004",
+      "submission_id": "p6dzav",
+      "prompt_sha256": "65afb96d532ff69adc3262f696704c0ad9050c689bb5aacfb05083e2e199aec8",
+      "body_sha256": "57528a51c9ff2d7fdcaa2c00c8ecb67382dfc70b173721b2af7eb37a7ee8a39f",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P005",
+      "submission_id": "1dtnddf",
+      "prompt_sha256": "a7fde6722f0cdcaf6b448caf14b8abfdbe1f8cc529697c8b4cca0ce538a6656b",
+      "body_sha256": "dcd921f7fd37883d98fdd4950e8aa6ea9aa7194bafb86d0070f41593fa5834ed",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P006",
+      "submission_id": "1g6ndfn",
+      "prompt_sha256": "959652f344a6f06b236985e3d367afc5a110abc579ae876a5b03ba76729ca2f1",
+      "body_sha256": "335fb3fa4f3b3f657a974987e19b57d4e4611394e6693e3d4dca109fc59e5281",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P007",
+      "submission_id": "zkewhl",
+      "prompt_sha256": "d86174807c283fee641292940a294bb31f2466978a837a9704feddab05304631",
+      "body_sha256": "00bfd90b994766c7b0b174c05fcaee015f7e6c3f8adcfc1cb9617bbafba39dea",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P008",
+      "submission_id": "kj3f5v",
+      "prompt_sha256": "3d469510e9894c33879fc7b5ca717cca1190f8aecc6956c627236af172cbb810",
+      "body_sha256": "d8a851c36f97bf7978c8da54f1ecd743aa952ccbbdbeba70fdf3cb2f62f622d1",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P009",
+      "submission_id": "npuxdd",
+      "prompt_sha256": "ceead02a6de8a3afc338813dbc5fa998cb55c10ccb552d3a175fe4da3c5d1410",
+      "body_sha256": "d023adcaf398bc0eadd6cd28e7e021c088bda431a36e254487d83f3a85d60412",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P010",
+      "submission_id": "ufafmx",
+      "prompt_sha256": "9bccf4420f474135f9a1eecdf85e1311163db77ed61cd19e37000d24fe8e42ed",
+      "body_sha256": "e457b92282d79decc90c9805a8dff5ae4cecb98deb5fa593c4f93d57070f7e3f",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P011",
+      "submission_id": "qhwiqv",
+      "prompt_sha256": "6e3330ecae58ec4822ec8205be3e1e72f5755dd2f20c43fdd63ce22622846cf9",
+      "body_sha256": "ff0b383c18a5822b2c73f95b7f8919f085ec244198208228220dd860f68da634",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P012",
+      "submission_id": "w32gs1",
+      "prompt_sha256": "f52e3a75afb95d70dfe35ca641a12aab1b3bec01a5dd6c477d4deabfd0c199df",
+      "body_sha256": "0d1d68296910ab4f0bb510708fc11bb9146ec769d180379cce51620e2589073a",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P013",
+      "submission_id": "re5n23",
+      "prompt_sha256": "070f5a5f989faff09bb4c4ad4534735642b9c1d040e29398d1bcb67786697b8e",
+      "body_sha256": "62705f15810839d0dbc7b47bf2de4978aab21748e4d2d01159e71d4bf33b0519",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P014",
+      "submission_id": "oheeim",
+      "prompt_sha256": "231ce7b7311e0eb0c4e239a806ddbf62d10162ea9a273153229dd8ffaa271786",
+      "body_sha256": "6d71394b0796f973d27cd3e1f1aa5cf6a8f4e3419da60108542eac9943c52849",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P015",
+      "submission_id": "f4s1kv",
+      "prompt_sha256": "49fcd1871f2e27ee3fd892fb59ac2be4cc75c4a0d94a8d999eca319bedb6f9a8",
+      "body_sha256": "acb30af54bcb2b15148483412f3f06fc05434f1511c04a4ec71311778bee8746",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P016",
+      "submission_id": "15p8o1j",
+      "prompt_sha256": "fa7d7e452d82b642a0dae55b8c404b385f8a3bb611c86ef0cdd00a36a071ba3a",
+      "body_sha256": "75551329cb9be0350bb1965e5c58c7a5d3c3fd8d9131169405eed2a2d55d24ca",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P017",
+      "submission_id": "10ukzpr",
+      "prompt_sha256": "d087b90b052884ea565b0aa621ccbf690660dfbecac08c328f1a2c8ba4714298",
+      "body_sha256": "2296ff16cac8cef4dbbcfdfba6de523c2e27631f7b320cf1b68da69601f06c18",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P018",
+      "submission_id": "1ehrxfr",
+      "prompt_sha256": "01eb3a0b3d4df5934bf556249055f7f856a7994dc997eb39a0edfb0eaaead3ee",
+      "body_sha256": "3d921510ee5b51a07b1b4bb123f767fc7b425603df0ddcdc8f780bbba7102036",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P019",
+      "submission_id": "16cn4cy",
+      "prompt_sha256": "78e7e68150cc51a5f998cdbc9b3986325f71c163b8c1d3c360efef9a0d33f045",
+      "body_sha256": "17af7c002786469617433e2e4261d109ab77ed4d571c519c2bb02d14dc286409",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P020",
+      "submission_id": "156vlun",
+      "prompt_sha256": "e7a10c20c4b038cea335d9dbc78e6ed6a90e4330a93473dc45a99a906a670afc",
+      "body_sha256": "f1fa23fa949b97a2ec03938683aaceea7df6b8002731b963e66d44e24cf50563",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P021",
+      "submission_id": "154yu91",
+      "prompt_sha256": "3fde2b1f8d546c90ccb5a7c22e34d610e5b0ec0f76a05718a6ecb874e2777322",
+      "body_sha256": "47ce3af6d95958c8012b538e372a8fd71d0fae509fa04b07dda250cefc4bb173",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P022",
+      "submission_id": "1eafp0i",
+      "prompt_sha256": "28999ade187d871c7e588ffe6e28d1ddeca67bd93f164430d57c501190955b46",
+      "body_sha256": "0e988621ec6e6fc0a2b3133950e2938b36d940224f25576868d902c4c147ec61",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P023",
+      "submission_id": "12eivy7",
+      "prompt_sha256": "3eeb5c9bfdadceeff122a3b3f74dbf2610ea38decdc75bdc51f5df2a1d7cd1c2",
+      "body_sha256": "e32c9b8e88c96d837ee87cb9369ad76fee76a04569dd046c67b9fa9bc7ada6f5",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P024",
+      "submission_id": "1i4658l",
+      "prompt_sha256": "51794a6968760477dc6962e13577e1defdcc9bd773478ee959a09284545c336b",
+      "body_sha256": "0e329a021a8a72c1cb24a35d4f641c5efbc178e27844a8277339795174508d45",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P025",
+      "submission_id": "vca6z1",
+      "prompt_sha256": "0add30f69a8e7889f25035cbccf2c822921544ef9aa5fef50399213121d8b28c",
+      "body_sha256": "865a4b40f731d98f33397934f235d6b9777b4ff8774f71ec59e3cb2c4d0e255f",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P026",
+      "submission_id": "y68ihz",
+      "prompt_sha256": "c82ff3be04b95f991cd7a1e4fa36cb707b4118457b4a01867b8aecb166e52dd5",
+      "body_sha256": "bd3dd25723a5fd293798db3257f7a02d4cf0044dabe881d30e5e0faf1d96541e",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P027",
+      "submission_id": "uarufp",
+      "prompt_sha256": "ecdfdbc9b0d720643f6fcb650f6f8376263aa8bb5813dea33bed8bc81427cedc",
+      "body_sha256": "de14aea813c13a3e09d9d43d282ac0af2378e87c56e29ab689e1bf6ca5035d44",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P028",
+      "submission_id": "zvit1x",
+      "prompt_sha256": "2ca7a6163d086184913f31375aa321001a30ccc291b3901bb1bca034a85d6d7d",
+      "body_sha256": "804e95b996371c1beeb1bff1579178a6b3cbde217b3e869663fb099a80611796",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P029",
+      "submission_id": "var92b",
+      "prompt_sha256": "31e2f116cc50e11758f1c3fddaf5d7a7e5e1555de5e59012096ed5b019c2bf1b",
+      "body_sha256": "3f1fd74ae01ea30094e73b0687f95fe54c523d188d43c636bdbe7630beee5087",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P030",
+      "submission_id": "1bcwtqo",
+      "prompt_sha256": "617043cfa31a96b2cf0a388ddab9e9cba91cce901c6ffed2335b58603e1174f9",
+      "body_sha256": "ea039d3c50791e98293992599566c1a356a1ffe3732cca7ee468bd88bdfba0ff",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P031",
+      "submission_id": "u2ime0",
+      "prompt_sha256": "fabcda45d683150e58bbb3d43020061d93ee522d14b6c655d4dc8969ad4c1b1d",
+      "body_sha256": "4f97a60d8b098a117224c2214a09840cd4d662bd87dc089ec3931196964a9ce4",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P032",
+      "submission_id": "my9quq",
+      "prompt_sha256": "1e0a0620e60c92ec8814fe1aaf71b310ab1ab9c31c586431dfc057d746f58e82",
+      "body_sha256": "8d985fb28612eb2bcabf4e36d66e9f92f277e4684c469e3ff68f8167740b106b",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P033",
+      "submission_id": "euttsz",
+      "prompt_sha256": "b3c970751a85fe8f694496c52833f2f5f8ae0033f00712266fc1a20136b94636",
+      "body_sha256": "8109a3dd120d23cd7c6a831dd494c6d7a32041c098dda7fedcf361db8e88751e",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P034",
+      "submission_id": "gsr7bf",
+      "prompt_sha256": "094b49a5193ec11a1489ec0adda384023f75dc569df360a52a568bdd14c793f1",
+      "body_sha256": "1c2766cde549360bbbe678a9eeeaecdca7bca2dc8b718318d96d22d9048c4fbc",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P035",
+      "submission_id": "ly3002",
+      "prompt_sha256": "481d8be2bac210b8c05a691452f17b35fcc2efeb89ab20ccbeab754390c1db5b",
+      "body_sha256": "30718b48f7ab5df3887d4822980334c2c6c26520a93ecaec8a0ab37322d1a5a2",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P036",
+      "submission_id": "g2hyoe",
+      "prompt_sha256": "bd263013dffe526194002d3bf35d4d954985c5d1e7c1afcc6d183957b9580ce9",
+      "body_sha256": "298faf536d09ffa4a1a5c44493f74b06401349ff204214a31adbe5aeab0a64d8",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P037",
+      "submission_id": "q1cbjr",
+      "prompt_sha256": "22ba3f961b50c50f7e0ab0055cf094502a7570bb37861b62e6f9342fb56d69c6",
+      "body_sha256": "bab7e956333b63612f70f291d1101a47fea9c4d440900994d7c267f184f1b808",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P038",
+      "submission_id": "inu97u",
+      "prompt_sha256": "1c9a4763052e7442b3501b261c51f68c0bda802b4f8a392e4690c257c50528f4",
+      "body_sha256": "2f5ebbaf990f1bb7b17ae6473effad876c3f615945183dbe28c6482044975668",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P039",
+      "submission_id": "1czsk5w",
+      "prompt_sha256": "269d017ec227681d009a3af8ef58bb8ddb8cc13b8fabd45db2bdf48c569a319a",
+      "body_sha256": "54e66ab6f9ae18c9f02f30c4c6a77f7f03bcb96967dfd5b364847f53de07c28a",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P040",
+      "submission_id": "1k4a6ob",
+      "prompt_sha256": "8a745821b81b3c8d9b8835e569cb9fb5302206eaa8f3fbad3931d4715584a94c",
+      "body_sha256": "e36ec1e6b56b7a60e098455fde6e7205edd79bd0fe0d897ba753486798a42779",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P041",
+      "submission_id": "k7uuwb",
+      "prompt_sha256": "5b786c3a804fc098cd09065f4c1f67a02981f9d3a08b1df3c3e2eea93944152b",
+      "body_sha256": "ff544f2df46c41f620f9c246acf7392a46e687997015b1114f1cbd0bd111fcfe",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P042",
+      "submission_id": "1hc29d8",
+      "prompt_sha256": "de5c640e3e3534e985e525af0cf9f8b9c30c5964c76e0b82eeb423b4aabb2ead",
+      "body_sha256": "9030d8ff3120f6978a83851b76414277315deead421a6f47cad404df13e90ac8",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P043",
+      "submission_id": "f6n1b1",
+      "prompt_sha256": "c79ebac463ee649cecb4ed81e65f3d5cd16b357107ba3d3b53b10ee46f1c6d3b",
+      "body_sha256": "9b44db6137abaac4944b9cd82bd76f62f7e8e3dc5526339601b1ef14c59c465a",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P044",
+      "submission_id": "emch4u",
+      "prompt_sha256": "2a3c66e2c6ac6a667f2ac8d39526643782ed0a432e786872ce3adc1e93d90e52",
+      "body_sha256": "607acec4fd12dd6f635de6d96a57b1b9a7cdc8c5b5285f7a59b7a7e9fdb9d222",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P045",
+      "submission_id": "1d9o2ie",
+      "prompt_sha256": "1f14daba5c4bb8bfd11cb63c9614cfeb576ae1cea273880e404c89af01071ca7",
+      "body_sha256": "76915093750187cc77f94b0ee46febaceb7c3bc0175592d959f5a84ce0eb7a96",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P046",
+      "submission_id": "16a1sd1",
+      "prompt_sha256": "1a1842c40ce847d04b0ec8129baee598ce150a77b7152b2837cd7fe2b867a2b7",
+      "body_sha256": "2aed00c48ce93f37a2a2acb7382f71e8d225f624f51990657f37935c0476e4db",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P047",
+      "submission_id": "1884xbf",
+      "prompt_sha256": "c503e000f1c4580d3b10ff0d21cd9c3f41c3b51c42d52076cbcbc72fac966948",
+      "body_sha256": "ce669e74abee76f11236ff0fc0322be751881cdb8a28e8bb952e4a079f3542dd",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P048",
+      "submission_id": "1k6749o",
+      "prompt_sha256": "57d3a8a755ede54a1a904d02545fa3eb16f11665f9d6855b7a271023f84056cd",
+      "body_sha256": "367524ef6264eeaab5fa6d437813509ce4d5095f920074c28a1554e2c88dd53d",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P049",
+      "submission_id": "17uj65r",
+      "prompt_sha256": "9f3a9e6bbb472a753b219e000cdb1306f664ee0d98db776105e4f8d4110530b3",
+      "body_sha256": "0fd5c12b2d5d2b8860642f0d237c9151fd9b9fe9b34d550b72ceb2c551cbb739",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P050",
+      "submission_id": "1gbj8i8",
+      "prompt_sha256": "2414c853d338789c4a9a59dacccd5b23efd6163028486b7d65b90b5ca9b0c52c",
+      "body_sha256": "150a50cbd8ec58d12a06f7f0c6c2331fce8bbc62203aa7e1c225d65cb25a4880",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P051",
+      "submission_id": "1anhrtb",
+      "prompt_sha256": "59d0287e3ab6454bf4901a4f956a01ab4d9c4b3a97ffcf870ee18e207d740202",
+      "body_sha256": "705546e19a7e14ad17e69fa55561e52b3a2db13434b7ebd70437a5533b85bbcd",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P052",
+      "submission_id": "x5z3rr",
+      "prompt_sha256": "9ed8a48b3d55885e1870b8cadef0cff3773822485b834e6536211605d8c2b961",
+      "body_sha256": "3b6b93f7c068680ae0d20cbecf9a49113311ee7c6462f876d9b6f5ffc99eda39",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P053",
+      "submission_id": "15sbold",
+      "prompt_sha256": "db268f9b3243b6313b0038d2dc80fd7a286aaca5c54a9e1cba6ab6b2bf862ccf",
+      "body_sha256": "8db0d22cb7ebebfef55460ba0476dd0679541c5261fc3b6d1ee8708fbb996dca",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P054",
+      "submission_id": "13mdzxw",
+      "prompt_sha256": "726193a0942e50f1c28ff88490c3745aab3476f704af1b77a9f8d7fc519f3dd4",
+      "body_sha256": "c079e0bd9d9bdc749a0ccd4715b7378552fcf27b599a0e21f4c1347414968d49",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P055",
+      "submission_id": "upn4ht",
+      "prompt_sha256": "f8f8ef83d42c6fa8e236bf2754bcfeca34902aec392f48279129c641f0ba9b86",
+      "body_sha256": "07e7bd254d79ed472cf826c8fcab9f88662b25fab35290feac0e0ccea17cc9d7",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P056",
+      "submission_id": "vivygh",
+      "prompt_sha256": "ac6d766c69607de7b99f0a362adf1f3697bcd0debb421f7db1c2a9ae1f99f647",
+      "body_sha256": "734dff2ecb45806dcc40fa4795e67f0fa0ba3742c47750c1b64050f73ffb4ba0",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P057",
+      "submission_id": "1ititx6",
+      "prompt_sha256": "78dff1cbe301b3195cb5bba9f15bcaf46fe22e0a5fca509e8194b81ba03c6794",
+      "body_sha256": "aa5d7387394642d5e1daed30b0ca48ba83ff24e437f2a921fe2e17f3a327a421",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P058",
+      "submission_id": "g4u5t7",
+      "prompt_sha256": "4e79d3e81e4ed58d6c8f7f9265e55d82d1f14dcc4fc4344c63a2187ce8c204dc",
+      "body_sha256": "afc504e4c0ba03f8c365065ae2cda3f38181cc55c83dadf7f702e82279aac25b",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P059",
+      "submission_id": "16rbiwm",
+      "prompt_sha256": "ee2608e2d04261bcc93e9a5ce627f247588a41d192712b375d52eed41510d566",
+      "body_sha256": "4c14e579486b77160f79070a9223565090d4c1aea8877a590628e4848220155f",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P060",
+      "submission_id": "ghfs1j",
+      "prompt_sha256": "f0a7c391d9d61d7dfd869905b258f8ecaf8ede3202c7354f6c2c38fb424a4681",
+      "body_sha256": "5d5ee0ca6c33dc3e51e0a18d26089dd66c933f2fd30c9fc0a4c1c4f32f65dff0",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P061",
+      "submission_id": "k5x6ub",
+      "prompt_sha256": "5bf456eedd69d1f2bd5cd14a796251dad3625cd5314eac04fb74962e450b9936",
+      "body_sha256": "cc377738942bdb56bcc0ba84d49b33c18360ea566e75eef315c0bef6c79e37cb",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P062",
+      "submission_id": "kqf3ro",
+      "prompt_sha256": "c2f39f4a2da27d870f552758338630dfada23d6f16935dad48b6ce2e78139a07",
+      "body_sha256": "c8d568e4abade37bcb9c98adceb7e1a1bdafb2d71e15fee1797c58abc979d2f2",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P063",
+      "submission_id": "rgaowv",
+      "prompt_sha256": "bc0d86d35cde7ee750dada128372e8c3b1ea9484888d4fe3bfd68eb39a38fc9f",
+      "body_sha256": "95853fc53f0c6ca4b1231516d562d3470299bebdb83c8951bb4eaf9c3cee3b93",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P064",
+      "submission_id": "157n0o2",
+      "prompt_sha256": "fb30e2fd4c2670341e28960f4d3ff55a91a52316d438d01c3b5df936d7824e15",
+      "body_sha256": "a4896a877e1a737ddc873cc09fd8d4e0ec4daf2856ce9d78768e402f4d2b47ac",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P065",
+      "submission_id": "xyy8zd",
+      "prompt_sha256": "5c8501cdb46684adb99b59df7dee00d718077891a5e44d9aeca4596fd08a12f1",
+      "body_sha256": "d443d160b784c7323ea9a168839a1e731df49db468ee105140168d986ce683f0",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P066",
+      "submission_id": "nj91d3",
+      "prompt_sha256": "64ec06b4d964717d0419fd9a737f79cee590515c089c133f971ed0bfaf06173f",
+      "body_sha256": "80564b5a63acd36887f9c27b904798d48198c216f38a3381d1dc65d2f2871e85",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P067",
+      "submission_id": "k33sle",
+      "prompt_sha256": "96d6728a07efb54eaf27845e1f3b028eb306df3f94259b87de56bbe9891c9c4e",
+      "body_sha256": "97dcde8626c14fb8e21d73933b8e0db17d0898c9a85aa454054e7a902685d4c6",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P068",
+      "submission_id": "ou2fy3",
+      "prompt_sha256": "188b554edcf13f09c1403970f8f7202d08fcf6fd2e21909db02715b39c8b151c",
+      "body_sha256": "53acca05a561f040ad9cb2e54bc1fd208f063f482de85afd5db35c6ca36ee9e9",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P069",
+      "submission_id": "1b7kuz9",
+      "prompt_sha256": "43e1e76344cb10e9fffda9947cedd3bc93e73a978f8f6bfb395b870eb1f7bd3f",
+      "body_sha256": "e1c2627c70837f86252f1f768703300e37504fd484ddf0ca66b5700fd2066a32",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P070",
+      "submission_id": "1l0r032",
+      "prompt_sha256": "deeded0ca08edbb5326abeb0c063eb542a5126da05979e5106228f7cc256f075",
+      "body_sha256": "56edea7e1605fe094ca477c7b1e88e3c450dd92d606047059176b2c4d4b59512",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P071",
+      "submission_id": "ozvkfe",
+      "prompt_sha256": "d18b497adbe31c84106c82ea6598f0c4b9f7d264f43a21288509fa6cb095da06",
+      "body_sha256": "e03330d8cfffd8d589cd13a6ce768aa23d3c240fbe0472942c0be1e790b883f5",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P072",
+      "submission_id": "18ambm6",
+      "prompt_sha256": "4e49450937b30c0f13b15ba6a5e42f0e7deca491e76069a1b77f9eb9a1e4aace",
+      "body_sha256": "e3834636b8ee20a66b8660209a76feed8732d4614fd619b2bca10697233e5d60",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P073",
+      "submission_id": "w2qmys",
+      "prompt_sha256": "10be27f27be04680ccd503f6864053cac06a0a2bc607839b1d65cd3f4e8828de",
+      "body_sha256": "bc99739255083be06b646f0ecba3aa429b58fbd796d2876dee62bfbdccd24c71",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P074",
+      "submission_id": "spsoup",
+      "prompt_sha256": "5098c7d4b2e8c0dcbb45fd4ebb9c3f20c309f5228239d64ef6afc29d00d66889",
+      "body_sha256": "65307c7a6b6318cd6e04df3622fd69fbc888db9705a94624e26e78386e26ec9b",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P075",
+      "submission_id": "1f5nue9",
+      "prompt_sha256": "1545fa7730aad34673505b77958d81028d6095429bb52921ef62839d2ce3e0ce",
+      "body_sha256": "0882bb407042e8882849f777fe41e4d16c5244c7a18f67e183494cb4e310a786",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P076",
+      "submission_id": "hcactg",
+      "prompt_sha256": "83bfb1030d1d17403b1b163b1c97ddeb7485e6787bad21aaf6e9aadeba95ac9c",
+      "body_sha256": "1431786f6d342a8f6235028e9158d479802bdc279c0bce8834bc30c523b91000",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P077",
+      "submission_id": "j9tc5w",
+      "prompt_sha256": "3512810bc0bb1e03890f1583d54fd9e430c9797cecfa1d85e9b1b0bbabcfc6c4",
+      "body_sha256": "aee964b823fa36df89eaa7f6c559f1f0da43b8b95d42999724f8b95cdf563cc7",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P078",
+      "submission_id": "xipsd1",
+      "prompt_sha256": "2cf92cdcd3c79be47ccfba8c568a6b375606accda7f9a4117d96e3115568919a",
+      "body_sha256": "b60dd5ad85fef6334ea2704a393e8929f0b1e9473e917e8b3b7ceca48854b457",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P079",
+      "submission_id": "fhqyvo",
+      "prompt_sha256": "db4c63e9ff6eb4bb571537f932ba3a8974b84e2bf8a5d69dd1c796416f0dda84",
+      "body_sha256": "83b9ad15578a98cfda5c4a77bb4a3b4e17a2e06e56d516d93117a2e454bda899",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P080",
+      "submission_id": "r2t157",
+      "prompt_sha256": "9a44603bfac2213ab94ebb72522ca1fb4cb8b1b50b012aa5e534f1a58d1810eb",
+      "body_sha256": "0ee60a6eabe7bf7e2faa3bdeaaa59d874e9a725c5b50c901c755988594646e2a",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P081",
+      "submission_id": "vnzo1i",
+      "prompt_sha256": "194732f853e64739e2a22f35380b45500bde52a77fd29a004d466963b77dc806",
+      "body_sha256": "31c65ef3f3797dd782e0ac59d200198b313df9bd601bb446791743271df13a1a",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P082",
+      "submission_id": "14c6rfw",
+      "prompt_sha256": "b8ad52d4d4a3b5ede21c330e806103346a1ff07896f5451fda15f2ccf0347edb",
+      "body_sha256": "4a78b34545e1f935851c35291a58c222083e9288220dd96486c0e0fee76e9a0b",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P083",
+      "submission_id": "ovuiv6",
+      "prompt_sha256": "422195adbcab77d9958ac0b4827a89b2b6d4a87f7df509d9e1af746ebb222627",
+      "body_sha256": "f1d371f169a1ecc2c7aae6f40acf4bee7714aeb02c4f8c240d208c4422616e26",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P084",
+      "submission_id": "16vb87j",
+      "prompt_sha256": "8787928c67ca9bf43ff62e1ba0f35f9007ce40cb4f2e39267c42b96788ef8709",
+      "body_sha256": "c849ddbeb1ca053a92e0d914699331a1a59ef3f2f607ff4e1844f107639ccf4f",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P085",
+      "submission_id": "ia6g7x",
+      "prompt_sha256": "3f0e9a5666e1f131aee314ad89cd86184bda920ad1d93fa52b497b1929c10eef",
+      "body_sha256": "7b898126a1fe7bc7c361c93d8a0acf287656c2fd6d310906ab7003a75e69a4d3",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P086",
+      "submission_id": "yallza",
+      "prompt_sha256": "7517cfa0d27d1437c797b9e200e191ac784c2045add9983e61a73a654870d195",
+      "body_sha256": "59f2219b1fec2327880c837e185c317abfcc70f8a680600cd4dfbad9b9f8dc06",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P087",
+      "submission_id": "1d7mb89",
+      "prompt_sha256": "fe21ec60e93415fcc82deee411e18c8e2fed7a76efa886f1d35f07316e8ef8f8",
+      "body_sha256": "431d18d87f1df522b4ec3d7db34872cd03a9d8db08f07d8ec0f1596807f428d7",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P088",
+      "submission_id": "117itt5",
+      "prompt_sha256": "b81329610962e01f388734ca546602741c8337b142077ebfc8a65a04d1f530b6",
+      "body_sha256": "b6e09ec01a62f4f427d8c97de557849998a2c08e71a4528912eef75f9de7ab46",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P089",
+      "submission_id": "1c57zbi",
+      "prompt_sha256": "4b845953421a7669f8fd2a97ff08875488db6dac636b26edcd0562c116e1887a",
+      "body_sha256": "fe5b44776647296231135e9f274113d512ecdf7045fe2fb903ebf806d5ef17e5",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P090",
+      "submission_id": "1d3rzl7",
+      "prompt_sha256": "5f1b072834e5eacad169aa2ef53fb8058a1515f69c2e8f5ec4449a77f67a3a2c",
+      "body_sha256": "d9c753b2b91bb9a119cac3b54861f53540e4e52255de667d60828400256364f1",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P091",
+      "submission_id": "rtxvog",
+      "prompt_sha256": "0013f50eb4fd5a44d11fd8ba4da7372b57fd9061a6f12bff19256681fb6e3d08",
+      "body_sha256": "925f177c904cf745e892cebff8bb0ee08462da0c486b803a7522a043028cd213",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P092",
+      "submission_id": "ga4c3v",
+      "prompt_sha256": "a08bb2234418a9820197698878a20578d67b2ba66a521a62a216ddaad772f223",
+      "body_sha256": "19143bc8706b48660f2af6ef776a595f34c5a642d41f43bca2d9ef5168b209fc",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P093",
+      "submission_id": "13ma0r8",
+      "prompt_sha256": "8d6419ce82b5a3f30a0ac8abd662913da14b35121fcad49e91308160b924a1a7",
+      "body_sha256": "f0be3d37a90737d09d1b1258c0869edf84bacdde90eb9f418af7afd380230609",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P094",
+      "submission_id": "ltni3p",
+      "prompt_sha256": "cbd2a3e86b9833732724bb727763e3b31bd32737d4d0c077d3d854f884f2edad",
+      "body_sha256": "34009406268f74d95df58a9080c8ed410d1d26758c97958702146389d8da5d33",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P095",
+      "submission_id": "y8et13",
+      "prompt_sha256": "3ceb31f25bdd74a0577779779f9f9dbf4694c2cb76bb14d74d4712cbc35ca048",
+      "body_sha256": "24342883fe6d3c6eecd28330d1a1969e7554ab5b2c225c8cbf80f4294ee87079",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P096",
+      "submission_id": "ivo3bb",
+      "prompt_sha256": "7638608b7371d3823978a6bc22f61f17a9e644e8d5f648e2c598ddd0cf75e6e4",
+      "body_sha256": "9157d8e70037a355eddb25e171cd35e3b79042b789ea8e0781ca4d9c57d63531",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P097",
+      "submission_id": "126u3no",
+      "prompt_sha256": "15959436582c9b991789acbd64f831175f0a9e7addbfd8c92051731c5b34b6cd",
+      "body_sha256": "a9ccd9055317a7bc3ec26205a3600d8816011f692fd06e50d0219716c16024a1",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P098",
+      "submission_id": "10pbrjt",
+      "prompt_sha256": "2ae5b356f6cfdbe8e76d7d0a11119b9c1a317b8d62135b2dfaf26f20588d5422",
+      "body_sha256": "371ac2957f56d687bdbb18a300825e4967143a7a6b77ec2e3784c98da2fa99ce",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P099",
+      "submission_id": "qfe7tp",
+      "prompt_sha256": "7e6347ac9cfc34fe28b0bfa53a5e2b3ceb50ec9dcaae4484aed5597b0531377a",
+      "body_sha256": "d9f6567dcf37cab137636d77258aaa960a3d214efd14b19b63ad4c29c378c717",
+      "word_minimum": 60,
+      "word_limit": null
+    },
+    {
+      "stimulus_id": "P100",
+      "submission_id": "f68wze",
+      "prompt_sha256": "e33e959c69544ec924bba0331e40443a5830f83b570ee9bcf4114c082704aa13",
+      "body_sha256": "9e419819936d0bac7b652edd59644e63d86612f72bc08aa8c0cd251c0e6a1625",
+      "word_minimum": 60,
+      "word_limit": null
+    }
+  ],
+  "plan": [
+    {
+      "slot_id": "S001",
+      "position": 1,
+      "stimulus_id": "P021"
+    },
+    {
+      "slot_id": "S001",
+      "position": 2,
+      "stimulus_id": "P013"
+    },
+    {
+      "slot_id": "S001",
+      "position": 3,
+      "stimulus_id": "P019"
+    },
+    {
+      "slot_id": "S002",
+      "position": 1,
+      "stimulus_id": "P068"
+    },
+    {
+      "slot_id": "S002",
+      "position": 2,
+      "stimulus_id": "P041"
+    },
+    {
+      "slot_id": "S002",
+      "position": 3,
+      "stimulus_id": "P037"
+    },
+    {
+      "slot_id": "S003",
+      "position": 1,
+      "stimulus_id": "P097"
+    },
+    {
+      "slot_id": "S003",
+      "position": 2,
+      "stimulus_id": "P023"
+    },
+    {
+      "slot_id": "S003",
+      "position": 3,
+      "stimulus_id": "P087"
+    },
+    {
+      "slot_id": "S004",
+      "position": 1,
+      "stimulus_id": "P072"
+    },
+    {
+      "slot_id": "S004",
+      "position": 2,
+      "stimulus_id": "P077"
+    },
+    {
+      "slot_id": "S004",
+      "position": 3,
+      "stimulus_id": "P092"
+    },
+    {
+      "slot_id": "S005",
+      "position": 1,
+      "stimulus_id": "P062"
+    },
+    {
+      "slot_id": "S005",
+      "position": 2,
+      "stimulus_id": "P064"
+    },
+    {
+      "slot_id": "S005",
+      "position": 3,
+      "stimulus_id": "P017"
+    },
+    {
+      "slot_id": "S006",
+      "position": 1,
+      "stimulus_id": "P001"
+    },
+    {
+      "slot_id": "S006",
+      "position": 2,
+      "stimulus_id": "P074"
+    },
+    {
+      "slot_id": "S006",
+      "position": 3,
+      "stimulus_id": "P063"
+    },
+    {
+      "slot_id": "S007",
+      "position": 1,
+      "stimulus_id": "P038"
+    },
+    {
+      "slot_id": "S007",
+      "position": 2,
+      "stimulus_id": "P054"
+    },
+    {
+      "slot_id": "S007",
+      "position": 3,
+      "stimulus_id": "P065"
+    },
+    {
+      "slot_id": "S008",
+      "position": 1,
+      "stimulus_id": "P070"
+    },
+    {
+      "slot_id": "S008",
+      "position": 2,
+      "stimulus_id": "P072"
+    },
+    {
+      "slot_id": "S008",
+      "position": 3,
+      "stimulus_id": "P005"
+    },
+    {
+      "slot_id": "S009",
+      "position": 1,
+      "stimulus_id": "P043"
+    },
+    {
+      "slot_id": "S009",
+      "position": 2,
+      "stimulus_id": "P095"
+    },
+    {
+      "slot_id": "S009",
+      "position": 3,
+      "stimulus_id": "P064"
+    },
+    {
+      "slot_id": "S010",
+      "position": 1,
+      "stimulus_id": "P071"
+    },
+    {
+      "slot_id": "S010",
+      "position": 2,
+      "stimulus_id": "P006"
+    },
+    {
+      "slot_id": "S010",
+      "position": 3,
+      "stimulus_id": "P042"
+    },
+    {
+      "slot_id": "S011",
+      "position": 1,
+      "stimulus_id": "P090"
+    },
+    {
+      "slot_id": "S011",
+      "position": 2,
+      "stimulus_id": "P042"
+    },
+    {
+      "slot_id": "S011",
+      "position": 3,
+      "stimulus_id": "P078"
+    },
+    {
+      "slot_id": "S012",
+      "position": 1,
+      "stimulus_id": "P098"
+    },
+    {
+      "slot_id": "S012",
+      "position": 2,
+      "stimulus_id": "P047"
+    },
+    {
+      "slot_id": "S012",
+      "position": 3,
+      "stimulus_id": "P076"
+    },
+    {
+      "slot_id": "S013",
+      "position": 1,
+      "stimulus_id": "P075"
+    },
+    {
+      "slot_id": "S013",
+      "position": 2,
+      "stimulus_id": "P097"
+    },
+    {
+      "slot_id": "S013",
+      "position": 3,
+      "stimulus_id": "P056"
+    },
+    {
+      "slot_id": "S014",
+      "position": 1,
+      "stimulus_id": "P052"
+    },
+    {
+      "slot_id": "S014",
+      "position": 2,
+      "stimulus_id": "P089"
+    },
+    {
+      "slot_id": "S014",
+      "position": 3,
+      "stimulus_id": "P100"
+    },
+    {
+      "slot_id": "S015",
+      "position": 1,
+      "stimulus_id": "P031"
+    },
+    {
+      "slot_id": "S015",
+      "position": 2,
+      "stimulus_id": "P035"
+    },
+    {
+      "slot_id": "S015",
+      "position": 3,
+      "stimulus_id": "P030"
+    },
+    {
+      "slot_id": "S016",
+      "position": 1,
+      "stimulus_id": "P045"
+    },
+    {
+      "slot_id": "S016",
+      "position": 2,
+      "stimulus_id": "P084"
+    },
+    {
+      "slot_id": "S016",
+      "position": 3,
+      "stimulus_id": "P049"
+    },
+    {
+      "slot_id": "S017",
+      "position": 1,
+      "stimulus_id": "P091"
+    },
+    {
+      "slot_id": "S017",
+      "position": 2,
+      "stimulus_id": "P039"
+    },
+    {
+      "slot_id": "S017",
+      "position": 3,
+      "stimulus_id": "P093"
+    },
+    {
+      "slot_id": "S018",
+      "position": 1,
+      "stimulus_id": "P057"
+    },
+    {
+      "slot_id": "S018",
+      "position": 2,
+      "stimulus_id": "P099"
+    },
+    {
+      "slot_id": "S018",
+      "position": 3,
+      "stimulus_id": "P047"
+    },
+    {
+      "slot_id": "S019",
+      "position": 1,
+      "stimulus_id": "P077"
+    },
+    {
+      "slot_id": "S019",
+      "position": 2,
+      "stimulus_id": "P005"
+    },
+    {
+      "slot_id": "S019",
+      "position": 3,
+      "stimulus_id": "P088"
+    },
+    {
+      "slot_id": "S020",
+      "position": 1,
+      "stimulus_id": "P074"
+    },
+    {
+      "slot_id": "S020",
+      "position": 2,
+      "stimulus_id": "P027"
+    },
+    {
+      "slot_id": "S020",
+      "position": 3,
+      "stimulus_id": "P058"
+    },
+    {
+      "slot_id": "S021",
+      "position": 1,
+      "stimulus_id": "P088"
+    },
+    {
+      "slot_id": "S021",
+      "position": 2,
+      "stimulus_id": "P057"
+    },
+    {
+      "slot_id": "S021",
+      "position": 3,
+      "stimulus_id": "P098"
+    },
+    {
+      "slot_id": "S022",
+      "position": 1,
+      "stimulus_id": "P061"
+    },
+    {
+      "slot_id": "S022",
+      "position": 2,
+      "stimulus_id": "P075"
+    },
+    {
+      "slot_id": "S022",
+      "position": 3,
+      "stimulus_id": "P023"
+    },
+    {
+      "slot_id": "S023",
+      "position": 1,
+      "stimulus_id": "P100"
+    },
+    {
+      "slot_id": "S023",
+      "position": 2,
+      "stimulus_id": "P001"
+    },
+    {
+      "slot_id": "S023",
+      "position": 3,
+      "stimulus_id": "P027"
+    },
+    {
+      "slot_id": "S024",
+      "position": 1,
+      "stimulus_id": "P051"
+    },
+    {
+      "slot_id": "S024",
+      "position": 2,
+      "stimulus_id": "P078"
+    },
+    {
+      "slot_id": "S024",
+      "position": 3,
+      "stimulus_id": "P067"
+    },
+    {
+      "slot_id": "S025",
+      "position": 1,
+      "stimulus_id": "P006"
+    },
+    {
+      "slot_id": "S025",
+      "position": 2,
+      "stimulus_id": "P090"
+    },
+    {
+      "slot_id": "S025",
+      "position": 3,
+      "stimulus_id": "P051"
+    },
+    {
+      "slot_id": "S026",
+      "position": 1,
+      "stimulus_id": "P022"
+    },
+    {
+      "slot_id": "S026",
+      "position": 2,
+      "stimulus_id": "P059"
+    },
+    {
+      "slot_id": "S026",
+      "position": 3,
+      "stimulus_id": "P039"
+    },
+    {
+      "slot_id": "S027",
+      "position": 1,
+      "stimulus_id": "P041"
+    },
+    {
+      "slot_id": "S027",
+      "position": 2,
+      "stimulus_id": "P083"
+    },
+    {
+      "slot_id": "S027",
+      "position": 3,
+      "stimulus_id": "P070"
+    },
+    {
+      "slot_id": "S028",
+      "position": 1,
+      "stimulus_id": "P064"
+    },
+    {
+      "slot_id": "S028",
+      "position": 2,
+      "stimulus_id": "P069"
+    },
+    {
+      "slot_id": "S028",
+      "position": 3,
+      "stimulus_id": "P028"
+    },
+    {
+      "slot_id": "S029",
+      "position": 1,
+      "stimulus_id": "P004"
+    },
+    {
+      "slot_id": "S029",
+      "position": 2,
+      "stimulus_id": "P022"
+    },
+    {
+      "slot_id": "S029",
+      "position": 3,
+      "stimulus_id": "P091"
+    },
+    {
+      "slot_id": "S030",
+      "position": 1,
+      "stimulus_id": "P025"
+    },
+    {
+      "slot_id": "S030",
+      "position": 2,
+      "stimulus_id": "P018"
+    },
+    {
+      "slot_id": "S030",
+      "position": 3,
+      "stimulus_id": "P015"
+    },
+    {
+      "slot_id": "S031",
+      "position": 1,
+      "stimulus_id": "P008"
+    },
+    {
+      "slot_id": "S031",
+      "position": 2,
+      "stimulus_id": "P011"
+    },
+    {
+      "slot_id": "S031",
+      "position": 3,
+      "stimulus_id": "P095"
+    },
+    {
+      "slot_id": "S032",
+      "position": 1,
+      "stimulus_id": "P040"
+    },
+    {
+      "slot_id": "S032",
+      "position": 2,
+      "stimulus_id": "P093"
+    },
+    {
+      "slot_id": "S032",
+      "position": 3,
+      "stimulus_id": "P007"
+    },
+    {
+      "slot_id": "S033",
+      "position": 1,
+      "stimulus_id": "P093"
+    },
+    {
+      "slot_id": "S033",
+      "position": 2,
+      "stimulus_id": "P094"
+    },
+    {
+      "slot_id": "S033",
+      "position": 3,
+      "stimulus_id": "P055"
+    },
+    {
+      "slot_id": "S034",
+      "position": 1,
+      "stimulus_id": "P065"
+    },
+    {
+      "slot_id": "S034",
+      "position": 2,
+      "stimulus_id": "P004"
+    },
+    {
+      "slot_id": "S034",
+      "position": 3,
+      "stimulus_id": "P059"
+    },
+    {
+      "slot_id": "S035",
+      "position": 1,
+      "stimulus_id": "P094"
+    },
+    {
+      "slot_id": "S035",
+      "position": 2,
+      "stimulus_id": "P007"
+    },
+    {
+      "slot_id": "S035",
+      "position": 3,
+      "stimulus_id": "P061"
+    },
+    {
+      "slot_id": "S036",
+      "position": 1,
+      "stimulus_id": "P033"
+    },
+    {
+      "slot_id": "S036",
+      "position": 2,
+      "stimulus_id": "P082"
+    },
+    {
+      "slot_id": "S036",
+      "position": 3,
+      "stimulus_id": "P014"
+    },
+    {
+      "slot_id": "S037",
+      "position": 1,
+      "stimulus_id": "P080"
+    },
+    {
+      "slot_id": "S037",
+      "position": 2,
+      "stimulus_id": "P009"
+    },
+    {
+      "slot_id": "S037",
+      "position": 3,
+      "stimulus_id": "P035"
+    },
+    {
+      "slot_id": "S038",
+      "position": 1,
+      "stimulus_id": "P050"
+    },
+    {
+      "slot_id": "S038",
+      "position": 2,
+      "stimulus_id": "P019"
+    },
+    {
+      "slot_id": "S038",
+      "position": 3,
+      "stimulus_id": "P011"
+    },
+    {
+      "slot_id": "S039",
+      "position": 1,
+      "stimulus_id": "P073"
+    },
+    {
+      "slot_id": "S039",
+      "position": 2,
+      "stimulus_id": "P014"
+    },
+    {
+      "slot_id": "S039",
+      "position": 3,
+      "stimulus_id": "P009"
+    },
+    {
+      "slot_id": "S040",
+      "position": 1,
+      "stimulus_id": "P081"
+    },
+    {
+      "slot_id": "S040",
+      "position": 2,
+      "stimulus_id": "P021"
+    },
+    {
+      "slot_id": "S040",
+      "position": 3,
+      "stimulus_id": "P050"
+    },
+    {
+      "slot_id": "S041",
+      "position": 1,
+      "stimulus_id": "P078"
+    },
+    {
+      "slot_id": "S041",
+      "position": 2,
+      "stimulus_id": "P048"
+    },
+    {
+      "slot_id": "S041",
+      "position": 3,
+      "stimulus_id": "P025"
+    },
+    {
+      "slot_id": "S042",
+      "position": 1,
+      "stimulus_id": "P030"
+    },
+    {
+      "slot_id": "S042",
+      "position": 2,
+      "stimulus_id": "P045"
+    },
+    {
+      "slot_id": "S042",
+      "position": 3,
+      "stimulus_id": "P026"
+    },
+    {
+      "slot_id": "S043",
+      "position": 1,
+      "stimulus_id": "P095"
+    },
+    {
+      "slot_id": "S043",
+      "position": 2,
+      "stimulus_id": "P062"
+    },
+    {
+      "slot_id": "S043",
+      "position": 3,
+      "stimulus_id": "P069"
+    },
+    {
+      "slot_id": "S044",
+      "position": 1,
+      "stimulus_id": "P099"
+    },
+    {
+      "slot_id": "S044",
+      "position": 2,
+      "stimulus_id": "P098"
+    },
+    {
+      "slot_id": "S044",
+      "position": 3,
+      "stimulus_id": "P046"
+    },
+    {
+      "slot_id": "S045",
+      "position": 1,
+      "stimulus_id": "P096"
+    },
+    {
+      "slot_id": "S045",
+      "position": 2,
+      "stimulus_id": "P030"
+    },
+    {
+      "slot_id": "S045",
+      "position": 3,
+      "stimulus_id": "P084"
+    },
+    {
+      "slot_id": "S046",
+      "position": 1,
+      "stimulus_id": "P058"
+    },
+    {
+      "slot_id": "S046",
+      "position": 2,
+      "stimulus_id": "P081"
+    },
+    {
+      "slot_id": "S046",
+      "position": 3,
+      "stimulus_id": "P013"
+    },
+    {
+      "slot_id": "S047",
+      "position": 1,
+      "stimulus_id": "P002"
+    },
+    {
+      "slot_id": "S047",
+      "position": 2,
+      "stimulus_id": "P024"
+    },
+    {
+      "slot_id": "S047",
+      "position": 3,
+      "stimulus_id": "P053"
+    },
+    {
+      "slot_id": "S048",
+      "position": 1,
+      "stimulus_id": "P049"
+    },
+    {
+      "slot_id": "S048",
+      "position": 2,
+      "stimulus_id": "P066"
+    },
+    {
+      "slot_id": "S048",
+      "position": 3,
+      "stimulus_id": "P041"
+    },
+    {
+      "slot_id": "S049",
+      "position": 1,
+      "stimulus_id": "P063"
+    },
+    {
+      "slot_id": "S049",
+      "position": 2,
+      "stimulus_id": "P058"
+    },
+    {
+      "slot_id": "S049",
+      "position": 3,
+      "stimulus_id": "P021"
+    },
+    {
+      "slot_id": "S050",
+      "position": 1,
+      "stimulus_id": "P016"
+    },
+    {
+      "slot_id": "S050",
+      "position": 2,
+      "stimulus_id": "P100"
+    },
+    {
+      "slot_id": "S050",
+      "position": 3,
+      "stimulus_id": "P074"
+    },
+    {
+      "slot_id": "S051",
+      "position": 1,
+      "stimulus_id": "P048"
+    },
+    {
+      "slot_id": "S051",
+      "position": 2,
+      "stimulus_id": "P067"
+    },
+    {
+      "slot_id": "S051",
+      "position": 3,
+      "stimulus_id": "P018"
+    },
+    {
+      "slot_id": "S052",
+      "position": 1,
+      "stimulus_id": "P056"
+    },
+    {
+      "slot_id": "S052",
+      "position": 2,
+      "stimulus_id": "P087"
+    },
+    {
+      "slot_id": "S052",
+      "position": 3,
+      "stimulus_id": "P079"
+    },
+    {
+      "slot_id": "S053",
+      "position": 1,
+      "stimulus_id": "P035"
+    },
+    {
+      "slot_id": "S053",
+      "position": 2,
+      "stimulus_id": "P096"
+    },
+    {
+      "slot_id": "S053",
+      "position": 3,
+      "stimulus_id": "P045"
+    },
+    {
+      "slot_id": "S054",
+      "position": 1,
+      "stimulus_id": "P076"
+    },
+    {
+      "slot_id": "S054",
+      "position": 2,
+      "stimulus_id": "P029"
+    },
+    {
+      "slot_id": "S054",
+      "position": 3,
+      "stimulus_id": "P002"
+    },
+    {
+      "slot_id": "S055",
+      "position": 1,
+      "stimulus_id": "P019"
+    },
+    {
+      "slot_id": "S055",
+      "position": 2,
+      "stimulus_id": "P008"
+    },
+    {
+      "slot_id": "S055",
+      "position": 3,
+      "stimulus_id": "P043"
+    },
+    {
+      "slot_id": "S056",
+      "position": 1,
+      "stimulus_id": "P009"
+    },
+    {
+      "slot_id": "S056",
+      "position": 2,
+      "stimulus_id": "P031"
+    },
+    {
+      "slot_id": "S056",
+      "position": 3,
+      "stimulus_id": "P096"
+    },
+    {
+      "slot_id": "S057",
+      "position": 1,
+      "stimulus_id": "P015"
+    },
+    {
+      "slot_id": "S057",
+      "position": 2,
+      "stimulus_id": "P033"
+    },
+    {
+      "slot_id": "S057",
+      "position": 3,
+      "stimulus_id": "P073"
+    },
+    {
+      "slot_id": "S058",
+      "position": 1,
+      "stimulus_id": "P059"
+    },
+    {
+      "slot_id": "S058",
+      "position": 2,
+      "stimulus_id": "P091"
+    },
+    {
+      "slot_id": "S058",
+      "position": 3,
+      "stimulus_id": "P040"
+    },
+    {
+      "slot_id": "S059",
+      "position": 1,
+      "stimulus_id": "P007"
+    },
+    {
+      "slot_id": "S059",
+      "position": 2,
+      "stimulus_id": "P055"
+    },
+    {
+      "slot_id": "S059",
+      "position": 3,
+      "stimulus_id": "P075"
+    },
+    {
+      "slot_id": "S060",
+      "position": 1,
+      "stimulus_id": "P054"
+    },
+    {
+      "slot_id": "S060",
+      "position": 2,
+      "stimulus_id": "P003"
+    },
+    {
+      "slot_id": "S060",
+      "position": 3,
+      "stimulus_id": "P004"
+    },
+    {
+      "slot_id": "S061",
+      "position": 1,
+      "stimulus_id": "P044"
+    },
+    {
+      "slot_id": "S061",
+      "position": 2,
+      "stimulus_id": "P015"
+    },
+    {
+      "slot_id": "S061",
+      "position": 3,
+      "stimulus_id": "P082"
+    },
+    {
+      "slot_id": "S062",
+      "position": 1,
+      "stimulus_id": "P066"
+    },
+    {
+      "slot_id": "S062",
+      "position": 2,
+      "stimulus_id": "P068"
+    },
+    {
+      "slot_id": "S062",
+      "position": 3,
+      "stimulus_id": "P083"
+    },
+    {
+      "slot_id": "S063",
+      "position": 1,
+      "stimulus_id": "P029"
+    },
+    {
+      "slot_id": "S063",
+      "position": 2,
+      "stimulus_id": "P036"
+    },
+    {
+      "slot_id": "S063",
+      "position": 3,
+      "stimulus_id": "P024"
+    },
+    {
+      "slot_id": "S064",
+      "position": 1,
+      "stimulus_id": "P034"
+    },
+    {
+      "slot_id": "S064",
+      "position": 2,
+      "stimulus_id": "P052"
+    },
+    {
+      "slot_id": "S064",
+      "position": 3,
+      "stimulus_id": "P016"
+    },
+    {
+      "slot_id": "S065",
+      "position": 1,
+      "stimulus_id": "P042"
+    },
+    {
+      "slot_id": "S065",
+      "position": 2,
+      "stimulus_id": "P051"
+    },
+    {
+      "slot_id": "S065",
+      "position": 3,
+      "stimulus_id": "P048"
+    },
+    {
+      "slot_id": "S066",
+      "position": 1,
+      "stimulus_id": "P027"
+    },
+    {
+      "slot_id": "S066",
+      "position": 2,
+      "stimulus_id": "P063"
+    },
+    {
+      "slot_id": "S066",
+      "position": 3,
+      "stimulus_id": "P081"
+    },
+    {
+      "slot_id": "S067",
+      "position": 1,
+      "stimulus_id": "P055"
+    },
+    {
+      "slot_id": "S067",
+      "position": 2,
+      "stimulus_id": "P061"
+    },
+    {
+      "slot_id": "S067",
+      "position": 3,
+      "stimulus_id": "P097"
+    },
+    {
+      "slot_id": "S068",
+      "position": 1,
+      "stimulus_id": "P028"
+    },
+    {
+      "slot_id": "S068",
+      "position": 2,
+      "stimulus_id": "P010"
+    },
+    {
+      "slot_id": "S068",
+      "position": 3,
+      "stimulus_id": "P006"
+    },
+    {
+      "slot_id": "S069",
+      "position": 1,
+      "stimulus_id": "P036"
+    },
+    {
+      "slot_id": "S069",
+      "position": 2,
+      "stimulus_id": "P002"
+    },
+    {
+      "slot_id": "S069",
+      "position": 3,
+      "stimulus_id": "P060"
+    },
+    {
+      "slot_id": "S070",
+      "position": 1,
+      "stimulus_id": "P005"
+    },
+    {
+      "slot_id": "S070",
+      "position": 2,
+      "stimulus_id": "P092"
+    },
+    {
+      "slot_id": "S070",
+      "position": 3,
+      "stimulus_id": "P057"
+    },
+    {
+      "slot_id": "S071",
+      "position": 1,
+      "stimulus_id": "P060"
+    },
+    {
+      "slot_id": "S071",
+      "position": 2,
+      "stimulus_id": "P053"
+    },
+    {
+      "slot_id": "S071",
+      "position": 3,
+      "stimulus_id": "P038"
+    },
+    {
+      "slot_id": "S072",
+      "position": 1,
+      "stimulus_id": "P053"
+    },
+    {
+      "slot_id": "S072",
+      "position": 2,
+      "stimulus_id": "P020"
+    },
+    {
+      "slot_id": "S072",
+      "position": 3,
+      "stimulus_id": "P054"
+    },
+    {
+      "slot_id": "S073",
+      "position": 1,
+      "stimulus_id": "P083"
+    },
+    {
+      "slot_id": "S073",
+      "position": 2,
+      "stimulus_id": "P037"
+    },
+    {
+      "slot_id": "S073",
+      "position": 3,
+      "stimulus_id": "P072"
+    },
+    {
+      "slot_id": "S074",
+      "position": 1,
+      "stimulus_id": "P024"
+    },
+    {
+      "slot_id": "S074",
+      "position": 2,
+      "stimulus_id": "P060"
+    },
+    {
+      "slot_id": "S074",
+      "position": 3,
+      "stimulus_id": "P020"
+    },
+    {
+      "slot_id": "S075",
+      "position": 1,
+      "stimulus_id": "P003"
+    },
+    {
+      "slot_id": "S075",
+      "position": 2,
+      "stimulus_id": "P065"
+    },
+    {
+      "slot_id": "S075",
+      "position": 3,
+      "stimulus_id": "P022"
+    },
+    {
+      "slot_id": "S076",
+      "position": 1,
+      "stimulus_id": "P032"
+    },
+    {
+      "slot_id": "S076",
+      "position": 2,
+      "stimulus_id": "P086"
+    },
+    {
+      "slot_id": "S076",
+      "position": 3,
+      "stimulus_id": "P052"
+    },
+    {
+      "slot_id": "S077",
+      "position": 1,
+      "stimulus_id": "P069"
+    },
+    {
+      "slot_id": "S077",
+      "position": 2,
+      "stimulus_id": "P017"
+    },
+    {
+      "slot_id": "S077",
+      "position": 3,
+      "stimulus_id": "P010"
+    },
+    {
+      "slot_id": "S078",
+      "position": 1,
+      "stimulus_id": "P087"
+    },
+    {
+      "slot_id": "S078",
+      "position": 2,
+      "stimulus_id": "P012"
+    },
+    {
+      "slot_id": "S078",
+      "position": 3,
+      "stimulus_id": "P085"
+    },
+    {
+      "slot_id": "S079",
+      "position": 1,
+      "stimulus_id": "P013"
+    },
+    {
+      "slot_id": "S079",
+      "position": 2,
+      "stimulus_id": "P050"
+    },
+    {
+      "slot_id": "S079",
+      "position": 3,
+      "stimulus_id": "P008"
+    },
+    {
+      "slot_id": "S080",
+      "position": 1,
+      "stimulus_id": "P023"
+    },
+    {
+      "slot_id": "S080",
+      "position": 2,
+      "stimulus_id": "P056"
+    },
+    {
+      "slot_id": "S080",
+      "position": 3,
+      "stimulus_id": "P012"
+    },
+    {
+      "slot_id": "S081",
+      "position": 1,
+      "stimulus_id": "P085"
+    },
+    {
+      "slot_id": "S081",
+      "position": 2,
+      "stimulus_id": "P032"
+    },
+    {
+      "slot_id": "S081",
+      "position": 3,
+      "stimulus_id": "P034"
+    },
+    {
+      "slot_id": "S082",
+      "position": 1,
+      "stimulus_id": "P017"
+    },
+    {
+      "slot_id": "S082",
+      "position": 2,
+      "stimulus_id": "P028"
+    },
+    {
+      "slot_id": "S082",
+      "position": 3,
+      "stimulus_id": "P071"
+    },
+    {
+      "slot_id": "S083",
+      "position": 1,
+      "stimulus_id": "P084"
+    },
+    {
+      "slot_id": "S083",
+      "position": 2,
+      "stimulus_id": "P026"
+    },
+    {
+      "slot_id": "S083",
+      "position": 3,
+      "stimulus_id": "P066"
+    },
+    {
+      "slot_id": "S084",
+      "position": 1,
+      "stimulus_id": "P011"
+    },
+    {
+      "slot_id": "S084",
+      "position": 2,
+      "stimulus_id": "P043"
+    },
+    {
+      "slot_id": "S084",
+      "position": 3,
+      "stimulus_id": "P062"
+    },
+    {
+      "slot_id": "S085",
+      "position": 1,
+      "stimulus_id": "P046"
+    },
+    {
+      "slot_id": "S085",
+      "position": 2,
+      "stimulus_id": "P076"
+    },
+    {
+      "slot_id": "S085",
+      "position": 3,
+      "stimulus_id": "P036"
+    },
+    {
+      "slot_id": "S086",
+      "position": 1,
+      "stimulus_id": "P012"
+    },
+    {
+      "slot_id": "S086",
+      "position": 2,
+      "stimulus_id": "P079"
+    },
+    {
+      "slot_id": "S086",
+      "position": 3,
+      "stimulus_id": "P032"
+    },
+    {
+      "slot_id": "S087",
+      "position": 1,
+      "stimulus_id": "P026"
+    },
+    {
+      "slot_id": "S087",
+      "position": 2,
+      "stimulus_id": "P049"
+    },
+    {
+      "slot_id": "S087",
+      "position": 3,
+      "stimulus_id": "P068"
+    },
+    {
+      "slot_id": "S088",
+      "position": 1,
+      "stimulus_id": "P014"
+    },
+    {
+      "slot_id": "S088",
+      "position": 2,
+      "stimulus_id": "P080"
+    },
+    {
+      "slot_id": "S088",
+      "position": 3,
+      "stimulus_id": "P031"
+    },
+    {
+      "slot_id": "S089",
+      "position": 1,
+      "stimulus_id": "P018"
+    },
+    {
+      "slot_id": "S089",
+      "position": 2,
+      "stimulus_id": "P044"
+    },
+    {
+      "slot_id": "S089",
+      "position": 3,
+      "stimulus_id": "P033"
+    },
+    {
+      "slot_id": "S090",
+      "position": 1,
+      "stimulus_id": "P089"
+    },
+    {
+      "slot_id": "S090",
+      "position": 2,
+      "stimulus_id": "P016"
+    },
+    {
+      "slot_id": "S090",
+      "position": 3,
+      "stimulus_id": "P001"
+    },
+    {
+      "slot_id": "S091",
+      "position": 1,
+      "stimulus_id": "P082"
+    },
+    {
+      "slot_id": "S091",
+      "position": 2,
+      "stimulus_id": "P073"
+    },
+    {
+      "slot_id": "S091",
+      "position": 3,
+      "stimulus_id": "P080"
+    },
+    {
+      "slot_id": "S092",
+      "position": 1,
+      "stimulus_id": "P067"
+    },
+    {
+      "slot_id": "S092",
+      "position": 2,
+      "stimulus_id": "P025"
+    },
+    {
+      "slot_id": "S092",
+      "position": 3,
+      "stimulus_id": "P044"
+    },
+    {
+      "slot_id": "S093",
+      "position": 1,
+      "stimulus_id": "P010"
+    },
+    {
+      "slot_id": "S093",
+      "position": 2,
+      "stimulus_id": "P071"
+    },
+    {
+      "slot_id": "S093",
+      "position": 3,
+      "stimulus_id": "P090"
+    },
+    {
+      "slot_id": "S094",
+      "position": 1,
+      "stimulus_id": "P086"
+    },
+    {
+      "slot_id": "S094",
+      "position": 2,
+      "stimulus_id": "P034"
+    },
+    {
+      "slot_id": "S094",
+      "position": 3,
+      "stimulus_id": "P089"
+    },
+    {
+      "slot_id": "S095",
+      "position": 1,
+      "stimulus_id": "P039"
+    },
+    {
+      "slot_id": "S095",
+      "position": 2,
+      "stimulus_id": "P040"
+    },
+    {
+      "slot_id": "S095",
+      "position": 3,
+      "stimulus_id": "P094"
+    },
+    {
+      "slot_id": "S096",
+      "position": 1,
+      "stimulus_id": "P079"
+    },
+    {
+      "slot_id": "S096",
+      "position": 2,
+      "stimulus_id": "P085"
+    },
+    {
+      "slot_id": "S096",
+      "position": 3,
+      "stimulus_id": "P086"
+    },
+    {
+      "slot_id": "S097",
+      "position": 1,
+      "stimulus_id": "P037"
+    },
+    {
+      "slot_id": "S097",
+      "position": 2,
+      "stimulus_id": "P070"
+    },
+    {
+      "slot_id": "S097",
+      "position": 3,
+      "stimulus_id": "P077"
+    },
+    {
+      "slot_id": "S098",
+      "position": 1,
+      "stimulus_id": "P092"
+    },
+    {
+      "slot_id": "S098",
+      "position": 2,
+      "stimulus_id": "P088"
+    },
+    {
+      "slot_id": "S098",
+      "position": 3,
+      "stimulus_id": "P099"
+    },
+    {
+      "slot_id": "S099",
+      "position": 1,
+      "stimulus_id": "P020"
+    },
+    {
+      "slot_id": "S099",
+      "position": 2,
+      "stimulus_id": "P038"
+    },
+    {
+      "slot_id": "S099",
+      "position": 3,
+      "stimulus_id": "P003"
+    },
+    {
+      "slot_id": "S100",
+      "position": 1,
+      "stimulus_id": "P047"
+    },
+    {
+      "slot_id": "S100",
+      "position": 2,
+      "stimulus_id": "P046"
+    },
+    {
+      "slot_id": "S100",
+      "position": 3,
+      "stimulus_id": "P029"
+    }
+  ],
+  "previous_version": "private100-study1matched-min60-20261026-v5",
+  "response_format_validation": "word minimum only",
+  "demographics_version": "advice-transfer-v4-five-fields"
+}
